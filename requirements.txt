@@ -1,0 +1,7 @@
+pyyaml
+pyodbc
+psycopg2-binary
+pandas
+boto3
+snowflake-connector-python
+snowflake-connector-python[secure-local-storage]
