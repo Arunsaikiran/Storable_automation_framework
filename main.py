@@ -130,8 +130,8 @@ for validation in validation_dirs:
                 target_query = validation_config.get("targetquery")
                 source_table_name = validation_config.get("source_table_name")
                 target_table_name = validation_config.get("target_table_name")
-                pksourcecolumn = validation_config.get("pksourcecolumn",'').lower()
-                pktargetcolumn = validation_config.get("pktargetcolumn",'').lower()
+                sourcecolumn = validation_config.get("sourcecolumn",'').lower()
+                targetcolumn = validation_config.get("targetcolumn",'').lower()
 
                 try:
                     batch_start_time = datetime.now()
@@ -146,16 +146,14 @@ for validation in validation_dirs:
                     logger.debug("Target query: %s", target_query)
                     obj = get_database(target,BASE_DIR,environment)
                     target_df = obj.execute_query(target_query)
-
-                    source_rows = len(source_df)
-                    target_rows = len(target_df)
-
                     source_df.columns = source_df.columns.str.strip().str.lower()
                     target_df.columns = target_df.columns.str.strip().str.lower()
 
                     if validation_name == "count_validation": 
                         source_rows = source_df['source_row_count'].iloc[0]
                         target_rows = target_df['target_row_count'].iloc[0]
+                        source_df.columns = ['count']
+                        target_df.columns = ['count']
                         logger.debug("Source row count: %s", source_rows)
                         logger.debug("Target row count: %s", target_rows)
 
@@ -163,11 +161,14 @@ for validation in validation_dirs:
                     else:
                         source_rows = len(source_df)
                         target_rows = len(target_df)
+                        source_df = source_df.sort_values(sourcecolumn).reset_index(drop=True)
+                        target_df = target_df.sort_values(targetcolumn).reset_index(drop=True)
                         output_file_path = ""
                         logger.debug("Source row count: %s", source_rows)
                         logger.debug("Target row count: %s", target_rows)
                 
                     if source_df.equals(target_df):
+                        print("Here")
                         logger.info("Match/Mismatch: Match")
                         status = "PASS"
                         logger.info(
@@ -184,6 +185,8 @@ for validation in validation_dirs:
                         create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,source_rows,target_rows,output_file_path,output_path,status,batch_start_time,batch_end_time,total_batch_time_taken) 
                             
                     else:
+                        print(source_df)
+                        print(target_df)
                         logger.info("Match/Mismatch: Mismatch")
                         status = "FAIL"
                         logger.warning(
@@ -197,26 +200,16 @@ for validation in validation_dirs:
                         logger.info("Saving mismatch data to %s", filepath)
                         missing_in_source = ""
                         missing_in_target = ""
+                        
                         if validation != 'count_validation':
-
-
-                            # print(" xx "*100)
-                            # print("Source columns:", source_df.columns.tolist())
-                            # print("Target columns:", target_df.columns.tolist())
-                            # print("Source index:", source_df.index)
-                            # print("Target index:", target_df.index)
-                            # print(target_df.columns)
-                            # print(" xx "*100)
-                            # print(source_df)
-                            #print(target_df)
-                            source_df = source_df.set_index(pksourcecolumn)
-                            target_df = target_df.set_index(pktargetcolumn)
+                            source_df = source_df.set_index(sourcecolumn)
+                            target_df = target_df.set_index(targetcolumn)
                             missing_in_source = target_df.index.difference(source_df.index)
                             missing_in_source = ", ".join(missing_in_source.astype(str))
-                            logger.info("missing_in_source: %s",missing_in_source)
+                            logger.info("ID's missing_in_source: %s",missing_in_source)
                             missing_in_target = source_df.index.difference(target_df.index)
                             missing_in_target = ", ".join(missing_in_target.astype(str))
-                            logger.info("missing_in_target: %s",missing_in_target)
+                            logger.info("ID's missing_in_target: %s",missing_in_target)
 
                             common_idx = source_df.index.intersection(target_df.index)
 
@@ -232,7 +225,7 @@ for validation in validation_dirs:
                         batch_start_time = batch_start_time.strftime("%H:%M:%S")
                         batch_end_time = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,source_rows,target_rows,output_file_path,output_path,status,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target) 
+                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,source_rows,target_rows,filepath,output_path,status,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target) 
                         print("+"*100)
 
 

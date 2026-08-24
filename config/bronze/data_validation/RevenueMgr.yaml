@@ -1,0 +1,49 @@
+tables:
+  RevenueMgr:
+    validations:
+      data_validation:
+        source_table_name: RevenueMgr
+        source: mssql
+        sourcecolumn: RevMgrID
+        sourcequery: |
+          SELECT
+              COALESCE(CAST(RevMgrID AS VARCHAR(100)),'<<NULL>>') AS RevMgrID,
+              COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS SiteID,
+              COALESCE(CAST(iRevMgrPlan AS VARCHAR(100)),'<<NULL>>') AS iRevMgrPlan,
+              COALESCE(CAST(iBand AS VARCHAR(100)),'<<NULL>>') AS iBand,
+              COALESCE(CAST(dcLowBand AS VARCHAR(100)),'<<NULL>>') AS dcLowBand,
+              COALESCE(CAST(dcHighBand AS VARCHAR(100)),'<<NULL>>') AS dcHighBand,
+              COALESCE(CAST(dc0to30 AS VARCHAR(100)),'<<NULL>>') AS dc0to30,
+              COALESCE(CAST(dc31to60 AS VARCHAR(100)),'<<NULL>>') AS dc31to60,
+              COALESCE(CAST(dc61to90 AS VARCHAR(100)),'<<NULL>>') AS dc61to90,
+              COALESCE(CAST(dc91to120 AS VARCHAR(100)),'<<NULL>>') AS dc91to120,
+              COALESCE(CAST(dc121to180 AS VARCHAR(100)),'<<NULL>>') AS dc121to180,
+              COALESCE(CAST(dcGT180 AS VARCHAR(100)),'<<NULL>>') AS dcGT180,
+              CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' END AS bPermanent,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dDeleted AS DATETIME2(6)),121),'<<NULL>>') AS dDeleted,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dUpdated AS DATETIME2(6)),121),'<<NULL>>') AS dUpdated,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK
+          FROM dbo.RevenueMgr;
+        target_table_name: RevenueMgr
+        target: snowflake
+        targetcolumn: RevMgrID
+        targetquery: |
+          SELECT
+              COALESCE(CAST(RevMgrID AS VARCHAR(100)),'<<NULL>>') AS RevMgrID,
+              COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS SiteID,
+              COALESCE(CAST(iRevMgrPlan AS VARCHAR(100)),'<<NULL>>') AS iRevMgrPlan,
+              COALESCE(CAST(iBand AS VARCHAR(100)),'<<NULL>>') AS iBand,
+              COALESCE(CAST(dcLowBand AS VARCHAR(100)),'<<NULL>>') AS dcLowBand,
+              COALESCE(CAST(dcHighBand AS VARCHAR(100)),'<<NULL>>') AS dcHighBand,
+              COALESCE(CAST(dc0to30 AS VARCHAR(100)),'<<NULL>>') AS dc0to30,
+              COALESCE(CAST(dc31to60 AS VARCHAR(100)),'<<NULL>>') AS dc31to60,
+              COALESCE(CAST(dc61to90 AS VARCHAR(100)),'<<NULL>>') AS dc61to90,
+              COALESCE(CAST(dc91to120 AS VARCHAR(100)),'<<NULL>>') AS dc91to120,
+              COALESCE(CAST(dc121to180 AS VARCHAR(100)),'<<NULL>>') AS dc121to180,
+              COALESCE(CAST(dcGT180 AS VARCHAR(100)),'<<NULL>>') AS dcGT180,
+              CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent = TRUE THEN 'TRUE' WHEN bPermanent = FALSE THEN 'FALSE' END AS bPermanent,
+              COALESCE(TO_CHAR(dDeleted,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dDeleted,
+              COALESCE(TO_CHAR(dUpdated,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dUpdated,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.RevenueMgr
+          WHERE _FIVETRAN_ACTIVE = TRUE;

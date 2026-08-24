@@ -1,0 +1,73 @@
+tables:
+  InsurLedger:
+    validations:
+      data_validation:
+        source_table_name: InsurLedger
+        source: mssql
+        sourcecolumn: InsurLedgerID
+        sourcequery: |
+          SELECT
+              COALESCE(CAST(InsurLedgerID AS VARCHAR(100)),'<<NULL>>') AS InsurLedgerID,
+              COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS SiteID,
+              COALESCE(CAST(LedgerID AS VARCHAR(100)),'<<NULL>>') AS LedgerID,
+              COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS EmployeeID,
+              COALESCE(CAST(InsurProviderID AS VARCHAR(100)),'<<NULL>>') AS InsurProviderID,
+              COALESCE(CAST(dcCoverage AS VARCHAR(100)),'<<NULL>>') AS dcCoverage,
+              COALESCE(CAST(dcPCTheft AS VARCHAR(100)),'<<NULL>>') AS dcPCTheft,
+              COALESCE(LTRIM(RTRIM(sCoverageDesc)),'<<NULL>>') AS sCoverageDesc,
+              COALESCE(CAST(dcPremium AS VARCHAR(100)),'<<NULL>>') AS dcPremium,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dStart AS DATETIME2(6)),121),'<<NULL>>') AS dStart,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dCancelled AS DATETIME2(6)),121),'<<NULL>>') AS dCancelled,
+              COALESCE(LTRIM(RTRIM(sPolicyNum)),'<<NULL>>') AS sPolicyNum,
+              CASE WHEN bCancelled IS NULL THEN '<<NULL>>' WHEN bCancelled = 1 THEN 'TRUE' WHEN bCancelled = 0 THEN 'FALSE' END AS bCancelled,
+              CASE WHEN bTerminatedByMoveout IS NULL THEN '<<NULL>>' WHEN bTerminatedByMoveout = 1 THEN 'TRUE' WHEN bTerminatedByMoveout = 0 THEN 'FALSE' END AS bTerminatedByMoveout,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dDeleted AS DATETIME2(6)),121),'<<NULL>>') AS dDeleted,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dUpdated AS DATETIME2(6)),121),'<<NULL>>') AS dUpdated,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK,
+              COALESCE(CAST(dcSchedPremium AS VARCHAR(100)),'<<NULL>>') AS dcSchedPremium,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dSchedPremiumStrt AS DATETIME2(6)),121),'<<NULL>>') AS dSchedPremiumStrt,
+              COALESCE(CAST(iInitiatonType AS VARCHAR(100)),'<<NULL>>') AS iInitiatonType,
+              COALESCE(CAST(iTerminationType AS VARCHAR(100)),'<<NULL>>') AS iTerminationType,
+              COALESCE(CAST(iInitiationSource AS VARCHAR(100)),'<<NULL>>') AS iInitiationSource,
+              COALESCE(CAST(iTerminationSource AS VARCHAR(100)),'<<NULL>>') AS iTerminationSource,
+              CASE WHEN bAutoEnrollTermsAccepted IS NULL THEN '<<NULL>>' WHEN bAutoEnrollTermsAccepted = 1 THEN 'TRUE' WHEN bAutoEnrollTermsAccepted = 0 THEN 'FALSE' END AS bAutoEnrollTermsAccepted,
+              COALESCE(CAST(dcSchedCoverage AS VARCHAR(100)),'<<NULL>>') AS dcSchedCoverage,
+              COALESCE(LTRIM(RTRIM(sSchedCoverageDesc)),'<<NULL>>') AS sSchedCoverageDesc,
+              COALESCE(LTRIM(RTRIM(sEnrollmentSource)),'<<NULL>>') AS sEnrollmentSource,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dGracePeriodEndDate AS DATETIME2(6)),121),'<<NULL>>') AS dGracePeriodEndDate
+          FROM dbo.InsurLedger;
+        target_table_name: InsurLedger
+        target: snowflake
+        targetcolumn: InsurLedgerID
+        targetquery: |
+          SELECT
+              COALESCE(CAST(InsurLedgerID AS VARCHAR(100)),'<<NULL>>') AS InsurLedgerID,
+              COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS SiteID,
+              COALESCE(CAST(LedgerID AS VARCHAR(100)),'<<NULL>>') AS LedgerID,
+              COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS EmployeeID,
+              COALESCE(CAST(InsurProviderID AS VARCHAR(100)),'<<NULL>>') AS InsurProviderID,
+              COALESCE(CAST(dcCoverage AS VARCHAR(100)),'<<NULL>>') AS dcCoverage,
+              COALESCE(CAST(dcPCTheft AS VARCHAR(100)),'<<NULL>>') AS dcPCTheft,
+              COALESCE(TRIM(sCoverageDesc),'<<NULL>>') AS sCoverageDesc,
+              COALESCE(CAST(dcPremium AS VARCHAR(100)),'<<NULL>>') AS dcPremium,
+              COALESCE(TO_CHAR(dStart,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dStart,
+              COALESCE(TO_CHAR(dCancelled,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dCancelled,
+              COALESCE(TRIM(sPolicyNum),'<<NULL>>') AS sPolicyNum,
+              CASE WHEN bCancelled IS NULL THEN '<<NULL>>' WHEN bCancelled = TRUE THEN 'TRUE' WHEN bCancelled = FALSE THEN 'FALSE' END AS bCancelled,
+              CASE WHEN bTerminatedByMoveout IS NULL THEN '<<NULL>>' WHEN bTerminatedByMoveout = TRUE THEN 'TRUE' WHEN bTerminatedByMoveout = FALSE THEN 'FALSE' END AS bTerminatedByMoveout,
+              COALESCE(TO_CHAR(dDeleted,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dDeleted,
+              COALESCE(TO_CHAR(dUpdated,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dUpdated,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK,
+              COALESCE(CAST(dcSchedPremium AS VARCHAR(100)),'<<NULL>>') AS dcSchedPremium,
+              COALESCE(TO_CHAR(dSchedPremiumStrt,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dSchedPremiumStrt,
+              COALESCE(CAST(iInitiatonType AS VARCHAR(100)),'<<NULL>>') AS iInitiatonType,
+              COALESCE(CAST(iTerminationType AS VARCHAR(100)),'<<NULL>>') AS iTerminationType,
+              COALESCE(CAST(iInitiationSource AS VARCHAR(100)),'<<NULL>>') AS iInitiationSource,
+              COALESCE(CAST(iTerminationSource AS VARCHAR(100)),'<<NULL>>') AS iTerminationSource,
+              CASE WHEN bAutoEnrollTermsAccepted IS NULL THEN '<<NULL>>' WHEN bAutoEnrollTermsAccepted = TRUE THEN 'TRUE' WHEN bAutoEnrollTermsAccepted = FALSE THEN 'FALSE' END AS bAutoEnrollTermsAccepted,
+              COALESCE(CAST(dcSchedCoverage AS VARCHAR(100)),'<<NULL>>') AS dcSchedCoverage,
+              COALESCE(TRIM(sSchedCoverageDesc),'<<NULL>>') AS sSchedCoverageDesc,
+              COALESCE(TRIM(sEnrollmentSource),'<<NULL>>') AS sEnrollmentSource,
+              COALESCE(TO_CHAR(dGracePeriodEndDate,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dGracePeriodEndDate
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.InsurLedger
+          WHERE _FIVETRAN_ACTIVE = TRUE;

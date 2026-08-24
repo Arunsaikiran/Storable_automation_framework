@@ -1,0 +1,77 @@
+tables:
+  InsurProviders:
+    validations:
+      data_validation:
+        source_table_name: InsurProviders
+        source: mssql
+        sourcecolumn: InsurProviderID
+        sourcequery: |
+          SELECT
+              COALESCE(CAST(InsurProviderID AS VARCHAR(100)),'<<NULL>>') AS InsurProviderID,
+              COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS SiteID,
+              COALESCE(LTRIM(RTRIM(sProvidor)),'<<NULL>>') AS sProvidor,
+              COALESCE(LTRIM(RTRIM(sAddress)),'<<NULL>>') AS sAddress,
+              COALESCE(LTRIM(RTRIM(sAddress2)),'<<NULL>>') AS sAddress2,
+              COALESCE(LTRIM(RTRIM(sCity)),'<<NULL>>') AS sCity,
+              COALESCE(LTRIM(RTRIM(sRegion)),'<<NULL>>') AS sRegion,
+              COALESCE(LTRIM(RTRIM(sPostalCode)),'<<NULL>>') AS sPostalCode,
+              COALESCE(LTRIM(RTRIM(sCountry)),'<<NULL>>') AS sCountry,
+              COALESCE(LTRIM(RTRIM(sPhone)),'<<NULL>>') AS sPhone,
+              COALESCE(CAST(iWarningDays AS VARCHAR(100)),'<<NULL>>') AS iWarningDays,
+              COALESCE(CAST(iCancelDays AS VARCHAR(100)),'<<NULL>>') AS iCancelDays,
+              COALESCE(LTRIM(RTRIM(sVendorCode)),'<<NULL>>') AS sVendorCode,
+              COALESCE(LTRIM(RTRIM(sCategory)),'<<NULL>>') AS sCategory,
+              CASE WHEN bProrateMoveOut IS NULL THEN '<<NULL>>' WHEN bProrateMoveOut = 1 THEN 'TRUE' WHEN bProrateMoveOut = 0 THEN 'FALSE' END AS bProrateMoveOut,
+              COALESCE(CAST(dcRetainedFee AS VARCHAR(100)),'<<NULL>>') AS dcRetainedFee,
+              COALESCE(CAST(dcPercentRetainedFee AS VARCHAR(100)),'<<NULL>>') AS dcPercentRetainedFee,
+              COALESCE(LTRIM(RTRIM(sAltProviderName)),'<<NULL>>') AS sAltProviderName,
+              CASE WHEN bRefundableAtSite IS NULL THEN '<<NULL>>' WHEN bRefundableAtSite = 1 THEN 'TRUE' WHEN bRefundableAtSite = 0 THEN 'FALSE' END AS bRefundableAtSite,
+              CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' END AS bPermanent,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dDisabled AS DATETIME2(6)),121),'<<NULL>>') AS dDisabled,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dDeleted AS DATETIME2(6)),121),'<<NULL>>') AS dDeleted,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dUpdated AS DATETIME2(6)),121),'<<NULL>>') AS dUpdated,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK,
+              COALESCE(LTRIM(RTRIM(sEmail1_Insur)),'<<NULL>>') AS sEmail1_Insur,
+              COALESCE(LTRIM(RTRIM(sWebsiteUrl_Insur)),'<<NULL>>') AS sWebsiteUrl_Insur,
+              COALESCE(CAST(iReqPolicyOrProof AS VARCHAR(100)),'<<NULL>>') AS iReqPolicyOrProof,
+              COALESCE(CAST(iReqProofExpiry AS VARCHAR(100)),'<<NULL>>') AS iReqProofExpiry,
+              COALESCE(LTRIM(RTRIM(sBrochureUrl)),'<<NULL>>') AS sBrochureUrl,
+              COALESCE(LTRIM(RTRIM(sCertificateUrl)),'<<NULL>>') AS sCertificateUrl
+          FROM dbo.InsurProviders;
+        target_table_name: InsurProviders
+        target: snowflake
+        targetcolumn: InsurProviderID
+        targetquery: |
+          SELECT
+              COALESCE(CAST(InsurProviderID AS VARCHAR(100)),'<<NULL>>') AS InsurProviderID,
+              COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS SiteID,
+              COALESCE(TRIM(sProvidor),'<<NULL>>') AS sProvidor,
+              COALESCE(TRIM(sAddress),'<<NULL>>') AS sAddress,
+              COALESCE(TRIM(sAddress2),'<<NULL>>') AS sAddress2,
+              COALESCE(TRIM(sCity),'<<NULL>>') AS sCity,
+              COALESCE(TRIM(sRegion),'<<NULL>>') AS sRegion,
+              COALESCE(TRIM(sPostalCode),'<<NULL>>') AS sPostalCode,
+              COALESCE(TRIM(sCountry),'<<NULL>>') AS sCountry,
+              COALESCE(TRIM(sPhone),'<<NULL>>') AS sPhone,
+              COALESCE(CAST(iWarningDays AS VARCHAR(100)),'<<NULL>>') AS iWarningDays,
+              COALESCE(CAST(iCancelDays AS VARCHAR(100)),'<<NULL>>') AS iCancelDays,
+              COALESCE(TRIM(sVendorCode),'<<NULL>>') AS sVendorCode,
+              COALESCE(TRIM(sCategory),'<<NULL>>') AS sCategory,
+              CASE WHEN bProrateMoveOut IS NULL THEN '<<NULL>>' WHEN bProrateMoveOut = TRUE THEN 'TRUE' WHEN bProrateMoveOut = FALSE THEN 'FALSE' END AS bProrateMoveOut,
+              COALESCE(CAST(dcRetainedFee AS VARCHAR(100)),'<<NULL>>') AS dcRetainedFee,
+              COALESCE(CAST(dcPercentRetainedFee AS VARCHAR(100)),'<<NULL>>') AS dcPercentRetainedFee,
+              COALESCE(TRIM(sAltProviderName),'<<NULL>>') AS sAltProviderName,
+              CASE WHEN bRefundableAtSite IS NULL THEN '<<NULL>>' WHEN bRefundableAtSite = TRUE THEN 'TRUE' WHEN bRefundableAtSite = FALSE THEN 'FALSE' END AS bRefundableAtSite,
+              CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent = TRUE THEN 'TRUE' WHEN bPermanent = FALSE THEN 'FALSE' END AS bPermanent,
+              COALESCE(TO_CHAR(dDisabled,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dDisabled,
+              COALESCE(TO_CHAR(dDeleted,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dDeleted,
+              COALESCE(TO_CHAR(dUpdated,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dUpdated,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK,
+              COALESCE(TRIM(sEmail1_Insur),'<<NULL>>') AS sEmail1_Insur,
+              COALESCE(TRIM(sWebsiteUrl_Insur),'<<NULL>>') AS sWebsiteUrl_Insur,
+              COALESCE(CAST(iReqPolicyOrProof AS VARCHAR(100)),'<<NULL>>') AS iReqPolicyOrProof,
+              COALESCE(CAST(iReqProofExpiry AS VARCHAR(100)),'<<NULL>>') AS iReqProofExpiry,
+              COALESCE(TRIM(sBrochureUrl),'<<NULL>>') AS sBrochureUrl,
+              COALESCE(TRIM(sCertificateUrl),'<<NULL>>') AS sCertificateUrl
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.InsurProviders
+          WHERE _FIVETRAN_ACTIVE = TRUE;

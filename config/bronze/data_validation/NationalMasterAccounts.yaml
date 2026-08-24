@@ -1,0 +1,59 @@
+tables:
+  NationalMasterAccounts:
+    validations:
+      data_validation:
+        source_table_name: NationalMasterAccounts
+        source: mssql
+        sourcecolumn: NationalMasterAccountID
+        sourcequery: |
+          SELECT
+              COALESCE(CAST(NationalMasterAccountID AS VARCHAR(100)),'<<NULL>>') AS NationalMasterAccountID,
+              COALESCE(LTRIM(RTRIM(sCorpCode)),'<<NULL>>') AS sCorpCode,
+              COALESCE(CAST(iGlobalNum AS VARCHAR(100)),'<<NULL>>') AS iGlobalNum,
+              COALESCE(LTRIM(RTRIM(sAccountName)),'<<NULL>>') AS sAccountName,
+              COALESCE(LTRIM(RTRIM(sAccountNum)),'<<NULL>>') AS sAccountNum,
+              COALESCE(LTRIM(RTRIM(sAddr1)),'<<NULL>>') AS sAddr1,
+              COALESCE(LTRIM(RTRIM(sAddr2)),'<<NULL>>') AS sAddr2,
+              COALESCE(LTRIM(RTRIM(sCity)),'<<NULL>>') AS sCity,
+              COALESCE(LTRIM(RTRIM(sRegion)),'<<NULL>>') AS sRegion,
+              COALESCE(LTRIM(RTRIM(sPostalCode)),'<<NULL>>') AS sPostalCode,
+              COALESCE(LTRIM(RTRIM(sPhone)),'<<NULL>>') AS sPhone,
+              COALESCE(LTRIM(RTRIM(sEmail)),'<<NULL>>') AS sEmail,
+              COALESCE(LTRIM(RTRIM(sFax)),'<<NULL>>') AS sFax,
+              COALESCE(CAST(iType AS VARCHAR(100)),'<<NULL>>') AS iType,
+              COALESCE(CAST(iPromoGlobalNum AS VARCHAR(100)),'<<NULL>>') AS iPromoGlobalNum,
+              CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' END AS bPermanent,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dCreated AS DATETIME2(6)),121),'<<NULL>>') AS dCreated,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dUpdated AS DATETIME2(6)),121),'<<NULL>>') AS dUpdated,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dDeleted AS DATETIME2(6)),121),'<<NULL>>') AS dDeleted,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dArchived AS DATETIME2(6)),121),'<<NULL>>') AS dArchived,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK
+          FROM dbo.NationalMasterAccounts;
+        target_table_name: NationalMasterAccounts
+        target: snowflake
+        targetcolumn: NationalMasterAccountID
+        targetquery: |
+          SELECT
+              COALESCE(CAST(NationalMasterAccountID AS VARCHAR(100)),'<<NULL>>') AS NationalMasterAccountID,
+              COALESCE(TRIM(sCorpCode),'<<NULL>>') AS sCorpCode,
+              COALESCE(CAST(iGlobalNum AS VARCHAR(100)),'<<NULL>>') AS iGlobalNum,
+              COALESCE(TRIM(sAccountName),'<<NULL>>') AS sAccountName,
+              COALESCE(TRIM(sAccountNum),'<<NULL>>') AS sAccountNum,
+              COALESCE(TRIM(sAddr1),'<<NULL>>') AS sAddr1,
+              COALESCE(TRIM(sAddr2),'<<NULL>>') AS sAddr2,
+              COALESCE(TRIM(sCity),'<<NULL>>') AS sCity,
+              COALESCE(TRIM(sRegion),'<<NULL>>') AS sRegion,
+              COALESCE(TRIM(sPostalCode),'<<NULL>>') AS sPostalCode,
+              COALESCE(TRIM(sPhone),'<<NULL>>') AS sPhone,
+              COALESCE(TRIM(sEmail),'<<NULL>>') AS sEmail,
+              COALESCE(TRIM(sFax),'<<NULL>>') AS sFax,
+              COALESCE(CAST(iType AS VARCHAR(100)),'<<NULL>>') AS iType,
+              COALESCE(CAST(iPromoGlobalNum AS VARCHAR(100)),'<<NULL>>') AS iPromoGlobalNum,
+              CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent = TRUE THEN 'TRUE' WHEN bPermanent = FALSE THEN 'FALSE' END AS bPermanent,
+              COALESCE(TO_CHAR(dCreated,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dCreated,
+              COALESCE(TO_CHAR(dUpdated,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dUpdated,
+              COALESCE(TO_CHAR(dDeleted,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dDeleted,
+              COALESCE(TO_CHAR(dArchived,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dArchived,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.NationalMasterAccounts
+          WHERE _FIVETRAN_ACTIVE = TRUE;

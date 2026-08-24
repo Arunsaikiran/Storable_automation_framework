@@ -1,0 +1,31 @@
+tables:
+  Memos:
+    validations:
+      data_validation:
+        source_table_name: Memos
+        source: mssql
+        sourcecolumn: MemoID
+        sourcequery: |
+          SELECT
+              COALESCE(CAST(MemoID AS VARCHAR(100)),'<<NULL>>') AS MemoID,
+              COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS SiteID,
+              COALESCE(LTRIM(RTRIM(sMemo)),'<<NULL>>') AS sMemo,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dDeleted AS DATETIME2(6)),121),'<<NULL>>') AS dDeleted,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dUpdated AS DATETIME2(6)),121),'<<NULL>>') AS dUpdated,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK,
+              COALESCE(CONVERT(VARCHAR(26),CAST(dArchived AS DATETIME2(6)),121),'<<NULL>>') AS dArchived
+          FROM dbo.Memos;
+        target_table_name: Memos
+        target: snowflake
+        targetcolumn: MemoID
+        targetquery: |
+          SELECT
+              COALESCE(CAST(MemoID AS VARCHAR(100)),'<<NULL>>') AS MemoID,
+              COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS SiteID,
+              COALESCE(TRIM(sMemo),'<<NULL>>') AS sMemo,
+              COALESCE(TO_CHAR(dDeleted,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dDeleted,
+              COALESCE(TO_CHAR(dUpdated,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dUpdated,
+              COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS OldPK,
+              COALESCE(TO_CHAR(dArchived,'YYYY-MM-DD HH24:MI:SS.FF6'),'<<NULL>>') AS dArchived
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Memos
+          WHERE _FIVETRAN_ACTIVE = TRUE;

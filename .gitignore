@@ -12,7 +12,8 @@ creds/
 
 # Output files
 output/
+git
 
-# IDE
-.vscode/
-.idea/
+#Notebook
+*.ipynb
+*.zip

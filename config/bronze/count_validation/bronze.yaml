@@ -13,31 +13,395 @@
 # ============================================================
 
 tables:
+
+  NationalMasterAccounts:
+    validations:
+      count_validation:
+        source_table_name: NationalMasterAccounts
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.NationalMasterAccounts;
+
+        target_table_name: NationalMasterAccounts
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.NationalMasterAccounts where _FIVETRAN_ACTIVE = TRUE;
+
+
+  AcctTypes:
+    validations:
+      count_validation:
+        source_table_name: AcctTypes
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.AcctTypes;
+
+        target_table_name: AcctTypes
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.AcctTypes where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Promotions:
+    validations:
+      count_validation:
+        source_table_name: Promotions
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Promotions;
+
+        target_table_name: Promotions
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Promotions where _FIVETRAN_ACTIVE = TRUE;
+
+
+  PromoRentals:
+    validations:
+      count_validation:
+        source_table_name: PromoRentals
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.PromoRentals;
+
+        target_table_name: PromoRentals
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.PromoRentals where _FIVETRAN_ACTIVE = TRUE;
+
+
   AcctSoftware:
     validations:
       count_validation:
         source_table_name: AcctSoftware
         source: mssql
         sourcequery: |
-          SELECT COUNT(*) AS source_row_count
-          FROM dbo.AcctSoftware;
-        target_table_name: ACCTSOFTWARE
+          select count(*) as source_row_count from dbo.AcctSoftware;
+
+        target_table_name: AcctSoftware
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) AS target_row_count
-          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.ACCTSOFTWARE
-          WHERE _FIVETRAN_ACTIVE = TRUE;
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.AcctSoftware where _FIVETRAN_ACTIVE = TRUE;
+
+
   Addresses:
     validations:
       count_validation:
         source_table_name: Addresses
         source: mssql
         sourcequery: |
-          SELECT COUNT(*) AS source_row_count
-          FROM dbo.Addresses;
-        target_table_name: ADDRESSES
+          select count(*) as source_row_count from dbo.Addresses;
+
+        target_table_name: Addresses
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) AS target_row_count
-          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.ADDRESSES
-          WHERE _FIVETRAN_ACTIVE = TRUE;
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Addresses where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Owners:
+    validations:
+      count_validation:
+        source_table_name: Owners
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Owners;
+
+        target_table_name: Owners
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Owners where _FIVETRAN_ACTIVE = TRUE;
+
+
+  PromoAccounts:
+    validations:
+      count_validation:
+        source_table_name: PromoAccounts
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.PromoAccounts;
+
+        target_table_name: PromoAccounts
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.PromoAccounts where _FIVETRAN_ACTIVE = TRUE;
+
+
+  PromoOffers:
+    validations:
+      count_validation:
+        source_table_name: PromoOffers
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.PromoOffers;
+
+        target_table_name: PromoOffers
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.PromoOffers where _FIVETRAN_ACTIVE = TRUE;
+
+
+  DefaultsProg:
+    validations:
+      count_validation:
+        source_table_name: DefaultsProg
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.DefaultsProg;
+
+        target_table_name: DefaultsProg
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.DefaultsProg where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Sites:
+    validations:
+      count_validation:
+        source_table_name: Sites
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Sites;
+
+        target_table_name: Sites
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Sites where _FIVETRAN_ACTIVE = TRUE;
+
+
+  UnitTypes:
+    validations:
+      count_validation:
+        source_table_name: UnitTypes
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.UnitTypes;
+
+        target_table_name: UnitTypes
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.UnitTypes where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Memos:
+    validations:
+      count_validation:
+        source_table_name: Memos
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Memos;
+
+        target_table_name: Memos
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Memos where _FIVETRAN_ACTIVE = TRUE;
+
+
+  PDueEvents:
+    validations:
+      count_validation:
+        source_table_name: PDueEvents
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.PDueEvents;
+
+        target_table_name: PDueEvents
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.PDueEvents where _FIVETRAN_ACTIVE = TRUE;
+
+
+  MktgType:
+    validations:
+      count_validation:
+        source_table_name: MktgType
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.MktgType;
+
+        target_table_name: MktgType
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.MktgType where _FIVETRAN_ACTIVE = TRUE;
+
+
+  InsurLedger:
+    validations:
+      count_validation:
+        source_table_name: InsurLedger
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.InsurLedger;
+
+        target_table_name: InsurLedger
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.InsurLedger where _FIVETRAN_ACTIVE = TRUE;
+
+
+  InsurProviders:
+    validations:
+      count_validation:
+        source_table_name: InsurProviders
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.InsurProviders;
+
+        target_table_name: InsurProviders
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.InsurProviders where _FIVETRAN_ACTIVE = TRUE;
+
+
+  ChargeDesc:
+    validations:
+      count_validation:
+        source_table_name: ChargeDesc
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.ChargeDesc;
+
+        target_table_name: ChargeDesc
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.ChargeDesc where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Waitings:
+    validations:
+      count_validation:
+        source_table_name: Waitings
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Waitings;
+
+        target_table_name: Waitings
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Waitings where _FIVETRAN_ACTIVE = TRUE;
+
+
+  RevenueMgr:
+    validations:
+      count_validation:
+        source_table_name: RevenueMgr
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.RevenueMgr;
+
+        target_table_name: RevenueMgr
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.RevenueMgr where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Ledgers:
+    validations:
+      count_validation:
+        source_table_name: Ledgers
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Ledgers;
+
+        target_table_name: Ledgers
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Ledgers where _FIVETRAN_ACTIVE = TRUE;
+
+
+  InsurCoverage:
+    validations:
+      count_validation:
+        source_table_name: InsurCoverage
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.InsurCoverage;
+
+        target_table_name: InsurCoverage
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.InsurCoverage where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Units:
+    validations:
+      count_validation:
+        source_table_name: Units
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Units;
+
+        target_table_name: Units
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Units where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Tenants:
+    validations:
+      count_validation:
+        source_table_name: Tenants
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Tenants;
+
+        target_table_name: Tenants
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Tenants where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Reports:
+    validations:
+      count_validation:
+        source_table_name: Reports
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Reports;
+
+        target_table_name: Reports
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Reports where _FIVETRAN_ACTIVE = TRUE;
+
+
+  ChartOfAccts:
+    validations:
+      count_validation:
+        source_table_name: ChartOfAccts
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.ChartOfAccts;
+
+        target_table_name: ChartOfAccts
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.ChartOfAccts where _FIVETRAN_ACTIVE = TRUE;
+
+
+  CallsAndLetters:
+    validations:
+      count_validation:
+        source_table_name: CallsAndLetters
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.CallsAndLetters;
+
+        target_table_name: CallsAndLetters
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.CallsAndLetters where _FIVETRAN_ACTIVE = TRUE;
+
+
+  Charges:
+    validations:
+      count_validation:
+        source_table_name: Charges
+        source: mssql
+        sourcequery: |
+          select count(*) as source_row_count from dbo.Charges;
+
+        target_table_name: Charges
+        target: snowflake
+        targetquery: |
+          select count(*) as target_row_count from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Charges where _FIVETRAN_ACTIVE = TRUE;
+
