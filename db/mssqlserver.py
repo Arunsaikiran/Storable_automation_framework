@@ -20,6 +20,7 @@ class Mssqlserver(Database):
                     f"PWD={self.PWD};"
                     "TrustServerCertificate=yes;"
                 )
+            return conn
         else:
             conn = pyodbc.connect(
                         f"DRIVER={{{self.DRIVER}}};"
