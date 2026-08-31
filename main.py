@@ -8,6 +8,7 @@ import psycopg2
 from db.factory import get_database
 from utils.utility import (generate_runid,get_config_output_paths,create_summary,get_logger,add_file_handler)
 from datetime import datetime
+import pandas as pd
 
 
 start_time = datetime.now()
@@ -71,7 +72,6 @@ if args.data_validation[0] == 'yes':
 
 
 tables = args.tables
-print(args.tables)
 
 outputpaths,configpaths,logpath = get_config_output_paths(run_id,layer,BASE_DIR,config_path,validation_dirs,tables)
 
@@ -119,6 +119,8 @@ for validation in validation_dirs:
         else:
             tables_to_process = [
                 (table, config["tables"][table]) for table in tables if table in config["tables"]]
+            if len(tables_to_process) == 0:
+                raise ValueError("No tables found to process.")
 
         for table_name, table_config in tables_to_process:
             logger.info("Processing table: %s", table_name)
@@ -168,7 +170,6 @@ for validation in validation_dirs:
                         logger.debug("Target row count: %s", target_rows)
                 
                     if source_df.equals(target_df):
-                        print("Here")
                         logger.info("Match/Mismatch: Match")
                         status = "PASS"
                         logger.info(
@@ -182,7 +183,7 @@ for validation in validation_dirs:
                         batch_start_time = batch_start_time.strftime("%H:%M:%S")
                         batch_end_time = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,source_rows,target_rows,output_file_path,output_path,status,batch_start_time,batch_end_time,total_batch_time_taken) 
+                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,output_file_path,batch_start_time,batch_end_time,total_batch_time_taken) 
                             
                     else:
                         print(source_df)
@@ -202,34 +203,47 @@ for validation in validation_dirs:
                         missing_in_target = ""
                         
                         if validation != 'count_validation':
-                            source_df = source_df.set_index(sourcecolumn)
-                            target_df = target_df.set_index(targetcolumn)
+                            if len(list(sourcecolumn)) != 0:
+                                sourcecolumn = sourcecolumn.split(',')
+                                source_df = source_df.set_index(sourcecolumn)
+                            if len(list(targetcolumn)) != 0:
+                                targetcolumn = targetcolumn.split(',')
+                                target_df = target_df.set_index(targetcolumn)
+
                             missing_in_source = target_df.index.difference(source_df.index)
-                            missing_in_source = ", ".join(missing_in_source.astype(str))
+                            if isinstance(missing_in_source, pd.MultiIndex):
+                                missing_in_source = ", ".join(map(str, missing_in_source.tolist()))
+                            else:
+                                missing_in_source = ", ".join(missing_in_source.astype(str))
                             logger.info("ID's missing_in_source: %s",missing_in_source)
+
                             missing_in_target = source_df.index.difference(target_df.index)
-                            missing_in_target = ", ".join(missing_in_target.astype(str))
+                            if isinstance(missing_in_target, pd.MultiIndex):
+                                missing_in_target = ", ".join(map(str, missing_in_target.tolist()))
+                            else:
+                                missing_in_target = ", ".join(missing_in_target.astype(str))                            
                             logger.info("ID's missing_in_target: %s",missing_in_target)
 
                             common_idx = source_df.index.intersection(target_df.index)
-
                             logger.debug(
                             "Comparing source and target data for table=%s",table_name)
-
                             diff_df = (source_df.loc[common_idx].sort_index().compare(target_df.loc[common_idx].sort_index()                   
                             ))
-                            diff_df.to_csv(filepath)
+                            if len(diff_df) > 0 :
+                                diff_df.to_csv(filepath)
+
                         logger.info("Creating summary file")
                         batch_end_time = datetime.now()
                         diff_batch = batch_end_time - batch_start_time
                         batch_start_time = batch_start_time.strftime("%H:%M:%S")
                         batch_end_time = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,source_rows,target_rows,filepath,output_path,status,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target) 
+                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target) 
                         print("+"*100)
 
 
                 except (pyodbc.Error, psycopg2.Error):
+                    error_message = (f"Database/network error for table={table_name} for validation={validation_name}")
                     logger.error(
                         "Database/network error for table=%s validation=%s",
                         table_name,
@@ -237,15 +251,20 @@ for validation in validation_dirs:
                         exc_info=True
                     )
                     system_error = True
+                    status = "FAIL"
+                    create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message) 
                     continue
 
                 except Exception:
+                    error_message = (f"Unexpected error for table={table_name} for validation={validation_name}")
                     logger.error(
                         "Unexpected error for table=%s validation=%s",
                         table_name,
                         validation_name,
                         exc_info=True
                     )
+                    status = "FAIL"
+                    create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,error_message) 
                     continue
 
 end_time = datetime.now()

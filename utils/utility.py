@@ -83,7 +83,7 @@ def get_config_output_paths(run_id,layer_type,base_dir,config_path,validation_di
 
     return outputpaths,configpaths,logpath
 
-def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,source_rows,target_rows,output_file_path,output_path,status,batch_start_time,batch_end_time,diff_batch,missing_in_source=0,missing_in_target=0):
+def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,status,output_path,source_rows=0,target_rows=0,output_file_path=None,batch_start_time=None,batch_end_time=None,diff_batch=None,missing_in_source=None,missing_in_target=None,error_message=None):
     if validation_type != 'count_validation':
         summary_df = pd.DataFrame([{
             "run_id": run_id,
@@ -101,7 +101,8 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
             "output_file_path":output_file_path,
             "batch_start_time": batch_start_time, 
             "batch_end_time": batch_end_time,
-            "total_time_taken": diff_batch
+            "total_time_taken": diff_batch,
+            "error_message": error_message
         }])
     else:
 
@@ -119,7 +120,8 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
             "status": status,
             "batch_start_time": batch_start_time,
             "batch_end_time": batch_end_time,
-            "total_time_taken": diff_batch
+            "total_time_taken": diff_batch,
+            "error_message": error_message
         }])
 
     summary_file = os.path.join(output_path,f"{validation_type}_summary.csv")
