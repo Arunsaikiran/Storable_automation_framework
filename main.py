@@ -163,6 +163,12 @@ for validation in validation_dirs:
                     else:
                         source_rows = len(source_df)
                         target_rows = len(target_df)
+                        if len(list(sourcecolumn)) != 0:
+                            sourcecolumn = sourcecolumn.split(',')
+                            source_df = source_df.set_index(sourcecolumn)
+                        if len(list(targetcolumn)) != 0:
+                            targetcolumn = targetcolumn.split(',')
+                            target_df = target_df.set_index(targetcolumn)
                         source_df = source_df.sort_values(sourcecolumn).reset_index(drop=True)
                         target_df = target_df.sort_values(targetcolumn).reset_index(drop=True)
                         output_file_path = ""
@@ -186,8 +192,6 @@ for validation in validation_dirs:
                         create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,output_file_path,batch_start_time,batch_end_time,total_batch_time_taken) 
                             
                     else:
-                        print(source_df)
-                        print(target_df)
                         logger.info("Match/Mismatch: Mismatch")
                         status = "FAIL"
                         logger.warning(
@@ -203,12 +207,12 @@ for validation in validation_dirs:
                         missing_in_target = ""
                         
                         if validation != 'count_validation':
-                            if len(list(sourcecolumn)) != 0:
-                                sourcecolumn = sourcecolumn.split(',')
-                                source_df = source_df.set_index(sourcecolumn)
-                            if len(list(targetcolumn)) != 0:
-                                targetcolumn = targetcolumn.split(',')
-                                target_df = target_df.set_index(targetcolumn)
+                            # if len(list(sourcecolumn)) != 0:
+                            #     sourcecolumn = sourcecolumn.split(',')
+                            #     source_df = source_df.set_index(sourcecolumn)
+                            # if len(list(targetcolumn)) != 0:
+                            #     targetcolumn = targetcolumn.split(',')
+                            #     target_df = target_df.set_index(targetcolumn)
 
                             missing_in_source = target_df.index.difference(source_df.index)
                             if isinstance(missing_in_source, pd.MultiIndex):
