@@ -34,7 +34,7 @@ def main():
         "--report_pack",
         nargs=1,
         required=False,
-        choices=['management','growth','performance']
+        choices=['emanagement','smanagement','egrowth','sgrowth','eperformance','sperformance']
     )
 
     parser.add_argument(
