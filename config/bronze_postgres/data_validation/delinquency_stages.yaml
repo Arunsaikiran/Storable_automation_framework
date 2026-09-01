@@ -1,0 +1,57 @@
+tables:
+  delinquency_stages:
+    validations:
+      data_validation:
+        source_table_name: delinquency_stages
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(name),'<<NULL>>') AS name,\n    COALESCE(CAST(apply_on_day\
+          \ AS TEXT),'<<NULL>>') AS apply_on_day,\n    CASE WHEN deleted IS NULL THEN\
+          \ '<<NULL>>' WHEN deleted IS TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(CAST(deleted_by_id\
+          \ AS TEXT),'<<NULL>>') AS deleted_by_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    CASE WHEN recurring IS NULL THEN\
+          \ '<<NULL>>' WHEN recurring IS TRUE THEN 'TRUE' WHEN recurring IS FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS recurring,\n    CASE WHEN dependent_on_previous_action\
+          \ IS NULL THEN '<<NULL>>' WHEN dependent_on_previous_action IS TRUE THEN\
+          \ 'TRUE' WHEN dependent_on_previous_action IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS dependent_on_previous_action,\n    COALESCE(CAST(previous_action_id\
+          \ AS TEXT),'<<NULL>>') AS previous_action_id,\n    CASE WHEN system_generated\
+          \ IS NULL THEN '<<NULL>>' WHEN system_generated IS TRUE THEN 'TRUE' WHEN\
+          \ system_generated IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS system_generated,\n\
+          \    COALESCE(TRIM(dependency_type),'<<NULL>>') AS dependency_type,\n  \
+          \  COALESCE(CAST(delinquency_schedule_id AS TEXT),'<<NULL>>') AS delinquency_schedule_id,\n\
+          \    CASE WHEN manual_rollbackable IS NULL THEN '<<NULL>>' WHEN manual_rollbackable\
+          \ IS TRUE THEN 'TRUE' WHEN manual_rollbackable IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS manual_rollbackable\nFROM public.delinquency_stages;"
+        target_table_name: delinquency_stages
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.name),'<<NULL>>') AS name,\n    COALESCE(TO_VARCHAR(t.apply_on_day),'<<NULL>>')\
+          \ AS apply_on_day,\n    CASE WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN\
+          \ t.deleted = TRUE THEN 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>')\
+          \ AS deleted_by_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    CASE\
+          \ WHEN t.recurring IS NULL THEN '<<NULL>>' WHEN t.recurring = TRUE THEN\
+          \ 'TRUE' WHEN t.recurring = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS recurring,\n\
+          \    CASE WHEN t.dependent_on_previous_action IS NULL THEN '<<NULL>>' WHEN\
+          \ t.dependent_on_previous_action = TRUE THEN 'TRUE' WHEN t.dependent_on_previous_action\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS dependent_on_previous_action,\n\
+          \    COALESCE(TO_VARCHAR(t.previous_action_id),'<<NULL>>') AS previous_action_id,\n\
+          \    CASE WHEN t.system_generated IS NULL THEN '<<NULL>>' WHEN t.system_generated\
+          \ = TRUE THEN 'TRUE' WHEN t.system_generated = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS system_generated,\n    COALESCE(TRIM(t.dependency_type),'<<NULL>>')\
+          \ AS dependency_type,\n    COALESCE(TO_VARCHAR(t.delinquency_schedule_id),'<<NULL>>')\
+          \ AS delinquency_schedule_id,\n    CASE WHEN t.manual_rollbackable IS NULL\
+          \ THEN '<<NULL>>' WHEN t.manual_rollbackable = TRUE THEN 'TRUE' WHEN t.manual_rollbackable\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS manual_rollbackable\nFROM\
+          \ DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stages t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

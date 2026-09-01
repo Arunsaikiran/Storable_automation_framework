@@ -1,0 +1,88 @@
+tables:
+  ChargeDesc:
+    validations:
+      data_validation:
+        source_table_name: ChargeDesc
+        source: mssql
+        sourcecolumn: ChargeDescID
+        sourcequery: "SELECT\n    COALESCE(CAST(ChargeDescID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ChargeDescID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(ChartOfAcctID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ChartOfAcctID,\n    COALESCE(CAST(ChgDesc_TermID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ChgDesc_TermID,\n    COALESCE(TRIM(sDefChgDesc),'<<NULL>>') AS sDefChgDesc,\n\
+          \    COALESCE(TRIM(sChgDesc),'<<NULL>>') AS sChgDesc,\n    COALESCE(TRIM(sVendor),'<<NULL>>')\
+          \ AS sVendor,\n    COALESCE(TRIM(sVendorPhone),'<<NULL>>') AS sVendorPhone,\n\
+          \    COALESCE(TRIM(sReorderPartNum),'<<NULL>>') AS sReorderPartNum,\n  \
+          \  COALESCE(TRIM(sChgCategory),'<<NULL>>') AS sChgCategory,\n    CASE WHEN\
+          \ bApplyAtMoveIn IS NULL THEN '<<NULL>>' WHEN bApplyAtMoveIn = 1 THEN 'TRUE'\
+          \ WHEN bApplyAtMoveIn = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bApplyAtMoveIn,\n\
+          \    CASE WHEN bProrateAtMoveIn IS NULL THEN '<<NULL>>' WHEN bProrateAtMoveIn\
+          \ = 1 THEN 'TRUE' WHEN bProrateAtMoveIn = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bProrateAtMoveIn,\n    CASE WHEN bPermanent IS NULL THEN '<<NULL>>'\
+          \ WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bPermanent,\n    COALESCE(CAST(CAST(dcPrice AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcPrice,\n    COALESCE(CAST(dcTax1Rate\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcTax1Rate,\n    COALESCE(CAST(dcTax2Rate\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcTax2Rate,\n    COALESCE(CAST(CAST(dcCost\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcCost,\n    COALESCE(CAST(CAST(dcInStock\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcInStock,\n    COALESCE(CAST(CAST(dcOrderPt\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcOrderPt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dChgDisabled\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dChgDisabled,\n    CASE WHEN bUseMileageRate\
+          \ IS NULL THEN '<<NULL>>' WHEN bUseMileageRate = 1 THEN 'TRUE' WHEN bUseMileageRate\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bUseMileageRate,\n    COALESCE(CAST(CAST(dcMileageRate\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcMileageRate,\n   \
+          \ COALESCE(CAST(iIncludedMiles AS VARCHAR(100)),'<<NULL>>') AS iIncludedMiles,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dDisabled AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dDisabled,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS\
+          \ OldPK,\n    COALESCE(TRIM(sCorpCategory),'<<NULL>>') AS sCorpCategory,\n\
+          \    COALESCE(TRIM(sBarCode),'<<NULL>>') AS sBarCode,\n    COALESCE(CAST(iPriceType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iPriceType,\n    COALESCE(CAST(CAST(dcPCRate\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPCRate,\n    COALESCE(CAST(CAST(dcMinPriceIfPC\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcMinPriceIfPC,\n  \
+          \  CASE WHEN bRound IS NULL THEN '<<NULL>>' WHEN bRound = 1 THEN 'TRUE'\
+          \ WHEN bRound = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRound,\n    COALESCE(CAST(CAST(dcRoundTo\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRoundTo\nFROM dbo.ChargeDesc;"
+        target_table_name: ChargeDesc
+        target: snowflake
+        targetcolumn: ChargeDescID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.ChargeDescID),'<<NULL>>')\
+          \ AS ChargeDescID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.ChartOfAcctID),'<<NULL>>') AS ChartOfAcctID,\n\
+          \    COALESCE(TO_VARCHAR(t.ChgDesc_TermID),'<<NULL>>') AS ChgDesc_TermID,\n\
+          \    COALESCE(TRIM(t.sDefChgDesc),'<<NULL>>') AS sDefChgDesc,\n    COALESCE(TRIM(t.sChgDesc),'<<NULL>>')\
+          \ AS sChgDesc,\n    COALESCE(TRIM(t.sVendor),'<<NULL>>') AS sVendor,\n \
+          \   COALESCE(TRIM(t.sVendorPhone),'<<NULL>>') AS sVendorPhone,\n    COALESCE(TRIM(t.sReorderPartNum),'<<NULL>>')\
+          \ AS sReorderPartNum,\n    COALESCE(TRIM(t.sChgCategory),'<<NULL>>') AS\
+          \ sChgCategory,\n    CASE WHEN t.bApplyAtMoveIn IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bApplyAtMoveIn = TRUE THEN 'TRUE' WHEN t.bApplyAtMoveIn = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS bApplyAtMoveIn,\n    CASE WHEN t.bProrateAtMoveIn\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bProrateAtMoveIn = TRUE THEN 'TRUE' WHEN\
+          \ t.bProrateAtMoveIn = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bProrateAtMoveIn,\n\
+          \    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN t.bPermanent =\
+          \ TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPermanent,\n    COALESCE(TO_VARCHAR(t.dcPrice),'<<NULL>>') AS\
+          \ dcPrice,\n    COALESCE(TO_VARCHAR(t.dcTax1Rate),'<<NULL>>') AS dcTax1Rate,\n\
+          \    COALESCE(TO_VARCHAR(t.dcTax2Rate),'<<NULL>>') AS dcTax2Rate,\n    COALESCE(TO_VARCHAR(t.dcCost),'<<NULL>>')\
+          \ AS dcCost,\n    COALESCE(TO_VARCHAR(t.dcInStock),'<<NULL>>') AS dcInStock,\n\
+          \    COALESCE(TO_VARCHAR(t.dcOrderPt),'<<NULL>>') AS dcOrderPt,\n    COALESCE(TO_CHAR(t.dChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dChgStrt,\n    COALESCE(TO_CHAR(t.dChgDisabled,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dChgDisabled,\n    CASE WHEN t.bUseMileageRate\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bUseMileageRate = TRUE THEN 'TRUE' WHEN\
+          \ t.bUseMileageRate = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bUseMileageRate,\n\
+          \    COALESCE(TO_VARCHAR(t.dcMileageRate),'<<NULL>>') AS dcMileageRate,\n\
+          \    COALESCE(TO_VARCHAR(t.iIncludedMiles),'<<NULL>>') AS iIncludedMiles,\n\
+          \    COALESCE(TO_CHAR(t.dDisabled,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDisabled,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK,\n\
+          \    COALESCE(TRIM(t.sCorpCategory),'<<NULL>>') AS sCorpCategory,\n    COALESCE(TRIM(t.sBarCode),'<<NULL>>')\
+          \ AS sBarCode,\n    COALESCE(TO_VARCHAR(t.iPriceType),'<<NULL>>') AS iPriceType,\n\
+          \    COALESCE(TO_VARCHAR(t.dcPCRate),'<<NULL>>') AS dcPCRate,\n    COALESCE(TO_VARCHAR(t.dcMinPriceIfPC),'<<NULL>>')\
+          \ AS dcMinPriceIfPC,\n    CASE WHEN t.bRound IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bRound = TRUE THEN 'TRUE' WHEN t.bRound = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bRound,\n    COALESCE(TO_VARCHAR(t.dcRoundTo),'<<NULL>>') AS dcRoundTo\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.ChargeDesc t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

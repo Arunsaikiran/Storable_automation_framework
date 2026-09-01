@@ -1,0 +1,55 @@
+tables:
+  PromoAccounts:
+    validations:
+      data_validation:
+        source_table_name: PromoAccounts
+        source: mssql
+        sourcecolumn: PromoAccountID
+        sourcequery: "SELECT\n    COALESCE(CAST(PromoAccountID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS PromoAccountID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(iPromoAccountGlobalNum AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iPromoAccountGlobalNum,\n    COALESCE(TRIM(sCorpCode),'<<NULL>>') AS\
+          \ sCorpCode,\n    COALESCE(CAST(PromoAccountTypeID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS PromoAccountTypeID,\n    COALESCE(TRIM(sAccountName),'<<NULL>>') AS\
+          \ sAccountName,\n    COALESCE(TRIM(sAccountNameShort),'<<NULL>>') AS sAccountNameShort,\n\
+          \    COALESCE(TRIM(sAccountAddr1),'<<NULL>>') AS sAccountAddr1,\n    COALESCE(TRIM(sAccountCity),'<<NULL>>')\
+          \ AS sAccountCity,\n    COALESCE(TRIM(sAccountRegion),'<<NULL>>') AS sAccountRegion,\n\
+          \    COALESCE(TRIM(sAccountZip),'<<NULL>>') AS sAccountZip,\n    COALESCE(CAST(iBountyType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iBountyType,\n    COALESCE(CAST(CAST(dcBountyPct\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcBountyPct,\n    COALESCE(CAST(CAST(dcBountyAmt\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcBountyAmt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCreated,\n    COALESCE(TRIM(sAccountCode),'<<NULL>>')\
+          \ AS sAccountCode,\n    COALESCE(TRIM(sPhone1),'<<NULL>>') AS sPhone1,\n\
+          \    COALESCE(TRIM(sPhone2),'<<NULL>>') AS sPhone2,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDisabled\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDisabled,\n    CASE WHEN bPermanent\
+          \ IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK\nFROM dbo.PromoAccounts;"
+        target_table_name: PromoAccounts
+        target: snowflake
+        targetcolumn: PromoAccountID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.PromoAccountID),'<<NULL>>')\
+          \ AS PromoAccountID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.iPromoAccountGlobalNum),'<<NULL>>') AS iPromoAccountGlobalNum,\n\
+          \    COALESCE(TRIM(t.sCorpCode),'<<NULL>>') AS sCorpCode,\n    COALESCE(TO_VARCHAR(t.PromoAccountTypeID),'<<NULL>>')\
+          \ AS PromoAccountTypeID,\n    COALESCE(TRIM(t.sAccountName),'<<NULL>>')\
+          \ AS sAccountName,\n    COALESCE(TRIM(t.sAccountNameShort),'<<NULL>>') AS\
+          \ sAccountNameShort,\n    COALESCE(TRIM(t.sAccountAddr1),'<<NULL>>') AS\
+          \ sAccountAddr1,\n    COALESCE(TRIM(t.sAccountCity),'<<NULL>>') AS sAccountCity,\n\
+          \    COALESCE(TRIM(t.sAccountRegion),'<<NULL>>') AS sAccountRegion,\n  \
+          \  COALESCE(TRIM(t.sAccountZip),'<<NULL>>') AS sAccountZip,\n    COALESCE(TO_VARCHAR(t.iBountyType),'<<NULL>>')\
+          \ AS iBountyType,\n    COALESCE(TO_VARCHAR(t.dcBountyPct),'<<NULL>>') AS\
+          \ dcBountyPct,\n    COALESCE(TO_VARCHAR(t.dcBountyAmt),'<<NULL>>') AS dcBountyAmt,\n\
+          \    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCreated,\n    COALESCE(TRIM(t.sAccountCode),'<<NULL>>') AS sAccountCode,\n\
+          \    COALESCE(TRIM(t.sPhone1),'<<NULL>>') AS sPhone1,\n    COALESCE(TRIM(t.sPhone2),'<<NULL>>')\
+          \ AS sPhone2,\n    COALESCE(TO_CHAR(t.dDisabled,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDisabled,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPermanent = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.PromoAccounts t\n\
+          WHERE t._FIVETRAN_ACTIVE = TRUE"

@@ -1,0 +1,38 @@
+tables:
+  unit_amenities:
+    validations:
+      data_validation:
+        source_table_name: unit_amenities
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(name),'<<NULL>>') AS name,\n    CASE WHEN deleted IS NULL\
+          \ THEN '<<NULL>>' WHEN deleted IS TRUE THEN 'TRUE' WHEN deleted IS FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(CAST(deleted_by_id\
+          \ AS TEXT),'<<NULL>>') AS deleted_by_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    COALESCE(CAST(company_id AS TEXT),'<<NULL>>')\
+          \ AS company_id,\n    COALESCE(TRIM(short_code),'<<NULL>>') AS short_code,\n\
+          \    CASE WHEN show_in_sales_center_filter_dropdown IS NULL THEN '<<NULL>>'\
+          \ WHEN show_in_sales_center_filter_dropdown IS TRUE THEN 'TRUE' WHEN show_in_sales_center_filter_dropdown\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS show_in_sales_center_filter_dropdown\n\
+          FROM public.unit_amenities;"
+        target_table_name: unit_amenities
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.name),'<<NULL>>') AS name,\n    CASE WHEN t.deleted\
+          \ IS NULL THEN '<<NULL>>' WHEN t.deleted = TRUE THEN 'TRUE' WHEN t.deleted\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>')\
+          \ AS deleted_by_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>')\
+          \ AS company_id,\n    COALESCE(TRIM(t.short_code),'<<NULL>>') AS short_code,\n\
+          \    CASE WHEN t.show_in_sales_center_filter_dropdown IS NULL THEN '<<NULL>>'\
+          \ WHEN t.show_in_sales_center_filter_dropdown = TRUE THEN 'TRUE' WHEN t.show_in_sales_center_filter_dropdown\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS show_in_sales_center_filter_dropdown\n\
+          FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

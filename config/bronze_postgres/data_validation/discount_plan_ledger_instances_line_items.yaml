@@ -1,0 +1,19 @@
+tables:
+  discount_plan_ledger_instances_line_items:
+    validations:
+      data_validation:
+        source_table_name: discount_plan_ledger_instances_line_items
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(discount_plan_ledger_instance_id AS\
+          \ TEXT),'<<NULL>>') AS discount_plan_ledger_instance_id,\n    COALESCE(CAST(line_item_id\
+          \ AS TEXT),'<<NULL>>') AS line_item_id,\n    COALESCE(CAST(id AS TEXT),'<<NULL>>')\
+          \ AS id\nFROM public.discount_plan_ledger_instances_line_items;"
+        target_table_name: discount_plan_ledger_instances_line_items
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.discount_plan_ledger_instance_id),'<<NULL>>')\
+          \ AS discount_plan_ledger_instance_id,\n    COALESCE(TO_VARCHAR(t.line_item_id),'<<NULL>>')\
+          \ AS line_item_id,\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id\nFROM\
+          \ DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances_line_items\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

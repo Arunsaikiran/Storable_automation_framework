@@ -1,0 +1,58 @@
+tables:
+  addresses:
+    validations:
+      data_validation:
+        source_table_name: addresses
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(type),'<<NULL>>') AS type,\n    COALESCE(TRIM(address1),'<<NULL>>')\
+          \ AS address1,\n    COALESCE(TRIM(address2),'<<NULL>>') AS address2,\n \
+          \   COALESCE(TRIM(city),'<<NULL>>') AS city,\n    COALESCE(TRIM(state),'<<NULL>>')\
+          \ AS state,\n    COALESCE(TRIM(postal),'<<NULL>>') AS postal,\n    COALESCE(CAST(latitude\
+          \ AS TEXT),'<<NULL>>') AS latitude,\n    COALESCE(CAST(longitude AS TEXT),'<<NULL>>')\
+          \ AS longitude,\n    COALESCE(CAST(addressable_id AS TEXT),'<<NULL>>') AS\
+          \ addressable_id,\n    COALESCE(TRIM(addressable_type),'<<NULL>>') AS addressable_type,\n\
+          \    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(country),'<<NULL>>') AS country,\n \
+          \   COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>') AS uuid,\n    CASE\
+          \ WHEN invalid_data IS NULL THEN '<<NULL>>' WHEN invalid_data IS TRUE THEN\
+          \ 'TRUE' WHEN invalid_data IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ invalid_data,\n    COALESCE(TRIM(time_zone),'<<NULL>>') AS time_zone,\n\
+          \    COALESCE(TRIM(address_type),'<<NULL>>') AS address_type,\n    CASE\
+          \ WHEN primary IS NULL THEN '<<NULL>>' WHEN primary IS TRUE THEN 'TRUE'\
+          \ WHEN primary IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS primary,\n \
+          \   CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN deleted IS TRUE THEN\
+          \ 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n\
+          \    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(geocode_fingerprint),'<<NULL>>') AS\
+          \ geocode_fingerprint\nFROM public.addresses;"
+        target_table_name: addresses
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.type),'<<NULL>>') AS type,\n    COALESCE(TRIM(t.address1),'<<NULL>>')\
+          \ AS address1,\n    COALESCE(TRIM(t.address2),'<<NULL>>') AS address2,\n\
+          \    COALESCE(TRIM(t.city),'<<NULL>>') AS city,\n    COALESCE(TRIM(t.state),'<<NULL>>')\
+          \ AS state,\n    COALESCE(TRIM(t.postal),'<<NULL>>') AS postal,\n    COALESCE(TO_VARCHAR(t.latitude),'<<NULL>>')\
+          \ AS latitude,\n    COALESCE(TO_VARCHAR(t.longitude),'<<NULL>>') AS longitude,\n\
+          \    COALESCE(TO_VARCHAR(t.addressable_id),'<<NULL>>') AS addressable_id,\n\
+          \    COALESCE(TRIM(t.addressable_type),'<<NULL>>') AS addressable_type,\n\
+          \    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.country),'<<NULL>>') AS country,\n\
+          \    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    CASE WHEN t.invalid_data\
+          \ IS NULL THEN '<<NULL>>' WHEN t.invalid_data = TRUE THEN 'TRUE' WHEN t.invalid_data\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS invalid_data,\n    COALESCE(TRIM(t.time_zone),'<<NULL>>')\
+          \ AS time_zone,\n    COALESCE(TRIM(t.address_type),'<<NULL>>') AS address_type,\n\
+          \    CASE WHEN t.primary IS NULL THEN '<<NULL>>' WHEN t.primary = TRUE THEN\
+          \ 'TRUE' WHEN t.primary = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS primary,\n\
+          \    CASE WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN t.deleted = TRUE THEN\
+          \ 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n\
+          \    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(t.geocode_fingerprint),'<<NULL>>') AS\
+          \ geocode_fingerprint\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.addresses\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

@@ -1,0 +1,23 @@
+tables:
+  facilities_facility_groups:
+    validations:
+      data_validation:
+        source_table_name: facilities_facility_groups
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(facility_id AS TEXT),'<<NULL>>') AS facility_id,\n   \
+          \ COALESCE(CAST(facility_group_id AS TEXT),'<<NULL>>') AS facility_group_id,\n\
+          \    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at\nFROM public.facilities_facility_groups;"
+        target_table_name: facilities_facility_groups
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS facility_id,\n   \
+          \ COALESCE(TO_VARCHAR(t.facility_group_id),'<<NULL>>') AS facility_group_id,\n\
+          \    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities_facility_groups\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

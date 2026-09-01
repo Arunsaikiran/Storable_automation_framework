@@ -1,0 +1,140 @@
+tables:
+  users:
+    validations:
+      data_validation:
+        source_table_name: users
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(first_name),'<<NULL>>') AS first_name,\n    COALESCE(TRIM(last_name),'<<NULL>>')\
+          \ AS last_name,\n    COALESCE(TO_CHAR(last_event_date_seen,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS last_event_date_seen,\n    COALESCE(TRIM(last_ua),'<<NULL>>') AS last_ua,\n\
+          \    CASE WHEN password_expired IS NULL THEN '<<NULL>>' WHEN password_expired\
+          \ IS TRUE THEN 'TRUE' WHEN password_expired IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS password_expired,\n    CASE WHEN access_to_all_facilities IS NULL\
+          \ THEN '<<NULL>>' WHEN access_to_all_facilities IS TRUE THEN 'TRUE' WHEN\
+          \ access_to_all_facilities IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ access_to_all_facilities,\n    COALESCE(CAST(role_id AS TEXT),'<<NULL>>')\
+          \ AS role_id,\n    COALESCE(CAST(company_id AS TEXT),'<<NULL>>') AS company_id,\n\
+          \    COALESCE(CAST(last_used_facility_id AS TEXT),'<<NULL>>') AS last_used_facility_id,\n\
+          \    COALESCE(TRIM(email),'<<NULL>>') AS email,\n    COALESCE(TRIM(encrypted_password),'<<NULL>>')\
+          \ AS encrypted_password,\n    COALESCE(TRIM(reset_password_token),'<<NULL>>')\
+          \ AS reset_password_token,\n    COALESCE(TO_CHAR(reset_password_sent_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS reset_password_sent_at,\n    COALESCE(TO_CHAR(remember_created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS remember_created_at,\n    COALESCE(CAST(sign_in_count\
+          \ AS TEXT),'<<NULL>>') AS sign_in_count,\n    COALESCE(TO_CHAR(current_sign_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS current_sign_in_at,\n    COALESCE(TO_CHAR(last_sign_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_sign_in_at,\n    COALESCE(TRIM(current_sign_in_ip),'<<NULL>>')\
+          \ AS current_sign_in_ip,\n    COALESCE(TRIM(last_sign_in_ip),'<<NULL>>')\
+          \ AS last_sign_in_ip,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN deleted IS\
+          \ TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(username),'<<NULL>>') AS username,\n\
+          \    COALESCE(TO_CHAR(password_changed_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS password_changed_at,\n    COALESCE(TO_CHAR(locked_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS locked_at,\n    COALESCE(CAST(failed_attempts AS TEXT),'<<NULL>>')\
+          \ AS failed_attempts,\n    CASE WHEN turned_on IS NULL THEN '<<NULL>>' WHEN\
+          \ turned_on IS TRUE THEN 'TRUE' WHEN turned_on IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS turned_on,\n    COALESCE(TO_CHAR(turned_off_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS turned_off_on,\n    COALESCE(CAST(employee_id\
+          \ AS TEXT),'<<NULL>>') AS employee_id,\n    COALESCE(TRIM(internal_employee_code),'<<NULL>>')\
+          \ AS internal_employee_code,\n    COALESCE(TRIM(last_session_id),'<<NULL>>')\
+          \ AS last_session_id,\n    COALESCE((valid_sessions)::JSONB::TEXT,'<<NULL>>')\
+          \ AS valid_sessions,\n    COALESCE(TRIM(storable_sso_id),'<<NULL>>') AS\
+          \ storable_sso_id,\n    CASE WHEN can_access_up IS NULL THEN '<<NULL>>'\
+          \ WHEN can_access_up IS TRUE THEN 'TRUE' WHEN can_access_up IS FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS can_access_up,\n    CASE WHEN can_access_fms\
+          \ IS NULL THEN '<<NULL>>' WHEN can_access_fms IS TRUE THEN 'TRUE' WHEN can_access_fms\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS can_access_fms,\n    COALESCE(TRIM(pre_storable_sso_id),'<<NULL>>')\
+          \ AS pre_storable_sso_id\nFROM public.users;"
+        target_table_name: users
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_valid_sessions AS\n(\n    SELECT\n        _flt.id\
+          \ AS id,\n        LISTAGG(\n            CASE\n                WHEN f.key\
+          \ IS NULL THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
+          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
+          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.users\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.valid_sessions, RECURSIVE\
+          \ => FALSE)) f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.valid_sessions)\
+          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
+          ),\nvariant_valid_sessions AS\n(\n    SELECT\n        t.id AS id,\n    \
+          \    CASE\n\n    -- ======================================================\n\
+          \    -- SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.valid_sessions IS NULL\n        THEN '<<NULL>>'\n\n\n    --\
+          \ =====================================================\n    -- JSON NULL\n\
+          \    -- =====================================================\n\n    WHEN\
+          \ IS_NULL_VALUE(\n        t.valid_sessions\n    )\n        THEN 'null'\n\
+          \n\n    -- =====================================================\n    --\
+          \ OBJECT\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.valid_sessions\n    ) = 'OBJECT'\n\n     \
+          \   THEN\n\n            CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.valid_sessions\n    ) = 'ARRAY'\n\n      \
+          \  THEN COALESCE(\n\n            TO_JSON(\n                t.valid_sessions\n\
+          \            ),\n\n            '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.valid_sessions\n            ),\n\n            '<<NULL>>'\n\n      \
+          \  )\n\nEND AS valid_sessions\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.users\
+          \ t\n    LEFT JOIN obj_agg_valid_sessions obj ON obj.id = t.id\n    WHERE\
+          \ t._FIVETRAN_ACTIVE = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>')\
+          \ AS id,\n    COALESCE(TRIM(t.first_name),'<<NULL>>') AS first_name,\n \
+          \   COALESCE(TRIM(t.last_name),'<<NULL>>') AS last_name,\n    COALESCE(TO_CHAR(t.last_event_date_seen,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_event_date_seen,\n    COALESCE(TRIM(t.last_ua),'<<NULL>>')\
+          \ AS last_ua,\n    CASE WHEN t.password_expired IS NULL THEN '<<NULL>>'\
+          \ WHEN t.password_expired = TRUE THEN 'TRUE' WHEN t.password_expired = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS password_expired,\n    CASE WHEN t.access_to_all_facilities\
+          \ IS NULL THEN '<<NULL>>' WHEN t.access_to_all_facilities = TRUE THEN 'TRUE'\
+          \ WHEN t.access_to_all_facilities = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS access_to_all_facilities,\n    COALESCE(TO_VARCHAR(t.role_id),'<<NULL>>')\
+          \ AS role_id,\n    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>') AS company_id,\n\
+          \    COALESCE(TO_VARCHAR(t.last_used_facility_id),'<<NULL>>') AS last_used_facility_id,\n\
+          \    COALESCE(TRIM(t.email),'<<NULL>>') AS email,\n    COALESCE(TRIM(t.encrypted_password),'<<NULL>>')\
+          \ AS encrypted_password,\n    COALESCE(TRIM(t.reset_password_token),'<<NULL>>')\
+          \ AS reset_password_token,\n    COALESCE(TO_CHAR(t.reset_password_sent_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS reset_password_sent_at,\n    COALESCE(TO_CHAR(t.remember_created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS remember_created_at,\n    COALESCE(TO_VARCHAR(t.sign_in_count),'<<NULL>>')\
+          \ AS sign_in_count,\n    COALESCE(TO_CHAR(t.current_sign_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS current_sign_in_at,\n    COALESCE(TO_CHAR(t.last_sign_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_sign_in_at,\n    COALESCE(TRIM(t.current_sign_in_ip),'<<NULL>>')\
+          \ AS current_sign_in_ip,\n    COALESCE(TRIM(t.last_sign_in_ip),'<<NULL>>')\
+          \ AS last_sign_in_ip,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    CASE\
+          \ WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN t.deleted = TRUE THEN 'TRUE'\
+          \ WHEN t.deleted = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n\
+          \    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(t.username),'<<NULL>>') AS username,\n\
+          \    COALESCE(TO_CHAR(t.password_changed_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS password_changed_at,\n    COALESCE(TO_CHAR(t.locked_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS locked_at,\n    COALESCE(TO_VARCHAR(t.failed_attempts),'<<NULL>>')\
+          \ AS failed_attempts,\n    CASE WHEN t.turned_on IS NULL THEN '<<NULL>>'\
+          \ WHEN t.turned_on = TRUE THEN 'TRUE' WHEN t.turned_on = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS turned_on,\n    COALESCE(TO_CHAR(t.turned_off_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS turned_off_on,\n    COALESCE(TO_VARCHAR(t.employee_id),'<<NULL>>')\
+          \ AS employee_id,\n    COALESCE(TRIM(t.internal_employee_code),'<<NULL>>')\
+          \ AS internal_employee_code,\n    COALESCE(TRIM(t.last_session_id),'<<NULL>>')\
+          \ AS last_session_id,\n    v_valid_sessions.valid_sessions AS valid_sessions,\n\
+          \    COALESCE(TRIM(t.storable_sso_id),'<<NULL>>') AS storable_sso_id,\n\
+          \    CASE WHEN t.can_access_up IS NULL THEN '<<NULL>>' WHEN t.can_access_up\
+          \ = TRUE THEN 'TRUE' WHEN t.can_access_up = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS can_access_up,\n    CASE WHEN t.can_access_fms IS NULL THEN '<<NULL>>'\
+          \ WHEN t.can_access_fms = TRUE THEN 'TRUE' WHEN t.can_access_fms = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS can_access_fms,\n    COALESCE(TRIM(t.pre_storable_sso_id),'<<NULL>>')\
+          \ AS pre_storable_sso_id\nFROM variant_valid_sessions v_valid_sessions LEFT\
+          \ JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.users t ON v_valid_sessions.id\
+          \ = t.id\nWHERE t._FIVETRAN_ACTIVE = TRUE"

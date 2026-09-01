@@ -1,0 +1,64 @@
+tables:
+  Test_02_Sum:
+    validations:
+      data_validation:
+        source_table_name: sefms_management_summary_final_report_iceberg
+        source: redshift
+        sourcecolumn: facility_id,report_month,types
+        sourcequery: "SELECT
+                      COALESCE(CAST(facility_id AS VARCHAR(100)), '_NULL_VALUE_') AS facility_id,
+
+                      COALESCE(
+                          TO_CHAR(DATE_TRUNC('month', report_date), 'YYYY-MM-DD'),
+                          '_NULL_VALUE_'
+                      ) AS report_month,
+
+                      COALESCE(NULLIF(TRIM(types), ''), '_NULL_VALUE_') AS types,
+
+                      COALESCE(
+                          CAST(ROUND(SUM(rev_amount_today), 2) AS VARCHAR(100)),
+                          '_NULL_VALUE_'
+                      ) AS rev_amount_today
+
+                  FROM stodl_reporting_prod.sefms_management_summary_final_report_iceberg
+
+                  WHERE report_date >= DATEADD(month, -24, DATE_TRUNC('month', CURRENT_DATE))
+                    AND report_date < DATEADD(month, 1, DATE_TRUNC('month', CURRENT_DATE))
+                    AND report_section = 'revenue_report'
+                    AND facility_id = '198853'
+                    AND DATE_TRUNC('month', report_date) = DATE '2026-08-01'
+                    AND types = 'Insurance'
+
+                  GROUP BY 1, 2, 3
+                  ORDER BY report_month DESC;"
+        target_table_name: FACT_REVENUE_DAILY
+        target: snowflake
+        targetcolumn: facility_id,report_month,types
+        targetquery: "SELECT
+                      COALESCE(CAST(f.facility_id AS VARCHAR), '_NULL_VALUE_') AS facility_id,
+                      COALESCE(
+                          TO_VARCHAR(DATE_TRUNC('month', r.report_date), 'YYYY-MM-DD'),
+                          '_NULL_VALUE_'
+                      ) AS report_month,
+
+                      COALESCE(NULLIF(TRIM(r.types), ''), '_NULL_VALUE_') AS types,
+
+                      COALESCE(
+                          TO_VARCHAR(CAST(ROUND(SUM(r.amount_today), 2) AS NUMBER(18,2))),
+                          '_NULL_VALUE_'
+                      ) AS rev_amount_today
+
+                  FROM DEV_GOLD.CORE.FACT_REVENUE_DAILY r
+                  LEFT JOIN DEV_GOLD.DIM.DIM_FACILITY f
+                      ON r.facility_key = f.facility_key
+
+                  WHERE r.report_date >= DATEADD(month, -24, DATE_TRUNC('month', CURRENT_DATE))
+                    AND r.report_date < DATEADD(month, 1, DATE_TRUNC('month', CURRENT_DATE))
+                    AND r.report_section = 'revenue_report'
+                    AND r.platform_source = 'EDGE'
+                    AND f.facility_id = '198853'
+                    AND DATE_TRUNC('month', r.report_date) = DATE '2026-08-01'
+                    AND r.types = 'Insurance'
+
+                  GROUP BY 1, 2, 3
+                  ORDER BY report_month DESC;"

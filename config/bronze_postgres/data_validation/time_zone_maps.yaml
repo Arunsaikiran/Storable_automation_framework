@@ -1,0 +1,23 @@
+tables:
+  time_zone_maps:
+    validations:
+      data_validation:
+        source_table_name: time_zone_maps
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(active_support_time_zone_name),'<<NULL>>') AS active_support_time_zone_name,\n\
+          \    COALESCE(TRIM(postgres_time_zone_name),'<<NULL>>') AS postgres_time_zone_name,\n\
+          \    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at\nFROM public.time_zone_maps;"
+        target_table_name: time_zone_maps
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.active_support_time_zone_name),'<<NULL>>') AS active_support_time_zone_name,\n\
+          \    COALESCE(TRIM(t.postgres_time_zone_name),'<<NULL>>') AS postgres_time_zone_name,\n\
+          \    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.time_zone_maps\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

@@ -1,0 +1,30 @@
+tables:
+  account_code_sets:
+    validations:
+      data_validation:
+        source_table_name: account_code_sets
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(company_id AS TEXT),'<<NULL>>') AS company_id,\n    COALESCE(TRIM(name),'<<NULL>>')\
+          \ AS name,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>') AS\
+          \ uuid,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN deleted\
+          \ IS TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id\nFROM public.account_code_sets;"
+        target_table_name: account_code_sets
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>') AS company_id,\n    COALESCE(TRIM(t.name),'<<NULL>>')\
+          \ AS name,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    CASE WHEN t.deleted IS\
+          \ NULL THEN '<<NULL>>' WHEN t.deleted = TRUE THEN 'TRUE' WHEN t.deleted\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>')\
+          \ AS deleted_by_id\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_code_sets\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

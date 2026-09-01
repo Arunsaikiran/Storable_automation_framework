@@ -1,0 +1,56 @@
+tables:
+  discount_plan_ledger_instances:
+    validations:
+      data_validation:
+        source_table_name: discount_plan_ledger_instances
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(ledger_id AS TEXT),'<<NULL>>') AS ledger_id,\n    COALESCE(CAST(discount_plan_id\
+          \ AS TEXT),'<<NULL>>') AS discount_plan_id,\n    COALESCE(CAST(created_by_id\
+          \ AS TEXT),'<<NULL>>') AS created_by_id,\n    COALESCE(TRIM(name),'<<NULL>>')\
+          \ AS name,\n    COALESCE(TRIM(description),'<<NULL>>') AS description,\n\
+          \    COALESCE(TO_CHAR(start_date,'YYYY-MM-DD'),'<<NULL>>') AS start_date,\n\
+          \    COALESCE(TO_CHAR(end_date,'YYYY-MM-DD'),'<<NULL>>') AS end_date,\n\
+          \    CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN deleted IS TRUE THEN\
+          \ 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n\
+          \    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(kind),'<<NULL>>') AS kind,\n    COALESCE(CAST(min_occupancy_months\
+          \ AS TEXT),'<<NULL>>') AS min_occupancy_months,\n    COALESCE(CAST(prepay_months\
+          \ AS TEXT),'<<NULL>>') AS prepay_months,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(CAST(CAST(round_to_nearest\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS round_to_nearest,\n    COALESCE(CAST(CAST(variable_amount\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS variable_amount,\n    COALESCE(TRIM(public_description),'<<NULL>>')\
+          \ AS public_description,\n    CASE WHEN use_month_zero_schedule IS NULL\
+          \ THEN '<<NULL>>' WHEN use_month_zero_schedule IS TRUE THEN 'TRUE' WHEN\
+          \ use_month_zero_schedule IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS use_month_zero_schedule\n\
+          FROM public.discount_plan_ledger_instances;"
+        target_table_name: discount_plan_ledger_instances
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.ledger_id),'<<NULL>>') AS ledger_id,\n    COALESCE(TO_VARCHAR(t.discount_plan_id),'<<NULL>>')\
+          \ AS discount_plan_id,\n    COALESCE(TO_VARCHAR(t.created_by_id),'<<NULL>>')\
+          \ AS created_by_id,\n    COALESCE(TRIM(t.name),'<<NULL>>') AS name,\n  \
+          \  COALESCE(TRIM(t.description),'<<NULL>>') AS description,\n    COALESCE(TO_CHAR(t.start_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS start_date,\n    COALESCE(TO_CHAR(t.end_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS end_date,\n    CASE WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN t.deleted\
+          \ = TRUE THEN 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(t.kind),'<<NULL>>') AS kind,\n    COALESCE(TO_VARCHAR(t.min_occupancy_months),'<<NULL>>')\
+          \ AS min_occupancy_months,\n    COALESCE(TO_VARCHAR(t.prepay_months),'<<NULL>>')\
+          \ AS prepay_months,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n  \
+          \  COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TO_VARCHAR(t.round_to_nearest),'<<NULL>>')\
+          \ AS round_to_nearest,\n    COALESCE(TO_VARCHAR(t.variable_amount),'<<NULL>>')\
+          \ AS variable_amount,\n    COALESCE(TRIM(t.public_description),'<<NULL>>')\
+          \ AS public_description,\n    CASE WHEN t.use_month_zero_schedule IS NULL\
+          \ THEN '<<NULL>>' WHEN t.use_month_zero_schedule = TRUE THEN 'TRUE' WHEN\
+          \ t.use_month_zero_schedule = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ use_month_zero_schedule\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

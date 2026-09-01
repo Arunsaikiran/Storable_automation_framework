@@ -1,0 +1,70 @@
+tables:
+  unit_groups:
+    validations:
+      data_validation:
+        source_table_name: unit_groups
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(total_units_count AS TEXT),'<<NULL>>') AS total_units_count,\n\
+          \    COALESCE(CAST(available_units_count AS TEXT),'<<NULL>>') AS available_units_count,\n\
+          \    COALESCE(TRIM(size),'<<NULL>>') AS size,\n    COALESCE(CAST(CAST(price\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS price,\n    COALESCE(CAST(floor\
+          \ AS TEXT),'<<NULL>>') AS floor,\n    COALESCE(TRIM(group_key),'<<NULL>>')\
+          \ AS group_key,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(CAST(facility_id AS TEXT),'<<NULL>>') AS facility_id,\n\
+          \    COALESCE(CAST(unit_type_id AS TEXT),'<<NULL>>') AS unit_type_id,\n\
+          \    COALESCE(CAST(occupied_units_count AS TEXT),'<<NULL>>') AS occupied_units_count,\n\
+          \    COALESCE(CAST(total_non_excluded_units_count AS TEXT),'<<NULL>>') AS\
+          \ total_non_excluded_units_count,\n    COALESCE(CAST(cross_sell_group_id\
+          \ AS TEXT),'<<NULL>>') AS cross_sell_group_id,\n    COALESCE(TRIM(justification),'<<NULL>>')\
+          \ AS justification,\n    COALESCE(CAST(CAST(managed_rate AS NUMERIC(38,2))\
+          \ AS TEXT),'<<NULL>>') AS managed_rate,\n    COALESCE(CAST(CAST(standard_rate\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS standard_rate,\n    COALESCE(TRIM(attribute_description),'<<NULL>>')\
+          \ AS attribute_description,\n    COALESCE(TRIM(access_type),'<<NULL>>')\
+          \ AS access_type,\n    COALESCE(CAST(door_width AS TEXT),'<<NULL>>') AS\
+          \ door_width,\n    COALESCE(CAST(door_height AS TEXT),'<<NULL>>') AS door_height,\n\
+          \    COALESCE(CAST(width AS TEXT),'<<NULL>>') AS width,\n    COALESCE(CAST(height\
+          \ AS TEXT),'<<NULL>>') AS height,\n    COALESCE(CAST(length AS TEXT),'<<NULL>>')\
+          \ AS length,\n    COALESCE(CAST(area AS TEXT),'<<NULL>>') AS area,\n   \
+          \ COALESCE(CAST(unoccupied_rate_plan_id AS TEXT),'<<NULL>>') AS unoccupied_rate_plan_id,\n\
+          \    CASE WHEN fully_enclosed IS NULL THEN '<<NULL>>' WHEN fully_enclosed\
+          \ IS TRUE THEN 'TRUE' WHEN fully_enclosed IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS fully_enclosed,\n    COALESCE(TRIM(name),'<<NULL>>') AS name,\n\
+          \    COALESCE(UPPER(TRIM(CAST(reference_unit_id AS TEXT))),'<<NULL>>') AS\
+          \ reference_unit_id,\n    COALESCE(CAST(CAST(max_rate AS NUMERIC(38,2))\
+          \ AS TEXT),'<<NULL>>') AS max_rate\nFROM public.unit_groups;"
+        target_table_name: unit_groups
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.total_units_count),'<<NULL>>') AS total_units_count,\n\
+          \    COALESCE(TO_VARCHAR(t.available_units_count),'<<NULL>>') AS available_units_count,\n\
+          \    COALESCE(TRIM(t.size),'<<NULL>>') AS size,\n    COALESCE(TO_VARCHAR(t.price),'<<NULL>>')\
+          \ AS price,\n    COALESCE(TO_VARCHAR(t.floor),'<<NULL>>') AS floor,\n  \
+          \  COALESCE(TRIM(t.group_key),'<<NULL>>') AS group_key,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS facility_id,\n\
+          \    COALESCE(TO_VARCHAR(t.unit_type_id),'<<NULL>>') AS unit_type_id,\n\
+          \    COALESCE(TO_VARCHAR(t.occupied_units_count),'<<NULL>>') AS occupied_units_count,\n\
+          \    COALESCE(TO_VARCHAR(t.total_non_excluded_units_count),'<<NULL>>') AS\
+          \ total_non_excluded_units_count,\n    COALESCE(TO_VARCHAR(t.cross_sell_group_id),'<<NULL>>')\
+          \ AS cross_sell_group_id,\n    COALESCE(TRIM(t.justification),'<<NULL>>')\
+          \ AS justification,\n    COALESCE(TO_VARCHAR(t.managed_rate),'<<NULL>>')\
+          \ AS managed_rate,\n    COALESCE(TO_VARCHAR(t.standard_rate),'<<NULL>>')\
+          \ AS standard_rate,\n    COALESCE(TRIM(t.attribute_description),'<<NULL>>')\
+          \ AS attribute_description,\n    COALESCE(TRIM(t.access_type),'<<NULL>>')\
+          \ AS access_type,\n    COALESCE(TO_VARCHAR(t.door_width),'<<NULL>>') AS\
+          \ door_width,\n    COALESCE(TO_VARCHAR(t.door_height),'<<NULL>>') AS door_height,\n\
+          \    COALESCE(TO_VARCHAR(t.width),'<<NULL>>') AS width,\n    COALESCE(TO_VARCHAR(t.height),'<<NULL>>')\
+          \ AS height,\n    COALESCE(TO_VARCHAR(t.length),'<<NULL>>') AS length,\n\
+          \    COALESCE(TO_VARCHAR(t.area),'<<NULL>>') AS area,\n    COALESCE(TO_VARCHAR(t.unoccupied_rate_plan_id),'<<NULL>>')\
+          \ AS unoccupied_rate_plan_id,\n    CASE WHEN t.fully_enclosed IS NULL THEN\
+          \ '<<NULL>>' WHEN t.fully_enclosed = TRUE THEN 'TRUE' WHEN t.fully_enclosed\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS fully_enclosed,\n    COALESCE(TRIM(t.name),'<<NULL>>')\
+          \ AS name,\n    COALESCE(TRIM(t.reference_unit_id),'<<NULL>>') AS reference_unit_id,\n\
+          \    COALESCE(TO_VARCHAR(t.max_rate),'<<NULL>>') AS max_rate\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_groups\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

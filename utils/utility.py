@@ -25,61 +25,119 @@ def generate_sql(load_type,source_query,target_query,from_date,to_date,col):
     return source_query,target_query
 
 #Function to read the correct configuration file based on the parameters passed
-def get_config_output_paths(run_id,layer_type,base_dir,config_path,validation_dirs,table_list):
+def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,validation_dirs,table_list):
     outputpaths = {}
     configpaths = {}
 
-
     output_dir = os.path.join(base_dir, "output")
-    logpath = os.path.join(
+    if layer_type[0] == "reports":
+        print("Hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee in reports")
+        logpath = os.path.join(
         output_dir,
         layer_type[0],
+        report_pack[0],
         f"validation_{run_id}"
-    )
-    os.makedirs(output_dir, exist_ok=True)
-    #Creating directories based on parameters passed
-    for validation in validation_dirs:
-        if validation == 'count_validation':
-            path = os.path.join(
-                output_dir,
-                layer_type[0],
-                f"validation_{run_id}",
-                f"{validation}_{run_id}" 
-            )
+        )
 
-            yamlpath = os.path.join(
-                config_path,
-                layer_type[0],
-                validation,
-                f"{layer_type[0]}.yaml"
-            )
-            
-            os.makedirs(path, exist_ok=True)
-            outputpaths[validation] = path
-            configpaths[validation] = [yamlpath]
+        os.makedirs(output_dir, exist_ok=True)
+        for validation in validation_dirs:
+                if validation == 'count_validation':
+                    path = os.path.join(
+                        output_dir,
+                        layer_type[0],
+                        report_pack[0],
+                        f"validation_{run_id}",
+                        f"{validation}_{run_id}" 
+                    )
+        
+                    yamlpath = os.path.join(
+                        config_path,
+                        layer_type[0],
+                        report_pack[0],
+                        validation,
+                        f"{layer_type[0]}.yaml"
+                    )
+                    
+                    os.makedirs(path, exist_ok=True)
+                    outputpaths[validation] = path
+                    configpaths[validation] = [yamlpath]
+        
+                if validation == 'data_validation':
+                    path = os.path.join(
+                        output_dir,
+                        layer_type[0],
+                        report_pack[0],
+                        f"validation_{run_id}",
+                        f"{validation}_{run_id}" 
+                    )
+        
+                    yaml_paths = []
+                    if 'all' in table_list:
+                        all_configs = (os.listdir(os.path.join(base_dir, "config", layer_type[0],report_pack[0], validation)))
+                        for table in all_configs:
+                            yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0],report_pack[0], validation,f"{table}"))])
+        
+                    else:
+                        for table in table_list:
+                            yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0],report_pack[0], validation,f"{table}.yaml"))])
+        
+                    configpaths[validation] = yaml_paths
+                    outputpaths[validation] = path
+                    
+                    os.makedirs(path, exist_ok=True)
 
-        if validation == 'data_validation':
-            path = os.path.join(
-                output_dir,
-                layer_type[0],
-                f"validation_{run_id}",
-                f"{validation}_{run_id}" 
-            )
+    else:
+        print("Hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee outside reports")
 
-            yaml_paths = []
-            if 'all' in table_list:
-                all_configs = (os.listdir(os.path.join(base_dir, "config", layer_type[0], validation)))
-                for table in all_configs:
-                    yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0], validation,f"{table}"))])
+        logpath = os.path.join(
+            output_dir,
+            layer_type[0],
+            f"validation_{run_id}"
+        )
+        os.makedirs(output_dir, exist_ok=True)
+        #Creating directories based on parameters passed
+        for validation in validation_dirs:
+            if validation == 'count_validation':
+                path = os.path.join(
+                    output_dir,
+                    layer_type[0],
+                    f"validation_{run_id}",
+                    f"{validation}_{run_id}" 
+                )
 
-            else:
-                for table in table_list:
-                    yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0], validation,f"{table}.yaml"))])
+                yamlpath = os.path.join(
+                    config_path,
+                    layer_type[0],
+                    validation,
+                    f"{layer_type[0]}.yaml"
+                )
+                
+                os.makedirs(path, exist_ok=True)
+                outputpaths[validation] = path
+                configpaths[validation] = [yamlpath]
 
-            configpaths[validation] = yaml_paths
-            outputpaths[validation] = path
-            
-            os.makedirs(path, exist_ok=True)
+            if validation == 'data_validation':
+                path = os.path.join(
+                    output_dir,
+                    layer_type[0],
+                    f"validation_{run_id}",
+                    f"{validation}_{run_id}" 
+                )
+
+                yaml_paths = []
+                if 'all' in table_list:
+                    all_configs = (os.listdir(os.path.join(base_dir, "config", layer_type[0], validation)))
+                    for table in all_configs:
+                        yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0], validation,f"{table}"))])
+
+                else:
+                    for table in table_list:
+                        yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0], validation,f"{table}.yaml"))])
+
+                configpaths[validation] = yaml_paths
+                outputpaths[validation] = path
+                
+                os.makedirs(path, exist_ok=True)
 
     return outputpaths,configpaths,logpath
 

@@ -1,0 +1,119 @@
+tables:
+  invoiceable_items:
+    validations:
+      data_validation:
+        source_table_name: invoiceable_items
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(type),'<<NULL>>') AS type,\n    COALESCE(TRIM(product_code),'<<NULL>>')\
+          \ AS product_code,\n    COALESCE(TRIM(description),'<<NULL>>') AS description,\n\
+          \    COALESCE(CAST(CAST(cost AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS cost,\n\
+          \    CASE WHEN deletable IS NULL THEN '<<NULL>>' WHEN deletable IS TRUE\
+          \ THEN 'TRUE' WHEN deletable IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ deletable,\n    CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN deleted\
+          \ IS TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(CAST(facility_id AS TEXT),'<<NULL>>') AS\
+          \ facility_id,\n    COALESCE(CAST(created_by_id AS TEXT),'<<NULL>>') AS\
+          \ created_by_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    CASE WHEN data IS NULL THEN '<<NULL>>' ELSE COALESCE('{'\
+          \ || (SELECT STRING_AGG(TO_JSON(h.key::TEXT) || ': ' || TO_JSON(h.value::TEXT),\
+          \ ', ' ORDER BY h.key) FROM EACH(data) h) || '}', '{}') END AS data,\n \
+          \   CASE WHEN turned_on IS NULL THEN '<<NULL>>' WHEN turned_on IS TRUE THEN\
+          \ 'TRUE' WHEN turned_on IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS turned_on,\n\
+          \    CASE WHEN required_at_move_in IS NULL THEN '<<NULL>>' WHEN required_at_move_in\
+          \ IS TRUE THEN 'TRUE' WHEN required_at_move_in IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS required_at_move_in,\n    CASE WHEN required_at_transfer\
+          \ IS NULL THEN '<<NULL>>' WHEN required_at_transfer IS TRUE THEN 'TRUE'\
+          \ WHEN required_at_transfer IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ required_at_transfer,\n    COALESCE(TRIM(short_description),'<<NULL>>')\
+          \ AS short_description,\n    CASE WHEN show_in_sales_center IS NULL THEN\
+          \ '<<NULL>>' WHEN show_in_sales_center IS TRUE THEN 'TRUE' WHEN show_in_sales_center\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS show_in_sales_center,\n \
+          \   COALESCE(TO_CHAR(turned_off_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS turned_off_on,\n    COALESCE(TRIM(internal_account_code),'<<NULL>>')\
+          \ AS internal_account_code,\n    COALESCE(CAST(insurance_policy_id AS TEXT),'<<NULL>>')\
+          \ AS insurance_policy_id,\n    COALESCE(CAST(master_retail_item_id AS TEXT),'<<NULL>>')\
+          \ AS master_retail_item_id,\n    COALESCE(CAST(delinquency_schedule_id AS\
+          \ TEXT),'<<NULL>>') AS delinquency_schedule_id,\n    COALESCE(TRIM(internal_accounts_receivable_account_code),'<<NULL>>')\
+          \ AS internal_accounts_receivable_account_code,\n    CASE WHEN auto_update\
+          \ IS NULL THEN '<<NULL>>' WHEN auto_update IS TRUE THEN 'TRUE' WHEN auto_update\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS auto_update\nFROM public.invoiceable_items;"
+        target_table_name: invoiceable_items
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_data AS\n(\n    SELECT\n        _flt.id AS id,\n\
+          \        LISTAGG(\n            CASE\n                WHEN f.key IS NULL\
+          \ THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
+          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
+          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_items\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.data, RECURSIVE => FALSE))\
+          \ f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.data)\
+          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
+          ),\nvariant_data AS\n(\n    SELECT\n        t.id AS id,\n        CASE\n\n\
+          \    -- ======================================================\n    -- SQL\
+          \ NULL\n    -- ======================================================\n\n\
+          \    WHEN t.data IS NULL\n        THEN '<<NULL>>'\n\n\n    -- =====================================================\n\
+          \    -- JSON NULL\n    -- =====================================================\n\
+          \n    WHEN IS_NULL_VALUE(\n        t.data\n    )\n        THEN 'null'\n\n\
+          \n    -- =====================================================\n    -- OBJECT\n\
+          \    -- =====================================================\n\n    WHEN\
+          \ TYPEOF(\n        t.data\n    ) = 'OBJECT'\n\n        THEN\n\n        \
+          \    CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.data\n    ) = 'ARRAY'\n\n        THEN COALESCE(\n\
+          \n            TO_JSON(\n                t.data\n            ),\n\n     \
+          \       '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.data\n            ),\n\n            '<<NULL>>'\n\n        )\n\nEND\
+          \ AS data\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_items\
+          \ t\n    LEFT JOIN obj_agg_data obj ON obj.id = t.id\n    WHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n\
+          \    COALESCE(TRIM(t.type),'<<NULL>>') AS type,\n    COALESCE(TRIM(t.product_code),'<<NULL>>')\
+          \ AS product_code,\n    COALESCE(TRIM(t.description),'<<NULL>>') AS description,\n\
+          \    COALESCE(TO_VARCHAR(t.cost),'<<NULL>>') AS cost,\n    CASE WHEN t.deletable\
+          \ IS NULL THEN '<<NULL>>' WHEN t.deletable = TRUE THEN 'TRUE' WHEN t.deletable\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deletable,\n    CASE WHEN\
+          \ t.deleted IS NULL THEN '<<NULL>>' WHEN t.deleted = TRUE THEN 'TRUE' WHEN\
+          \ t.deleted = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>')\
+          \ AS deleted_by_id,\n    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>')\
+          \ AS facility_id,\n    COALESCE(TO_VARCHAR(t.created_by_id),'<<NULL>>')\
+          \ AS created_by_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    v_data.data\
+          \ AS data,\n    CASE WHEN t.turned_on IS NULL THEN '<<NULL>>' WHEN t.turned_on\
+          \ = TRUE THEN 'TRUE' WHEN t.turned_on = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS turned_on,\n    CASE WHEN t.required_at_move_in IS NULL THEN '<<NULL>>'\
+          \ WHEN t.required_at_move_in = TRUE THEN 'TRUE' WHEN t.required_at_move_in\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS required_at_move_in,\n   \
+          \ CASE WHEN t.required_at_transfer IS NULL THEN '<<NULL>>' WHEN t.required_at_transfer\
+          \ = TRUE THEN 'TRUE' WHEN t.required_at_transfer = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS required_at_transfer,\n    COALESCE(TRIM(t.short_description),'<<NULL>>')\
+          \ AS short_description,\n    CASE WHEN t.show_in_sales_center IS NULL THEN\
+          \ '<<NULL>>' WHEN t.show_in_sales_center = TRUE THEN 'TRUE' WHEN t.show_in_sales_center\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS show_in_sales_center,\n  \
+          \  COALESCE(TO_CHAR(t.turned_off_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS turned_off_on,\n    COALESCE(TRIM(t.internal_account_code),'<<NULL>>')\
+          \ AS internal_account_code,\n    COALESCE(TO_VARCHAR(t.insurance_policy_id),'<<NULL>>')\
+          \ AS insurance_policy_id,\n    COALESCE(TO_VARCHAR(t.master_retail_item_id),'<<NULL>>')\
+          \ AS master_retail_item_id,\n    COALESCE(TO_VARCHAR(t.delinquency_schedule_id),'<<NULL>>')\
+          \ AS delinquency_schedule_id,\n    COALESCE(TRIM(t.internal_accounts_receivable_account_code),'<<NULL>>')\
+          \ AS internal_accounts_receivable_account_code,\n    CASE WHEN t.auto_update\
+          \ IS NULL THEN '<<NULL>>' WHEN t.auto_update = TRUE THEN 'TRUE' WHEN t.auto_update\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS auto_update\nFROM variant_data\
+          \ v_data LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_items\
+          \ t ON v_data.id = t.id\nWHERE t._FIVETRAN_ACTIVE = TRUE"

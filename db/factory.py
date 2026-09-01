@@ -14,7 +14,7 @@ def get_database(db_type,BASE_DIR,env):
     with open(creds_path) as f:
         file = yaml.safe_load(f)    
 
-    if db_type == "postgresql":
+    if db_type == "postgres":
         postgres = file['postgresql']
         dbname = postgres['dbname']
         host = postgres['host']

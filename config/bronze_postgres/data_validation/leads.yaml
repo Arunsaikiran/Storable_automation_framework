@@ -1,0 +1,212 @@
+tables:
+  leads:
+    validations:
+      data_validation:
+        source_table_name: leads
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(caller_first_name),'<<NULL>>') AS caller_first_name,\n\
+          \    COALESCE(TRIM(caller_last_name),'<<NULL>>') AS caller_last_name,\n\
+          \    COALESCE(CAST(caller_phone_number_id AS TEXT),'<<NULL>>') AS caller_phone_number_id,\n\
+          \    COALESCE(CAST(tenant_id AS TEXT),'<<NULL>>') AS tenant_id,\n    COALESCE(CAST(source_id\
+          \ AS TEXT),'<<NULL>>') AS source_id,\n    COALESCE(TRIM(kind),'<<NULL>>')\
+          \ AS kind,\n    COALESCE(TRIM(size),'<<NULL>>') AS size,\n    COALESCE(CAST(floor\
+          \ AS TEXT),'<<NULL>>') AS floor,\n    COALESCE(CAST(CAST(quoted_rate AS\
+          \ NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS quoted_rate,\n    COALESCE(TO_CHAR(desired_move_in_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS desired_move_in_date,\n    CASE WHEN urgent IS NULL THEN '<<NULL>>'\
+          \ WHEN urgent IS TRUE THEN 'TRUE' WHEN urgent IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS urgent,\n    CASE WHEN extra_details IS NULL THEN '<<NULL>>'\
+          \ ELSE COALESCE('{' || (SELECT STRING_AGG(TO_JSON(h.key::TEXT) || ': ' ||\
+          \ TO_JSON(h.value::TEXT), ', ' ORDER BY h.key) FROM EACH(extra_details)\
+          \ h) || '}', '{}') END AS extra_details,\n    COALESCE(CAST(unit_id AS TEXT),'<<NULL>>')\
+          \ AS unit_id,\n    COALESCE(TRIM(confirmation_number),'<<NULL>>') AS confirmation_number,\n\
+          \    COALESCE(CAST(unit_type_id AS TEXT),'<<NULL>>') AS unit_type_id,\n\
+          \    CASE WHEN reservation_fee_required IS NULL THEN '<<NULL>>' WHEN reservation_fee_required\
+          \ IS TRUE THEN 'TRUE' WHEN reservation_fee_required IS FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS reservation_fee_required,\n    COALESCE(CAST(reservation_invoice_id\
+          \ AS TEXT),'<<NULL>>') AS reservation_invoice_id,\n    COALESCE(CAST(reservation_fee_invoiceable_id\
+          \ AS TEXT),'<<NULL>>') AS reservation_fee_invoiceable_id,\n    COALESCE(TO_CHAR(next_action_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS next_action_at,\n    COALESCE(CAST(current_user_id\
+          \ AS TEXT),'<<NULL>>') AS current_user_id,\n    CASE WHEN closed IS NULL\
+          \ THEN '<<NULL>>' WHEN closed IS TRUE THEN 'TRUE' WHEN closed IS FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS closed,\n    CASE WHEN wait_list IS NULL\
+          \ THEN '<<NULL>>' WHEN wait_list IS TRUE THEN 'TRUE' WHEN wait_list IS FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS wait_list,\n    COALESCE(TRIM(status),'<<NULL>>')\
+          \ AS status,\n    COALESCE(TO_CHAR(reserved_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS reserved_at,\n    COALESCE(TO_CHAR(moved_in_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS moved_in_at,\n    COALESCE(TO_CHAR(cancelled_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS cancelled_at,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(CAST(facility_id AS TEXT),'<<NULL>>') AS\
+          \ facility_id,\n    COALESCE(CAST(company_id AS TEXT),'<<NULL>>') AS company_id,\n\
+          \    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>') AS uuid,\n   \
+          \ COALESCE(TRIM(next_lead_action),'<<NULL>>') AS next_lead_action,\n   \
+          \ CASE WHEN lead_action_data IS NULL THEN '<<NULL>>' ELSE COALESCE('{' ||\
+          \ (SELECT STRING_AGG(TO_JSON(h.key::TEXT) || ': ' || TO_JSON(h.value::TEXT),\
+          \ ', ' ORDER BY h.key) FROM EACH(lead_action_data) h) || '}', '{}') END\
+          \ AS lead_action_data,\n    CASE WHEN move_in_started IS NULL THEN '<<NULL>>'\
+          \ WHEN move_in_started IS TRUE THEN 'TRUE' WHEN move_in_started IS FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS move_in_started,\n    CASE WHEN missed_move_in\
+          \ IS NULL THEN '<<NULL>>' WHEN missed_move_in IS TRUE THEN 'TRUE' WHEN missed_move_in\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS missed_move_in,\n    CASE\
+          \ WHEN needs_closing IS NULL THEN '<<NULL>>' WHEN needs_closing IS TRUE\
+          \ THEN 'TRUE' WHEN needs_closing IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS needs_closing,\n    COALESCE(CAST(close_reason_id AS TEXT),'<<NULL>>')\
+          \ AS close_reason_id,\n    COALESCE(CAST(length_of_stay_id AS TEXT),'<<NULL>>')\
+          \ AS length_of_stay_id,\n    COALESCE(TRIM(most_recent_action_performed),'<<NULL>>')\
+          \ AS most_recent_action_performed,\n    COALESCE(TRIM(next_action_to_perform),'<<NULL>>')\
+          \ AS next_action_to_perform,\n    CASE WHEN confirmed IS NULL THEN '<<NULL>>'\
+          \ WHEN confirmed IS TRUE THEN 'TRUE' WHEN confirmed IS FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS confirmed,\n    CASE WHEN wait_list_available IS\
+          \ NULL THEN '<<NULL>>' WHEN wait_list_available IS TRUE THEN 'TRUE' WHEN\
+          \ wait_list_available IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS wait_list_available,\n\
+          \    COALESCE(TO_CHAR(started_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS started_at,\n    CASE WHEN appointment IS NULL THEN '<<NULL>>' WHEN\
+          \ appointment IS TRUE THEN 'TRUE' WHEN appointment IS FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS appointment,\n    COALESCE(CAST(CAST(standard_rate\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS standard_rate,\n    COALESCE(TRIM(origination),'<<NULL>>')\
+          \ AS origination,\n    COALESCE(TRIM(origination_platform),'<<NULL>>') AS\
+          \ origination_platform,\n    COALESCE(CAST(originating_client_application_id\
+          \ AS TEXT),'<<NULL>>') AS originating_client_application_id,\n    COALESCE(TO_CHAR(last_online_move_in_action_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_online_move_in_action_at,\n    COALESCE(TO_CHAR(abandoned_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS abandoned_at,\n    COALESCE(CAST(transferred_from_lead_id\
+          \ AS TEXT),'<<NULL>>') AS transferred_from_lead_id\nFROM public.leads;"
+        target_table_name: leads
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_extra_details AS\n(\n    SELECT\n        _flt.id\
+          \ AS id,\n        LISTAGG(\n            CASE\n                WHEN f.key\
+          \ IS NULL THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
+          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
+          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.extra_details, RECURSIVE\
+          \ => FALSE)) f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.extra_details)\
+          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
+          ),\nvariant_extra_details AS\n(\n    SELECT\n        t.id AS id,\n     \
+          \   CASE\n\n    -- ======================================================\n\
+          \    -- SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.extra_details IS NULL\n        THEN '<<NULL>>'\n\n\n    --\
+          \ =====================================================\n    -- JSON NULL\n\
+          \    -- =====================================================\n\n    WHEN\
+          \ IS_NULL_VALUE(\n        t.extra_details\n    )\n        THEN 'null'\n\n\
+          \n    -- =====================================================\n    -- OBJECT\n\
+          \    -- =====================================================\n\n    WHEN\
+          \ TYPEOF(\n        t.extra_details\n    ) = 'OBJECT'\n\n        THEN\n\n\
+          \            CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.extra_details\n    ) = 'ARRAY'\n\n       \
+          \ THEN COALESCE(\n\n            TO_JSON(\n                t.extra_details\n\
+          \            ),\n\n            '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.extra_details\n            ),\n\n            '<<NULL>>'\n\n       \
+          \ )\n\nEND AS extra_details\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads\
+          \ t\n    LEFT JOIN obj_agg_extra_details obj ON obj.id = t.id\n    WHERE\
+          \ t._FIVETRAN_ACTIVE = TRUE\n\n),\nobj_agg_lead_action_data AS\n(\n    SELECT\n\
+          \        _flt.id AS id,\n        LISTAGG(\n            CASE\n          \
+          \      WHEN f.key IS NULL THEN NULL\n                ELSE\n            \
+          \        TO_JSON(TO_VARIANT(f.key::VARCHAR)) || ': ' ||\n              \
+          \      CASE\n                        WHEN f.value IS NULL THEN 'null'\n\
+          \                        WHEN IS_NULL_VALUE(f.value) THEN 'null'\n     \
+          \                   WHEN TYPEOF(f.value) = 'VARCHAR' THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n\
+          \                        WHEN TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n\
+          \                        WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.lead_action_data, RECURSIVE\
+          \ => FALSE)) f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.lead_action_data)\
+          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
+          ),\nvariant_lead_action_data AS\n(\n    SELECT\n        t.id AS id,\n  \
+          \      CASE\n\n    -- ======================================================\n\
+          \    -- SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.lead_action_data IS NULL\n        THEN '<<NULL>>'\n\n\n   \
+          \ -- =====================================================\n    -- JSON\
+          \ NULL\n    -- =====================================================\n\n\
+          \    WHEN IS_NULL_VALUE(\n        t.lead_action_data\n    )\n        THEN\
+          \ 'null'\n\n\n    -- =====================================================\n\
+          \    -- OBJECT\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.lead_action_data\n    ) = 'OBJECT'\n\n   \
+          \     THEN\n\n            CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.lead_action_data\n    ) = 'ARRAY'\n\n    \
+          \    THEN COALESCE(\n\n            TO_JSON(\n                t.lead_action_data\n\
+          \            ),\n\n            '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.lead_action_data\n            ),\n\n            '<<NULL>>'\n\n    \
+          \    )\n\nEND AS lead_action_data\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads\
+          \ t\n    LEFT JOIN obj_agg_lead_action_data obj ON obj.id = t.id\n    WHERE\
+          \ t._FIVETRAN_ACTIVE = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>')\
+          \ AS id,\n    COALESCE(TRIM(t.caller_first_name),'<<NULL>>') AS caller_first_name,\n\
+          \    COALESCE(TRIM(t.caller_last_name),'<<NULL>>') AS caller_last_name,\n\
+          \    COALESCE(TO_VARCHAR(t.caller_phone_number_id),'<<NULL>>') AS caller_phone_number_id,\n\
+          \    COALESCE(TO_VARCHAR(t.tenant_id),'<<NULL>>') AS tenant_id,\n    COALESCE(TO_VARCHAR(t.source_id),'<<NULL>>')\
+          \ AS source_id,\n    COALESCE(TRIM(t.kind),'<<NULL>>') AS kind,\n    COALESCE(TRIM(t.size),'<<NULL>>')\
+          \ AS size,\n    COALESCE(TO_VARCHAR(t.floor),'<<NULL>>') AS floor,\n   \
+          \ COALESCE(TO_VARCHAR(t.quoted_rate),'<<NULL>>') AS quoted_rate,\n    COALESCE(TO_CHAR(t.desired_move_in_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS desired_move_in_date,\n    CASE WHEN t.urgent IS NULL THEN '<<NULL>>'\
+          \ WHEN t.urgent = TRUE THEN 'TRUE' WHEN t.urgent = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS urgent,\n    v_extra_details.extra_details AS extra_details,\n\
+          \    COALESCE(TO_VARCHAR(t.unit_id),'<<NULL>>') AS unit_id,\n    COALESCE(TRIM(t.confirmation_number),'<<NULL>>')\
+          \ AS confirmation_number,\n    COALESCE(TO_VARCHAR(t.unit_type_id),'<<NULL>>')\
+          \ AS unit_type_id,\n    CASE WHEN t.reservation_fee_required IS NULL THEN\
+          \ '<<NULL>>' WHEN t.reservation_fee_required = TRUE THEN 'TRUE' WHEN t.reservation_fee_required\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS reservation_fee_required,\n\
+          \    COALESCE(TO_VARCHAR(t.reservation_invoice_id),'<<NULL>>') AS reservation_invoice_id,\n\
+          \    COALESCE(TO_VARCHAR(t.reservation_fee_invoiceable_id),'<<NULL>>') AS\
+          \ reservation_fee_invoiceable_id,\n    COALESCE(TO_CHAR(t.next_action_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS next_action_at,\n    COALESCE(TO_VARCHAR(t.current_user_id),'<<NULL>>')\
+          \ AS current_user_id,\n    CASE WHEN t.closed IS NULL THEN '<<NULL>>' WHEN\
+          \ t.closed = TRUE THEN 'TRUE' WHEN t.closed = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS closed,\n    CASE WHEN t.wait_list IS NULL THEN '<<NULL>>' WHEN\
+          \ t.wait_list = TRUE THEN 'TRUE' WHEN t.wait_list = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS wait_list,\n    COALESCE(TRIM(t.status),'<<NULL>>')\
+          \ AS status,\n    COALESCE(TO_CHAR(t.reserved_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS reserved_at,\n    COALESCE(TO_CHAR(t.moved_in_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS moved_in_at,\n    COALESCE(TO_CHAR(t.cancelled_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS cancelled_at,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS\
+          \ facility_id,\n    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>') AS company_id,\n\
+          \    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TRIM(t.next_lead_action),'<<NULL>>')\
+          \ AS next_lead_action,\n    v_lead_action_data.lead_action_data AS lead_action_data,\n\
+          \    CASE WHEN t.move_in_started IS NULL THEN '<<NULL>>' WHEN t.move_in_started\
+          \ = TRUE THEN 'TRUE' WHEN t.move_in_started = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS move_in_started,\n    CASE WHEN t.missed_move_in IS NULL THEN '<<NULL>>'\
+          \ WHEN t.missed_move_in = TRUE THEN 'TRUE' WHEN t.missed_move_in = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS missed_move_in,\n    CASE WHEN t.needs_closing\
+          \ IS NULL THEN '<<NULL>>' WHEN t.needs_closing = TRUE THEN 'TRUE' WHEN t.needs_closing\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS needs_closing,\n    COALESCE(TO_VARCHAR(t.close_reason_id),'<<NULL>>')\
+          \ AS close_reason_id,\n    COALESCE(TO_VARCHAR(t.length_of_stay_id),'<<NULL>>')\
+          \ AS length_of_stay_id,\n    COALESCE(TRIM(t.most_recent_action_performed),'<<NULL>>')\
+          \ AS most_recent_action_performed,\n    COALESCE(TRIM(t.next_action_to_perform),'<<NULL>>')\
+          \ AS next_action_to_perform,\n    CASE WHEN t.confirmed IS NULL THEN '<<NULL>>'\
+          \ WHEN t.confirmed = TRUE THEN 'TRUE' WHEN t.confirmed = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS confirmed,\n    CASE WHEN t.wait_list_available\
+          \ IS NULL THEN '<<NULL>>' WHEN t.wait_list_available = TRUE THEN 'TRUE'\
+          \ WHEN t.wait_list_available = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ wait_list_available,\n    COALESCE(TO_CHAR(t.started_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS started_at,\n    CASE WHEN t.appointment IS NULL THEN '<<NULL>>' WHEN\
+          \ t.appointment = TRUE THEN 'TRUE' WHEN t.appointment = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS appointment,\n    COALESCE(TO_VARCHAR(t.standard_rate),'<<NULL>>')\
+          \ AS standard_rate,\n    COALESCE(TRIM(t.origination),'<<NULL>>') AS origination,\n\
+          \    COALESCE(TRIM(t.origination_platform),'<<NULL>>') AS origination_platform,\n\
+          \    COALESCE(TO_VARCHAR(t.originating_client_application_id),'<<NULL>>')\
+          \ AS originating_client_application_id,\n    COALESCE(TO_CHAR(t.last_online_move_in_action_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_online_move_in_action_at,\n    COALESCE(TO_CHAR(t.abandoned_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS abandoned_at,\n    COALESCE(TO_VARCHAR(t.transferred_from_lead_id),'<<NULL>>')\
+          \ AS transferred_from_lead_id\nFROM variant_lead_action_data v_lead_action_data\
+          \ LEFT JOIN variant_extra_details v_extra_details LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads\
+          \ t ON v_extra_details.id = t.id ON v_lead_action_data.id = t.id\nWHERE\
+          \ t._FIVETRAN_ACTIVE = TRUE"

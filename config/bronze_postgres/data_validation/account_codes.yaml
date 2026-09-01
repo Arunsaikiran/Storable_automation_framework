@@ -1,0 +1,49 @@
+tables:
+  account_codes:
+    validations:
+      data_validation:
+        source_table_name: account_codes
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(code),'<<NULL>>') AS code,\n    COALESCE(TRIM(description),'<<NULL>>')\
+          \ AS description,\n    COALESCE(TRIM(category),'<<NULL>>') AS category,\n\
+          \    COALESCE(TRIM(subcategory),'<<NULL>>') AS subcategory,\n    CASE WHEN\
+          \ deleted IS NULL THEN '<<NULL>>' WHEN deleted IS TRUE THEN 'TRUE' WHEN\
+          \ deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(CAST(deleted_by_id\
+          \ AS TEXT),'<<NULL>>') AS deleted_by_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    COALESCE(TRIM(internal_code),'<<NULL>>')\
+          \ AS internal_code,\n    CASE WHEN locked IS NULL THEN '<<NULL>>' WHEN locked\
+          \ IS TRUE THEN 'TRUE' WHEN locked IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS locked,\n    COALESCE(TRIM(internal_description),'<<NULL>>') AS\
+          \ internal_description,\n    COALESCE(CAST(company_id AS TEXT),'<<NULL>>')\
+          \ AS company_id,\n    COALESCE(CAST(account_code_set_id AS TEXT),'<<NULL>>')\
+          \ AS account_code_set_id,\n    CASE WHEN pass_through IS NULL THEN '<<NULL>>'\
+          \ WHEN pass_through IS TRUE THEN 'TRUE' WHEN pass_through IS FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS pass_through\nFROM public.account_codes;"
+        target_table_name: account_codes
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.code),'<<NULL>>') AS code,\n    COALESCE(TRIM(t.description),'<<NULL>>')\
+          \ AS description,\n    COALESCE(TRIM(t.category),'<<NULL>>') AS category,\n\
+          \    COALESCE(TRIM(t.subcategory),'<<NULL>>') AS subcategory,\n    CASE\
+          \ WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN t.deleted = TRUE THEN 'TRUE'\
+          \ WHEN t.deleted = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n\
+          \    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TRIM(t.internal_code),'<<NULL>>')\
+          \ AS internal_code,\n    CASE WHEN t.locked IS NULL THEN '<<NULL>>' WHEN\
+          \ t.locked = TRUE THEN 'TRUE' WHEN t.locked = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS locked,\n    COALESCE(TRIM(t.internal_description),'<<NULL>>')\
+          \ AS internal_description,\n    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>')\
+          \ AS company_id,\n    COALESCE(TO_VARCHAR(t.account_code_set_id),'<<NULL>>')\
+          \ AS account_code_set_id,\n    CASE WHEN t.pass_through IS NULL THEN '<<NULL>>'\
+          \ WHEN t.pass_through = TRUE THEN 'TRUE' WHEN t.pass_through = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS pass_through\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_codes\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

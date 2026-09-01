@@ -1,0 +1,84 @@
+tables:
+  transactions:
+    validations:
+      data_validation:
+        source_table_name: transactions
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(transaction_type),'<<NULL>>') AS transaction_type,\n \
+          \   COALESCE(CAST(CAST(transaction_amount AS NUMERIC(38,2)) AS TEXT),'<<NULL>>')\
+          \ AS transaction_amount,\n    COALESCE(CAST(facility_id AS TEXT),'<<NULL>>')\
+          \ AS facility_id,\n    COALESCE(CAST(ledger_id AS TEXT),'<<NULL>>') AS ledger_id,\n\
+          \    COALESCE(CAST(event_id AS TEXT),'<<NULL>>') AS event_id,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    COALESCE(TRIM(payable_balance_type),'<<NULL>>')\
+          \ AS payable_balance_type,\n    COALESCE(CAST(payable_balance_id AS TEXT),'<<NULL>>')\
+          \ AS payable_balance_id,\n    COALESCE(TO_CHAR(relevant_start_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS relevant_start_date,\n    COALESCE(TO_CHAR(relevant_end_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS relevant_end_date,\n    COALESCE((detail)::JSONB::TEXT,'<<NULL>>')\
+          \ AS detail,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    CASE WHEN backfilled IS NULL THEN '<<NULL>>' WHEN\
+          \ backfilled IS TRUE THEN 'TRUE' WHEN backfilled IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS backfilled,\n    COALESCE(CAST(processed_count AS TEXT),'<<NULL>>')\
+          \ AS processed_count,\n    COALESCE(CAST(parent_id AS TEXT),'<<NULL>>')\
+          \ AS parent_id,\n    CASE WHEN gl_exempt IS NULL THEN '<<NULL>>' WHEN gl_exempt\
+          \ IS TRUE THEN 'TRUE' WHEN gl_exempt IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS gl_exempt\nFROM public.transactions;"
+        target_table_name: transactions
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_detail AS\n(\n    SELECT\n        _flt.id AS id,\n\
+          \        LISTAGG(\n            CASE\n                WHEN f.key IS NULL\
+          \ THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
+          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
+          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.transactions\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.detail, RECURSIVE => FALSE))\
+          \ f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.detail)\
+          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
+          ),\nvariant_detail AS\n(\n    SELECT\n        t.id AS id,\n        CASE\n\
+          \n    -- ======================================================\n    --\
+          \ SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.detail IS NULL\n        THEN '<<NULL>>'\n\n\n    -- =====================================================\n\
+          \    -- JSON NULL\n    -- =====================================================\n\
+          \n    WHEN IS_NULL_VALUE(\n        t.detail\n    )\n        THEN 'null'\n\
+          \n\n    -- =====================================================\n    --\
+          \ OBJECT\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.detail\n    ) = 'OBJECT'\n\n        THEN\n\
+          \n            CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.detail\n    ) = 'ARRAY'\n\n        THEN COALESCE(\n\
+          \n            TO_JSON(\n                t.detail\n            ),\n\n   \
+          \         '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.detail\n            ),\n\n            '<<NULL>>'\n\n        )\n\nEND\
+          \ AS detail\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.transactions\
+          \ t\n    LEFT JOIN obj_agg_detail obj ON obj.id = t.id\n    WHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n\
+          \    COALESCE(TRIM(t.transaction_type),'<<NULL>>') AS transaction_type,\n\
+          \    COALESCE(TO_VARCHAR(t.transaction_amount),'<<NULL>>') AS transaction_amount,\n\
+          \    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS facility_id,\n  \
+          \  COALESCE(TO_VARCHAR(t.ledger_id),'<<NULL>>') AS ledger_id,\n    COALESCE(TO_VARCHAR(t.event_id),'<<NULL>>')\
+          \ AS event_id,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TRIM(t.payable_balance_type),'<<NULL>>')\
+          \ AS payable_balance_type,\n    COALESCE(TO_VARCHAR(t.payable_balance_id),'<<NULL>>')\
+          \ AS payable_balance_id,\n    COALESCE(TO_CHAR(t.relevant_start_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS relevant_start_date,\n    COALESCE(TO_CHAR(t.relevant_end_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS relevant_end_date,\n    v_detail.detail AS detail,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    CASE WHEN t.backfilled\
+          \ IS NULL THEN '<<NULL>>' WHEN t.backfilled = TRUE THEN 'TRUE' WHEN t.backfilled\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS backfilled,\n    COALESCE(TO_VARCHAR(t.processed_count),'<<NULL>>')\
+          \ AS processed_count,\n    COALESCE(TO_VARCHAR(t.parent_id),'<<NULL>>')\
+          \ AS parent_id,\n    CASE WHEN t.gl_exempt IS NULL THEN '<<NULL>>' WHEN\
+          \ t.gl_exempt = TRUE THEN 'TRUE' WHEN t.gl_exempt = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS gl_exempt\nFROM variant_detail v_detail LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.transactions\
+          \ t ON v_detail.id = t.id\nWHERE t._FIVETRAN_ACTIVE = TRUE"

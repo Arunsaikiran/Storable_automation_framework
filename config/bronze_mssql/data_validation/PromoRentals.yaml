@@ -1,0 +1,48 @@
+tables:
+  PromoRentals:
+    validations:
+      data_validation:
+        source_table_name: PromoRentals
+        source: mssql
+        sourcecolumn: PromoRentalID
+        sourcequery: "SELECT\n    COALESCE(CAST(PromoRentalID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS PromoRentalID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(TenantID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ TenantID,\n    COALESCE(CAST(LedgerID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ LedgerID,\n    COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ EmployeeID,\n    COALESCE(CAST(iPromoGlobalNum_First AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iPromoGlobalNum_First,\n    COALESCE(CAST(iPromoGlobalNum AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iPromoGlobalNum,\n    COALESCE(CAST(PromoFirst_PromoAccountID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS PromoFirst_PromoAccountID,\n    COALESCE(TRIM(sPromoFirst_TrackingSuffix),'<<NULL>>')\
+          \ AS sPromoFirst_TrackingSuffix,\n    COALESCE(CAST(PromoApplied_PromoAccountID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS PromoApplied_PromoAccountID,\n    COALESCE(TRIM(sPromoApplied_TrackingSuffix),'<<NULL>>')\
+          \ AS sPromoApplied_TrackingSuffix,\n    CASE WHEN bPromotionApplied IS NULL\
+          \ THEN '<<NULL>>' WHEN bPromotionApplied = 1 THEN 'TRUE' WHEN bPromotionApplied\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPromotionApplied,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dPromoModified\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dPromoModified,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dArchived,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK\nFROM dbo.PromoRentals;"
+        target_table_name: PromoRentals
+        target: snowflake
+        targetcolumn: PromoRentalID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.PromoRentalID),'<<NULL>>')\
+          \ AS PromoRentalID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.TenantID),'<<NULL>>') AS TenantID,\n    COALESCE(TO_VARCHAR(t.LedgerID),'<<NULL>>')\
+          \ AS LedgerID,\n    COALESCE(TO_VARCHAR(t.EmployeeID),'<<NULL>>') AS EmployeeID,\n\
+          \    COALESCE(TO_VARCHAR(t.iPromoGlobalNum_First),'<<NULL>>') AS iPromoGlobalNum_First,\n\
+          \    COALESCE(TO_VARCHAR(t.iPromoGlobalNum),'<<NULL>>') AS iPromoGlobalNum,\n\
+          \    COALESCE(TO_VARCHAR(t.PromoFirst_PromoAccountID),'<<NULL>>') AS PromoFirst_PromoAccountID,\n\
+          \    COALESCE(TRIM(t.sPromoFirst_TrackingSuffix),'<<NULL>>') AS sPromoFirst_TrackingSuffix,\n\
+          \    COALESCE(TO_VARCHAR(t.PromoApplied_PromoAccountID),'<<NULL>>') AS PromoApplied_PromoAccountID,\n\
+          \    COALESCE(TRIM(t.sPromoApplied_TrackingSuffix),'<<NULL>>') AS sPromoApplied_TrackingSuffix,\n\
+          \    CASE WHEN t.bPromotionApplied IS NULL THEN '<<NULL>>' WHEN t.bPromotionApplied\
+          \ = TRUE THEN 'TRUE' WHEN t.bPromotionApplied = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bPromotionApplied,\n    COALESCE(TO_CHAR(t.dPromoModified,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dPromoModified,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dArchived,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.PromoRentals t\n\
+          WHERE t._FIVETRAN_ACTIVE = TRUE"

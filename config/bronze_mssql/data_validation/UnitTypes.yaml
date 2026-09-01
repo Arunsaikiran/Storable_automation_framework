@@ -1,0 +1,86 @@
+tables:
+  UnitTypes:
+    validations:
+      data_validation:
+        source_table_name: UnitTypes
+        source: mssql
+        sourcecolumn: UnitTypeID
+        sourcequery: "SELECT\n    COALESCE(CAST(UnitTypeID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS UnitTypeID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(UnitType_TermID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS UnitType_TermID,\n    COALESCE(TRIM(sDefTypeName),'<<NULL>>') AS sDefTypeName,\n\
+          \    COALESCE(TRIM(sTypeName),'<<NULL>>') AS sTypeName,\n    COALESCE(TRIM(sCategory),'<<NULL>>')\
+          \ AS sCategory,\n    COALESCE(CAST(iDefLeaseNum AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iDefLeaseNum,\n    CASE WHEN bExcludeFromAutoTenRateMgmt IS NULL THEN\
+          \ '<<NULL>>' WHEN bExcludeFromAutoTenRateMgmt = 1 THEN 'TRUE' WHEN bExcludeFromAutoTenRateMgmt\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bExcludeFromAutoTenRateMgmt,\n\
+          \    CASE WHEN bExcludeFromRevenueMgmt IS NULL THEN '<<NULL>>' WHEN bExcludeFromRevenueMgmt\
+          \ = 1 THEN 'TRUE' WHEN bExcludeFromRevenueMgmt = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bExcludeFromRevenueMgmt,\n    CASE WHEN bChargeTax1 IS NULL THEN\
+          \ '<<NULL>>' WHEN bChargeTax1 = 1 THEN 'TRUE' WHEN bChargeTax1 = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bChargeTax1,\n    CASE WHEN bChargeTax2\
+          \ IS NULL THEN '<<NULL>>' WHEN bChargeTax2 = 1 THEN 'TRUE' WHEN bChargeTax2\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bChargeTax2,\n    CASE WHEN bShowOnReservations\
+          \ IS NULL THEN '<<NULL>>' WHEN bShowOnReservations = 1 THEN 'TRUE' WHEN\
+          \ bShowOnReservations = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bShowOnReservations,\n\
+          \    COALESCE(CAST(BillingFreqID_Default AS VARCHAR(100)),'<<NULL>>') AS\
+          \ BillingFreqID_Default,\n    COALESCE(CAST(iInsuranceRequired AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iInsuranceRequired,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCreated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dArchived,\n    CASE WHEN bPermanent\
+          \ IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    CASE WHEN bExcludeFromInsurance\
+          \ IS NULL THEN '<<NULL>>' WHEN bExcludeFromInsurance = 1 THEN 'TRUE' WHEN\
+          \ bExcludeFromInsurance = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bExcludeFromInsurance,\n\
+          \    CASE WHEN bExcludeFromOccupancy IS NULL THEN '<<NULL>>' WHEN bExcludeFromOccupancy\
+          \ = 1 THEN 'TRUE' WHEN bExcludeFromOccupancy = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bExcludeFromOccupancy,\n    CASE WHEN bExcludeFromArea IS NULL\
+          \ THEN '<<NULL>>' WHEN bExcludeFromArea = 1 THEN 'TRUE' WHEN bExcludeFromArea\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bExcludeFromArea,\n    COALESCE(CAST(iVacateNoticeDays\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iVacateNoticeDays,\n    COALESCE(CAST(iVacateNoticeGraceDays\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iVacateNoticeGraceDays\nFROM dbo.UnitTypes;"
+        target_table_name: UnitTypes
+        target: snowflake
+        targetcolumn: UnitTypeID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.UnitTypeID),'<<NULL>>') AS\
+          \ UnitTypeID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.UnitType_TermID),'<<NULL>>') AS UnitType_TermID,\n\
+          \    COALESCE(TRIM(t.sDefTypeName),'<<NULL>>') AS sDefTypeName,\n    COALESCE(TRIM(t.sTypeName),'<<NULL>>')\
+          \ AS sTypeName,\n    COALESCE(TRIM(t.sCategory),'<<NULL>>') AS sCategory,\n\
+          \    COALESCE(TO_VARCHAR(t.iDefLeaseNum),'<<NULL>>') AS iDefLeaseNum,\n\
+          \    CASE WHEN t.bExcludeFromAutoTenRateMgmt IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bExcludeFromAutoTenRateMgmt = TRUE THEN 'TRUE' WHEN t.bExcludeFromAutoTenRateMgmt\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bExcludeFromAutoTenRateMgmt,\n\
+          \    CASE WHEN t.bExcludeFromRevenueMgmt IS NULL THEN '<<NULL>>' WHEN t.bExcludeFromRevenueMgmt\
+          \ = TRUE THEN 'TRUE' WHEN t.bExcludeFromRevenueMgmt = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bExcludeFromRevenueMgmt,\n    CASE WHEN t.bChargeTax1\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bChargeTax1 = TRUE THEN 'TRUE' WHEN t.bChargeTax1\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bChargeTax1,\n    CASE WHEN\
+          \ t.bChargeTax2 IS NULL THEN '<<NULL>>' WHEN t.bChargeTax2 = TRUE THEN 'TRUE'\
+          \ WHEN t.bChargeTax2 = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bChargeTax2,\n\
+          \    CASE WHEN t.bShowOnReservations IS NULL THEN '<<NULL>>' WHEN t.bShowOnReservations\
+          \ = TRUE THEN 'TRUE' WHEN t.bShowOnReservations = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bShowOnReservations,\n    COALESCE(TO_VARCHAR(t.BillingFreqID_Default),'<<NULL>>')\
+          \ AS BillingFreqID_Default,\n    COALESCE(TO_VARCHAR(t.iInsuranceRequired),'<<NULL>>')\
+          \ AS iInsuranceRequired,\n    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCreated,\n    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dArchived,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPermanent = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK,\n    CASE WHEN t.bExcludeFromInsurance IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bExcludeFromInsurance = TRUE THEN 'TRUE' WHEN t.bExcludeFromInsurance\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bExcludeFromInsurance,\n \
+          \   CASE WHEN t.bExcludeFromOccupancy IS NULL THEN '<<NULL>>' WHEN t.bExcludeFromOccupancy\
+          \ = TRUE THEN 'TRUE' WHEN t.bExcludeFromOccupancy = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bExcludeFromOccupancy,\n    CASE WHEN t.bExcludeFromArea\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bExcludeFromArea = TRUE THEN 'TRUE' WHEN\
+          \ t.bExcludeFromArea = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bExcludeFromArea,\n\
+          \    COALESCE(TO_VARCHAR(t.iVacateNoticeDays),'<<NULL>>') AS iVacateNoticeDays,\n\
+          \    COALESCE(TO_VARCHAR(t.iVacateNoticeGraceDays),'<<NULL>>') AS iVacateNoticeGraceDays\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.UnitTypes t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

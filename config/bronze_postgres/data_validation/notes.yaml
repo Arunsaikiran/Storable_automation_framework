@@ -1,0 +1,32 @@
+tables:
+  notes:
+    validations:
+      data_validation:
+        source_table_name: notes
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(type),'<<NULL>>') AS type,\n    COALESCE(CAST(event_id\
+          \ AS TEXT),'<<NULL>>') AS event_id,\n    COALESCE(CAST(user_id AS TEXT),'<<NULL>>')\
+          \ AS user_id,\n    COALESCE(TRIM(note),'<<NULL>>') AS note,\n    CASE WHEN\
+          \ important IS NULL THEN '<<NULL>>' WHEN important IS TRUE THEN 'TRUE' WHEN\
+          \ important IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS important,\n  \
+          \  COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(TRIM(event_type),'<<NULL>>') AS event_type\nFROM\
+          \ public.notes;"
+        target_table_name: notes
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.type),'<<NULL>>') AS type,\n    COALESCE(TO_VARCHAR(t.event_id),'<<NULL>>')\
+          \ AS event_id,\n    COALESCE(TO_VARCHAR(t.user_id),'<<NULL>>') AS user_id,\n\
+          \    COALESCE(TRIM(t.note),'<<NULL>>') AS note,\n    CASE WHEN t.important\
+          \ IS NULL THEN '<<NULL>>' WHEN t.important = TRUE THEN 'TRUE' WHEN t.important\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS important,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(TRIM(t.event_type),'<<NULL>>') AS event_type\n\
+          FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.notes t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

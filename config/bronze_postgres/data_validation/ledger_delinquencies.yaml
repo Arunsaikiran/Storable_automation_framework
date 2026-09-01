@@ -1,0 +1,25 @@
+tables:
+  ledger_delinquencies:
+    validations:
+      data_validation:
+        source_table_name: ledger_delinquencies
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(ledger_id AS TEXT),'<<NULL>>') AS ledger_id,\n    COALESCE(CAST(delinquency_schedule_id\
+          \ AS TEXT),'<<NULL>>') AS delinquency_schedule_id,\n    COALESCE(TO_CHAR(delinquency_start_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS delinquency_start_date,\n    COALESCE(TO_CHAR(exited_delinquency_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS exited_delinquency_at,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at\nFROM public.ledger_delinquencies;"
+        target_table_name: ledger_delinquencies
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.ledger_id),'<<NULL>>') AS ledger_id,\n    COALESCE(TO_VARCHAR(t.delinquency_schedule_id),'<<NULL>>')\
+          \ AS delinquency_schedule_id,\n    COALESCE(TO_CHAR(t.delinquency_start_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS delinquency_start_date,\n    COALESCE(TO_CHAR(t.exited_delinquency_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS exited_delinquency_at,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_delinquencies\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

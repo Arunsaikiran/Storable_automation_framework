@@ -1,0 +1,38 @@
+tables:
+  PromoOffers:
+    validations:
+      data_validation:
+        source_table_name: PromoOffers
+        source: mssql
+        sourcecolumn: PromoOfferID
+        sourcequery: "SELECT\n    COALESCE(CAST(PromoOfferID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS PromoOfferID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(iPromoOfferGlobalNum AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iPromoOfferGlobalNum,\n    COALESCE(TRIM(sCorpCode),'<<NULL>>') AS\
+          \ sCorpCode,\n    COALESCE(CAST(PromoOfferCatID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS PromoOfferCatID,\n    COALESCE(TRIM(sOfferDesc),'<<NULL>>') AS sOfferDesc,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dCreated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDisabled AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dDisabled,\n    CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent\
+          \ = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS\
+          \ OldPK\nFROM dbo.PromoOffers;"
+        target_table_name: PromoOffers
+        target: snowflake
+        targetcolumn: PromoOfferID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.PromoOfferID),'<<NULL>>')\
+          \ AS PromoOfferID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.iPromoOfferGlobalNum),'<<NULL>>') AS iPromoOfferGlobalNum,\n\
+          \    COALESCE(TRIM(t.sCorpCode),'<<NULL>>') AS sCorpCode,\n    COALESCE(TO_VARCHAR(t.PromoOfferCatID),'<<NULL>>')\
+          \ AS PromoOfferCatID,\n    COALESCE(TRIM(t.sOfferDesc),'<<NULL>>') AS sOfferDesc,\n\
+          \    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCreated,\n    COALESCE(TO_CHAR(t.dDisabled,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDisabled,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPermanent = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.PromoOffers t\n\
+          WHERE t._FIVETRAN_ACTIVE = TRUE"

@@ -1,0 +1,54 @@
+tables:
+  general_ledger_line_items:
+    validations:
+      data_validation:
+        source_table_name: general_ledger_line_items
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(TO_CHAR(effective_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS effective_on,\n    COALESCE(TRIM(description),'<<NULL>>') AS description,\n\
+          \    COALESCE(CAST(CAST(amount AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS\
+          \ amount,\n    COALESCE(CAST(account_balance_id AS TEXT),'<<NULL>>') AS\
+          \ account_balance_id,\n    COALESCE(CAST(tenant_id AS TEXT),'<<NULL>>')\
+          \ AS tenant_id,\n    COALESCE(CAST(ledger_id AS TEXT),'<<NULL>>') AS ledger_id,\n\
+          \    COALESCE(CAST(facility_id AS TEXT),'<<NULL>>') AS facility_id,\n  \
+          \  COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    CASE WHEN reversal IS NULL THEN '<<NULL>>' WHEN reversal\
+          \ IS TRUE THEN 'TRUE' WHEN reversal IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS reversal,\n    COALESCE(CAST(account_balance_item_id AS TEXT),'<<NULL>>')\
+          \ AS account_balance_item_id,\n    COALESCE(TRIM(internal_account_code),'<<NULL>>')\
+          \ AS internal_account_code,\n    CASE WHEN daily_transaction IS NULL THEN\
+          \ '<<NULL>>' WHEN daily_transaction IS TRUE THEN 'TRUE' WHEN daily_transaction\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS daily_transaction,\n    COALESCE(TRIM(transaction_type),'<<NULL>>')\
+          \ AS transaction_type,\n    CASE WHEN hidden IS NULL THEN '<<NULL>>' WHEN\
+          \ hidden IS TRUE THEN 'TRUE' WHEN hidden IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS hidden,\n    COALESCE(TRIM(reference_number),'<<NULL>>') AS reference_number,\n\
+          \    COALESCE(TRIM(display_code),'<<NULL>>') AS display_code,\n    COALESCE(CAST(id\
+          \ AS TEXT),'<<NULL>>') AS id\nFROM public.general_ledger_line_items;"
+        target_table_name: general_ledger_line_items
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_CHAR(t.effective_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS effective_on,\n    COALESCE(TRIM(t.description),'<<NULL>>') AS description,\n\
+          \    COALESCE(TO_VARCHAR(t.amount),'<<NULL>>') AS amount,\n    COALESCE(TO_VARCHAR(t.account_balance_id),'<<NULL>>')\
+          \ AS account_balance_id,\n    COALESCE(TO_VARCHAR(t.tenant_id),'<<NULL>>')\
+          \ AS tenant_id,\n    COALESCE(TO_VARCHAR(t.ledger_id),'<<NULL>>') AS ledger_id,\n\
+          \    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS facility_id,\n  \
+          \  COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    CASE\
+          \ WHEN t.reversal IS NULL THEN '<<NULL>>' WHEN t.reversal = TRUE THEN 'TRUE'\
+          \ WHEN t.reversal = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS reversal,\n\
+          \    COALESCE(TO_VARCHAR(t.account_balance_item_id),'<<NULL>>') AS account_balance_item_id,\n\
+          \    COALESCE(TRIM(t.internal_account_code),'<<NULL>>') AS internal_account_code,\n\
+          \    CASE WHEN t.daily_transaction IS NULL THEN '<<NULL>>' WHEN t.daily_transaction\
+          \ = TRUE THEN 'TRUE' WHEN t.daily_transaction = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS daily_transaction,\n    COALESCE(TRIM(t.transaction_type),'<<NULL>>')\
+          \ AS transaction_type,\n    CASE WHEN t.hidden IS NULL THEN '<<NULL>>' WHEN\
+          \ t.hidden = TRUE THEN 'TRUE' WHEN t.hidden = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS hidden,\n    COALESCE(TRIM(t.reference_number),'<<NULL>>') AS reference_number,\n\
+          \    COALESCE(TRIM(t.display_code),'<<NULL>>') AS display_code,\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>')\
+          \ AS id\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.general_ledger_line_items\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

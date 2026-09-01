@@ -1,0 +1,126 @@
+tables:
+  events:
+    validations:
+      data_validation:
+        source_table_name: events
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(type),'<<NULL>>') AS type,\n    CASE WHEN data IS NULL\
+          \ THEN '<<NULL>>' ELSE COALESCE('{' || (SELECT STRING_AGG(TO_JSON(h.key::TEXT)\
+          \ || ': ' || TO_JSON(h.value::TEXT), ', ' ORDER BY h.key) FROM EACH(data)\
+          \ h) || '}', '{}') END AS data,\n    CASE WHEN needs_followup IS NULL THEN\
+          \ '<<NULL>>' WHEN needs_followup IS TRUE THEN 'TRUE' WHEN needs_followup\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS needs_followup,\n    COALESCE(TO_CHAR(needs_followup_by,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS needs_followup_by,\n    COALESCE(TO_CHAR(followup_date,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS followup_date,\n    CASE WHEN resolved\
+          \ IS NULL THEN '<<NULL>>' WHEN resolved IS TRUE THEN 'TRUE' WHEN resolved\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS resolved,\n    COALESCE(CAST(created_by_id\
+          \ AS TEXT),'<<NULL>>') AS created_by_id,\n    COALESCE(CAST(updated_by_id\
+          \ AS TEXT),'<<NULL>>') AS updated_by_id,\n    COALESCE(CAST(unit_id AS TEXT),'<<NULL>>')\
+          \ AS unit_id,\n    COALESCE(CAST(tenant_id AS TEXT),'<<NULL>>') AS tenant_id,\n\
+          \    COALESCE(CAST(source_id AS TEXT),'<<NULL>>') AS source_id,\n    COALESCE(CAST(facility_id\
+          \ AS TEXT),'<<NULL>>') AS facility_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(CAST(parent_event_id\
+          \ AS TEXT),'<<NULL>>') AS parent_event_id,\n    COALESCE(CAST(related_object_id\
+          \ AS TEXT),'<<NULL>>') AS related_object_id,\n    COALESCE(TRIM(related_object_type),'<<NULL>>')\
+          \ AS related_object_type,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(TRIM(status),'<<NULL>>') AS status,\n    CASE WHEN\
+          \ important_task IS NULL THEN '<<NULL>>' WHEN important_task IS TRUE THEN\
+          \ 'TRUE' WHEN important_task IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ important_task,\n    COALESCE(TO_CHAR(resolved_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS resolved_on,\n    COALESCE(TRIM(created_by_type),'<<NULL>>') AS created_by_type,\n\
+          \    COALESCE(TRIM(updated_by_type),'<<NULL>>') AS updated_by_type,\n  \
+          \  COALESCE(CAST(ledger_id AS TEXT),'<<NULL>>') AS ledger_id,\n    COALESCE(CAST(lead_id\
+          \ AS TEXT),'<<NULL>>') AS lead_id,\n    COALESCE(CAST(support_case_id AS\
+          \ TEXT),'<<NULL>>') AS support_case_id,\n    COALESCE(CAST(attachment_id\
+          \ AS TEXT),'<<NULL>>') AS attachment_id,\n    COALESCE(TRIM(action_item),'<<NULL>>')\
+          \ AS action_item,\n    COALESCE(CAST(ledger_delinquency_id AS TEXT),'<<NULL>>')\
+          \ AS ledger_delinquency_id,\n    COALESCE(UPPER(TRIM(CAST(company_uuid AS\
+          \ TEXT))),'<<NULL>>') AS company_uuid,\n    COALESCE(UPPER(TRIM(CAST(facility_uuid\
+          \ AS TEXT))),'<<NULL>>') AS facility_uuid,\n    COALESCE(UPPER(TRIM(CAST(tenant_uuid\
+          \ AS TEXT))),'<<NULL>>') AS tenant_uuid,\n    COALESCE(UPPER(TRIM(CAST(ledger_uuid\
+          \ AS TEXT))),'<<NULL>>') AS ledger_uuid,\n    COALESCE(UPPER(TRIM(CAST(unit_uuid\
+          \ AS TEXT))),'<<NULL>>') AS unit_uuid,\n    COALESCE(UPPER(TRIM(CAST(lead_uuid\
+          \ AS TEXT))),'<<NULL>>') AS lead_uuid,\n    COALESCE(UPPER(TRIM(CAST(related_object_uuid\
+          \ AS TEXT))),'<<NULL>>') AS related_object_uuid,\n    COALESCE(UPPER(TRIM(CAST(client_application_id\
+          \ AS TEXT))),'<<NULL>>') AS client_application_id,\n    COALESCE(UPPER(TRIM(CAST(payment_intent_id\
+          \ AS TEXT))),'<<NULL>>') AS payment_intent_id\nFROM public.events;"
+        target_table_name: events
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_data AS\n(\n    SELECT\n        _flt.id AS id,\n\
+          \        LISTAGG(\n            CASE\n                WHEN f.key IS NULL\
+          \ THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
+          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
+          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.events\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.data, RECURSIVE => FALSE))\
+          \ f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.data)\
+          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
+          ),\nvariant_data AS\n(\n    SELECT\n        t.id AS id,\n        CASE\n\n\
+          \    -- ======================================================\n    -- SQL\
+          \ NULL\n    -- ======================================================\n\n\
+          \    WHEN t.data IS NULL\n        THEN '<<NULL>>'\n\n\n    -- =====================================================\n\
+          \    -- JSON NULL\n    -- =====================================================\n\
+          \n    WHEN IS_NULL_VALUE(\n        t.data\n    )\n        THEN 'null'\n\n\
+          \n    -- =====================================================\n    -- OBJECT\n\
+          \    -- =====================================================\n\n    WHEN\
+          \ TYPEOF(\n        t.data\n    ) = 'OBJECT'\n\n        THEN\n\n        \
+          \    CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.data\n    ) = 'ARRAY'\n\n        THEN COALESCE(\n\
+          \n            TO_JSON(\n                t.data\n            ),\n\n     \
+          \       '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.data\n            ),\n\n            '<<NULL>>'\n\n        )\n\nEND\
+          \ AS data\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.events\
+          \ t\n    LEFT JOIN obj_agg_data obj ON obj.id = t.id\n    WHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n\
+          \    COALESCE(TRIM(t.type),'<<NULL>>') AS type,\n    v_data.data AS data,\n\
+          \    CASE WHEN t.needs_followup IS NULL THEN '<<NULL>>' WHEN t.needs_followup\
+          \ = TRUE THEN 'TRUE' WHEN t.needs_followup = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS needs_followup,\n    COALESCE(TO_CHAR(t.needs_followup_by,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS needs_followup_by,\n    COALESCE(TO_CHAR(t.followup_date,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS followup_date,\n    CASE WHEN t.resolved\
+          \ IS NULL THEN '<<NULL>>' WHEN t.resolved = TRUE THEN 'TRUE' WHEN t.resolved\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS resolved,\n    COALESCE(TO_VARCHAR(t.created_by_id),'<<NULL>>')\
+          \ AS created_by_id,\n    COALESCE(TO_VARCHAR(t.updated_by_id),'<<NULL>>')\
+          \ AS updated_by_id,\n    COALESCE(TO_VARCHAR(t.unit_id),'<<NULL>>') AS unit_id,\n\
+          \    COALESCE(TO_VARCHAR(t.tenant_id),'<<NULL>>') AS tenant_id,\n    COALESCE(TO_VARCHAR(t.source_id),'<<NULL>>')\
+          \ AS source_id,\n    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS facility_id,\n\
+          \    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TO_VARCHAR(t.parent_event_id),'<<NULL>>')\
+          \ AS parent_event_id,\n    COALESCE(TO_VARCHAR(t.related_object_id),'<<NULL>>')\
+          \ AS related_object_id,\n    COALESCE(TRIM(t.related_object_type),'<<NULL>>')\
+          \ AS related_object_type,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n\
+          \    COALESCE(TRIM(t.status),'<<NULL>>') AS status,\n    CASE WHEN t.important_task\
+          \ IS NULL THEN '<<NULL>>' WHEN t.important_task = TRUE THEN 'TRUE' WHEN\
+          \ t.important_task = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS important_task,\n\
+          \    COALESCE(TO_CHAR(t.resolved_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS resolved_on,\n    COALESCE(TRIM(t.created_by_type),'<<NULL>>') AS created_by_type,\n\
+          \    COALESCE(TRIM(t.updated_by_type),'<<NULL>>') AS updated_by_type,\n\
+          \    COALESCE(TO_VARCHAR(t.ledger_id),'<<NULL>>') AS ledger_id,\n    COALESCE(TO_VARCHAR(t.lead_id),'<<NULL>>')\
+          \ AS lead_id,\n    COALESCE(TO_VARCHAR(t.support_case_id),'<<NULL>>') AS\
+          \ support_case_id,\n    COALESCE(TO_VARCHAR(t.attachment_id),'<<NULL>>')\
+          \ AS attachment_id,\n    COALESCE(TRIM(t.action_item),'<<NULL>>') AS action_item,\n\
+          \    COALESCE(TO_VARCHAR(t.ledger_delinquency_id),'<<NULL>>') AS ledger_delinquency_id,\n\
+          \    COALESCE(TRIM(t.company_uuid),'<<NULL>>') AS company_uuid,\n    COALESCE(TRIM(t.facility_uuid),'<<NULL>>')\
+          \ AS facility_uuid,\n    COALESCE(TRIM(t.tenant_uuid),'<<NULL>>') AS tenant_uuid,\n\
+          \    COALESCE(TRIM(t.ledger_uuid),'<<NULL>>') AS ledger_uuid,\n    COALESCE(TRIM(t.unit_uuid),'<<NULL>>')\
+          \ AS unit_uuid,\n    COALESCE(TRIM(t.lead_uuid),'<<NULL>>') AS lead_uuid,\n\
+          \    COALESCE(TRIM(t.related_object_uuid),'<<NULL>>') AS related_object_uuid,\n\
+          \    COALESCE(TRIM(t.client_application_id),'<<NULL>>') AS client_application_id,\n\
+          \    COALESCE(TRIM(t.payment_intent_id),'<<NULL>>') AS payment_intent_id\n\
+          FROM variant_data v_data LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.events\
+          \ t ON v_data.id = t.id\nWHERE t._FIVETRAN_ACTIVE = TRUE"

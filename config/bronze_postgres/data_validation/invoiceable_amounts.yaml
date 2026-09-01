@@ -1,0 +1,35 @@
+tables:
+  invoiceable_amounts:
+    validations:
+      data_validation:
+        source_table_name: invoiceable_amounts
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(invoiceable_id AS TEXT),'<<NULL>>') AS invoiceable_id,\n\
+          \    COALESCE(TRIM(invoiceable_type),'<<NULL>>') AS invoiceable_type,\n\
+          \    COALESCE(TRIM(kind),'<<NULL>>') AS kind,\n    COALESCE(CAST(CAST(amount\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS amount,\n    COALESCE(CAST(CAST(limit\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS limit,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    CASE WHEN round_up IS NULL THEN '<<NULL>>'\
+          \ WHEN round_up IS TRUE THEN 'TRUE' WHEN round_up IS FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS round_up,\n    COALESCE(CAST(CAST(round_to_nearest\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS round_to_nearest\nFROM public.invoiceable_amounts;"
+        target_table_name: invoiceable_amounts
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.invoiceable_id),'<<NULL>>') AS invoiceable_id,\n\
+          \    COALESCE(TRIM(t.invoiceable_type),'<<NULL>>') AS invoiceable_type,\n\
+          \    COALESCE(TRIM(t.kind),'<<NULL>>') AS kind,\n    COALESCE(TO_VARCHAR(t.amount),'<<NULL>>')\
+          \ AS amount,\n    COALESCE(TO_VARCHAR(t.limit),'<<NULL>>') AS limit,\n \
+          \   COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    CASE\
+          \ WHEN t.round_up IS NULL THEN '<<NULL>>' WHEN t.round_up = TRUE THEN 'TRUE'\
+          \ WHEN t.round_up = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS round_up,\n\
+          \    COALESCE(TO_VARCHAR(t.round_to_nearest),'<<NULL>>') AS round_to_nearest\n\
+          FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_amounts t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

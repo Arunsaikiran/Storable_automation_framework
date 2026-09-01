@@ -1,0 +1,888 @@
+tables:
+  DefaultsProg:
+    validations:
+      data_validation:
+        source_table_name: DefaultsProg
+        source: mssql
+        sourcecolumn: DefaultsProgID
+        sourcequery: "SELECT\n    COALESCE(CAST(DefaultsProgID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS DefaultsProgID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dLastUpdateDate AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dLastUpdateDate,\n    COALESCE(CAST(CAST(dcTax1Def AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcTax1Def,\n    COALESCE(CAST(CAST(dcTax2Def\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcTax2Def,\n    CASE\
+          \ WHEN bPaidThruPartialMonth IS NULL THEN '<<NULL>>' WHEN bPaidThruPartialMonth\
+          \ = 1 THEN 'TRUE' WHEN bPaidThruPartialMonth = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPaidThruPartialMonth,\n    CASE WHEN bAnnivDateLeasing IS NULL\
+          \ THEN '<<NULL>>' WHEN bAnnivDateLeasing = 1 THEN 'TRUE' WHEN bAnnivDateLeasing\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bAnnivDateLeasing,\n    CASE WHEN\
+          \ b2ndMonthProrate IS NULL THEN '<<NULL>>' WHEN b2ndMonthProrate = 1 THEN\
+          \ 'TRUE' WHEN b2ndMonthProrate = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS b2ndMonthProrate,\n\
+          \    COALESCE(CAST(iDayStrtProrating AS VARCHAR(100)),'<<NULL>>') AS iDayStrtProrating,\n\
+          \    COALESCE(CAST(iDayStrtProratePlusNext AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iDayStrtProratePlusNext,\n    COALESCE(CAST(CAST(dcMinGateLockAmt AS\
+          \ DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcMinGateLockAmt,\n   \
+          \ COALESCE(CAST(iReservExpirDays AS VARCHAR(100)),'<<NULL>>') AS iReservExpirDays,\n\
+          \    COALESCE(CAST(iDefInvoiceDaysBefore AS VARCHAR(100)),'<<NULL>>') AS\
+          \ iDefInvoiceDaysBefore,\n    CASE WHEN bChargeInvoiceFee IS NULL THEN '<<NULL>>'\
+          \ WHEN bChargeInvoiceFee = 1 THEN 'TRUE' WHEN bChargeInvoiceFee = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bChargeInvoiceFee,\n    CASE WHEN bOneTimeLateFee\
+          \ IS NULL THEN '<<NULL>>' WHEN bOneTimeLateFee = 1 THEN 'TRUE' WHEN bOneTimeLateFee\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bOneTimeLateFee,\n    COALESCE(CAST(CAST(dcMinBalBeforeLateFee\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcMinBalBeforeLateFee,\n\
+          \    COALESCE(CAST(iLateFeeType AS VARCHAR(100)),'<<NULL>>') AS iLateFeeType,\n\
+          \    COALESCE(CAST(CAST(dcPCLateFeeRate AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcPCLateFeeRate,\n    COALESCE(CAST(CAST(dcMinLateFeeIfPC AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcMinLateFeeIfPC,\n    CASE WHEN bReqMarketingData\
+          \ IS NULL THEN '<<NULL>>' WHEN bReqMarketingData = 1 THEN 'TRUE' WHEN bReqMarketingData\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bReqMarketingData,\n    CASE WHEN\
+          \ bReqPredefinedCreditReason IS NULL THEN '<<NULL>>' WHEN bReqPredefinedCreditReason\
+          \ = 1 THEN 'TRUE' WHEN bReqPredefinedCreditReason = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bReqPredefinedCreditReason,\n    CASE WHEN bReqReasonComplimentary\
+          \ IS NULL THEN '<<NULL>>' WHEN bReqReasonComplimentary = 1 THEN 'TRUE' WHEN\
+          \ bReqReasonComplimentary = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bReqReasonComplimentary,\n\
+          \    CASE WHEN bReqReasonUnrentable IS NULL THEN '<<NULL>>' WHEN bReqReasonUnrentable\
+          \ = 1 THEN 'TRUE' WHEN bReqReasonUnrentable = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bReqReasonUnrentable,\n    COALESCE(CAST(iKeypadZDef AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iKeypadZDef,\n    COALESCE(CAST(iTimeZDef AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iTimeZDef,\n    COALESCE(TRIM(sDefFont),'<<NULL>>') AS sDefFont,\n\
+          \    COALESCE(CAST(iDefTopMargin AS VARCHAR(100)),'<<NULL>>') AS iDefTopMargin,\n\
+          \    COALESCE(CAST(iDefBottomMargin AS VARCHAR(100)),'<<NULL>>') AS iDefBottomMargin,\n\
+          \    COALESCE(CAST(iDefLeftMargin AS VARCHAR(100)),'<<NULL>>') AS iDefLeftMargin,\n\
+          \    COALESCE(CAST(iDefRightMargin AS VARCHAR(100)),'<<NULL>>') AS iDefRightMargin,\n\
+          \    CASE WHEN bDefUseA4 IS NULL THEN '<<NULL>>' WHEN bDefUseA4 = 1 THEN\
+          \ 'TRUE' WHEN bDefUseA4 = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bDefUseA4,\n\
+          \    CASE WHEN bMoveInApplyAdminFee IS NULL THEN '<<NULL>>' WHEN bMoveInApplyAdminFee\
+          \ = 1 THEN 'TRUE' WHEN bMoveInApplyAdminFee = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bMoveInApplyAdminFee,\n    COALESCE(CAST(iMoveInDateOption AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iMoveInDateOption,\n    CASE WHEN bMoveInDefToSendInvoices IS NULL\
+          \ THEN '<<NULL>>' WHEN bMoveInDefToSendInvoices = 1 THEN 'TRUE' WHEN bMoveInDefToSendInvoices\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveInDefToSendInvoices,\n  \
+          \  CASE WHEN bMoveInAllowEditingRent IS NULL THEN '<<NULL>>' WHEN bMoveInAllowEditingRent\
+          \ = 1 THEN 'TRUE' WHEN bMoveInAllowEditingRent = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bMoveInAllowEditingRent,\n    CASE WHEN bMoveInOnlyUseConcessionPlans\
+          \ IS NULL THEN '<<NULL>>' WHEN bMoveInOnlyUseConcessionPlans = 1 THEN 'TRUE'\
+          \ WHEN bMoveInOnlyUseConcessionPlans = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bMoveInOnlyUseConcessionPlans,\n    CASE WHEN bMoveInAllowEditingRecChgs\
+          \ IS NULL THEN '<<NULL>>' WHEN bMoveInAllowEditingRecChgs = 1 THEN 'TRUE'\
+          \ WHEN bMoveInAllowEditingRecChgs = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bMoveInAllowEditingRecChgs,\n    COALESCE(CAST(iMoveOutDateOption AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iMoveOutDateOption,\n    CASE WHEN bMoveOutPromptToPrintLedger IS NULL\
+          \ THEN '<<NULL>>' WHEN bMoveOutPromptToPrintLedger = 1 THEN 'TRUE' WHEN\
+          \ bMoveOutPromptToPrintLedger = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOutPromptToPrintLedger,\n\
+          \    CASE WHEN bMoveOutAllowWritingOffBadDebtImmediately IS NULL THEN '<<NULL>>'\
+          \ WHEN bMoveOutAllowWritingOffBadDebtImmediately = 1 THEN 'TRUE' WHEN bMoveOutAllowWritingOffBadDebtImmediately\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOutAllowWritingOffBadDebtImmediately,\n\
+          \    CASE WHEN bMoveOutProrate IS NULL THEN '<<NULL>>' WHEN bMoveOutProrate\
+          \ = 1 THEN 'TRUE' WHEN bMoveOutProrate = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bMoveOutProrate,\n    CASE WHEN bMoveOutPromptToRandomizeAccessCode\
+          \ IS NULL THEN '<<NULL>>' WHEN bMoveOutPromptToRandomizeAccessCode = 1 THEN\
+          \ 'TRUE' WHEN bMoveOutPromptToRandomizeAccessCode = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bMoveOutPromptToRandomizeAccessCode,\n    CASE WHEN\
+          \ bMoveOutPromptToTransferCreditBalance IS NULL THEN '<<NULL>>' WHEN bMoveOutPromptToTransferCreditBalance\
+          \ = 1 THEN 'TRUE' WHEN bMoveOutPromptToTransferCreditBalance = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bMoveOutPromptToTransferCreditBalance,\n    CASE\
+          \ WHEN bMoveOutDisableProrateAfterNPDueDays IS NULL THEN '<<NULL>>' WHEN\
+          \ bMoveOutDisableProrateAfterNPDueDays = 1 THEN 'TRUE' WHEN bMoveOutDisableProrateAfterNPDueDays\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOutDisableProrateAfterNPDueDays,\n\
+          \    COALESCE(CAST(iMoveOutDisableProratePDueDays AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iMoveOutDisableProratePDueDays,\n    CASE WHEN bPCI_RequirePasswordSecurity\
+          \ IS NULL THEN '<<NULL>>' WHEN bPCI_RequirePasswordSecurity = 1 THEN 'TRUE'\
+          \ WHEN bPCI_RequirePasswordSecurity = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bPCI_RequirePasswordSecurity,\n    CASE WHEN bDiscounts_ReqReasonIfWaivePOS\
+          \ IS NULL THEN '<<NULL>>' WHEN bDiscounts_ReqReasonIfWaivePOS = 1 THEN 'TRUE'\
+          \ WHEN bDiscounts_ReqReasonIfWaivePOS = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bDiscounts_ReqReasonIfWaivePOS,\n    CASE WHEN bTransferApplyTfrFee\
+          \ IS NULL THEN '<<NULL>>' WHEN bTransferApplyTfrFee = 1 THEN 'TRUE' WHEN\
+          \ bTransferApplyTfrFee = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bTransferApplyTfrFee,\n\
+          \    COALESCE(CAST(iPrintAutoAtStart AS VARCHAR(100)),'<<NULL>>') AS iPrintAutoAtStart,\n\
+          \    CASE WHEN bPrintLettersWOFeeAtStart IS NULL THEN '<<NULL>>' WHEN bPrintLettersWOFeeAtStart\
+          \ = 1 THEN 'TRUE' WHEN bPrintLettersWOFeeAtStart = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPrintLettersWOFeeAtStart,\n    CASE WHEN bPrintLettersWithFeeAtStart\
+          \ IS NULL THEN '<<NULL>>' WHEN bPrintLettersWithFeeAtStart = 1 THEN 'TRUE'\
+          \ WHEN bPrintLettersWithFeeAtStart = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bPrintLettersWithFeeAtStart,\n    CASE WHEN bPrintInvoicesAtStart IS\
+          \ NULL THEN '<<NULL>>' WHEN bPrintInvoicesAtStart = 1 THEN 'TRUE' WHEN bPrintInvoicesAtStart\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPrintInvoicesAtStart,\n    CASE\
+          \ WHEN bPrintReportsAtStart IS NULL THEN '<<NULL>>' WHEN bPrintReportsAtStart\
+          \ = 1 THEN 'TRUE' WHEN bPrintReportsAtStart = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPrintReportsAtStart,\n    CASE WHEN bPrintUnitIDsOnLabels IS NULL\
+          \ THEN '<<NULL>>' WHEN bPrintUnitIDsOnLabels = 1 THEN 'TRUE' WHEN bPrintUnitIDsOnLabels\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPrintUnitIDsOnLabels,\n    CASE\
+          \ WHEN bPmtShowCardNumIfAvail IS NULL THEN '<<NULL>>' WHEN bPmtShowCardNumIfAvail\
+          \ = 1 THEN 'TRUE' WHEN bPmtShowCardNumIfAvail = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPmtShowCardNumIfAvail,\n    CASE WHEN bPmtPromptToDisablePDueIfPartialPmt\
+          \ IS NULL THEN '<<NULL>>' WHEN bPmtPromptToDisablePDueIfPartialPmt = 1 THEN\
+          \ 'TRUE' WHEN bPmtPromptToDisablePDueIfPartialPmt = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bPmtPromptToDisablePDueIfPartialPmt,\n    CASE WHEN\
+          \ bPmtPromptToPrintReminderIfPartialPmt IS NULL THEN '<<NULL>>' WHEN bPmtPromptToPrintReminderIfPartialPmt\
+          \ = 1 THEN 'TRUE' WHEN bPmtPromptToPrintReminderIfPartialPmt = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPmtPromptToPrintReminderIfPartialPmt,\n    CASE\
+          \ WHEN bPmtAllowBackdatedCharges IS NULL THEN '<<NULL>>' WHEN bPmtAllowBackdatedCharges\
+          \ = 1 THEN 'TRUE' WHEN bPmtAllowBackdatedCharges = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPmtAllowBackdatedCharges,\n    COALESCE(CAST(iPmtOrder AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iPmtOrder,\n    COALESCE(CAST(iPmtReceiptPrompt AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iPmtReceiptPrompt,\n    COALESCE(CAST(iPmtRcptEmailOption AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iPmtRcptEmailOption,\n    CASE WHEN bCloseReqWalkinsAndCalls IS NULL\
+          \ THEN '<<NULL>>' WHEN bCloseReqWalkinsAndCalls = 1 THEN 'TRUE' WHEN bCloseReqWalkinsAndCalls\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCloseReqWalkinsAndCalls,\n  \
+          \  CASE WHEN bSecurityReqLogInEveryPmt IS NULL THEN '<<NULL>>' WHEN bSecurityReqLogInEveryPmt\
+          \ = 1 THEN 'TRUE' WHEN bSecurityReqLogInEveryPmt = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bSecurityReqLogInEveryPmt,\n    CASE WHEN bStartupFromMap IS NULL\
+          \ THEN '<<NULL>>' WHEN bStartupFromMap = 1 THEN 'TRUE' WHEN bStartupFromMap\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bStartupFromMap,\n    CASE WHEN\
+          \ bPromptToDownloadRentRoll IS NULL THEN '<<NULL>>' WHEN bPromptToDownloadRentRoll\
+          \ = 1 THEN 'TRUE' WHEN bPromptToDownloadRentRoll = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPromptToDownloadRentRoll,\n    CASE WHEN bUseMeters IS NULL THEN\
+          \ '<<NULL>>' WHEN bUseMeters = 1 THEN 'TRUE' WHEN bUseMeters = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bUseMeters,\n    CASE WHEN bShowAreasInsteadOfSize\
+          \ IS NULL THEN '<<NULL>>' WHEN bShowAreasInsteadOfSize = 1 THEN 'TRUE' WHEN\
+          \ bShowAreasInsteadOfSize = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bShowAreasInsteadOfSize,\n\
+          \    CASE WHEN bNoPhoneFormatting IS NULL THEN '<<NULL>>' WHEN bNoPhoneFormatting\
+          \ = 1 THEN 'TRUE' WHEN bNoPhoneFormatting = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bNoPhoneFormatting,\n    CASE WHEN bNoSSNFormatting IS NULL THEN\
+          \ '<<NULL>>' WHEN bNoSSNFormatting = 1 THEN 'TRUE' WHEN bNoSSNFormatting\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bNoSSNFormatting,\n    COALESCE(CAST(iReportsCustomEndDay\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iReportsCustomEndDay,\n    COALESCE(CAST(iReportsDateOption\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iReportsDateOption,\n    COALESCE(CAST(iCurrencyDecimalPlaces\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iCurrencyDecimalPlaces,\n    COALESCE(CAST(iTaxDecimalPlaces\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iTaxDecimalPlaces,\n    COALESCE(TRIM(sCreditCardProcessor),'<<NULL>>')\
+          \ AS sCreditCardProcessor,\n    COALESCE(TRIM(sCreditCardTerminalID),'<<NULL>>')\
+          \ AS sCreditCardTerminalID,\n    COALESCE(CAST(iInvoiceFormat AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iInvoiceFormat,\n    COALESCE(TRIM(sInvoiceRemitAddr1),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr1,\n    COALESCE(TRIM(sInvoiceRemitAddr2),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr2,\n    COALESCE(TRIM(sInvoiceRemitAddr3),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr3,\n    COALESCE(TRIM(sInvoiceRemitAddr4),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr4,\n    COALESCE(TRIM(sInvoiceRemitAddr5),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr5,\n    COALESCE(TRIM(sInvoiceLocCode),'<<NULL>>')\
+          \ AS sInvoiceLocCode,\n    COALESCE(TRIM(sInvoiceMess1),'<<NULL>>') AS sInvoiceMess1,\n\
+          \    COALESCE(TRIM(sInvoiceMess2),'<<NULL>>') AS sInvoiceMess2,\n    COALESCE(TRIM(sInvoiceMess3),'<<NULL>>')\
+          \ AS sInvoiceMess3,\n    COALESCE(TRIM(sInvoiceMess4),'<<NULL>>') AS sInvoiceMess4,\n\
+          \    COALESCE(TRIM(sInvoiceMess5),'<<NULL>>') AS sInvoiceMess5,\n    COALESCE(TRIM(sInvoiceMess6),'<<NULL>>')\
+          \ AS sInvoiceMess6,\n    COALESCE(TRIM(sInvoiceMess7),'<<NULL>>') AS sInvoiceMess7,\n\
+          \    COALESCE(TRIM(sInvoiceMess8),'<<NULL>>') AS sInvoiceMess8,\n    COALESCE(TRIM(sInvoiceMess9),'<<NULL>>')\
+          \ AS sInvoiceMess9,\n    COALESCE(CAST(iBulletinsShow AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iBulletinsShow,\n    COALESCE(CAST(iBulletinsKeepMonths AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iBulletinsKeepMonths,\n    COALESCE(TRIM(sPhoneFormat),'<<NULL>>')\
+          \ AS sPhoneFormat,\n    COALESCE(TRIM(sBusinessTaxNum),'<<NULL>>') AS sBusinessTaxNum,\n\
+          \    COALESCE(CAST(iEmailType AS VARCHAR(100)),'<<NULL>>') AS iEmailType,\n\
+          \    COALESCE(TRIM(sEmailURL),'<<NULL>>') AS sEmailURL,\n    COALESCE(CAST(iInternetAccessType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iInternetAccessType,\n    COALESCE(CAST(AcctSoftwareID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS AcctSoftwareID,\n    COALESCE(TRIM(sAcctSoftwareCode),'<<NULL>>')\
+          \ AS sAcctSoftwareCode,\n    CASE WHEN bAccrual IS NULL THEN '<<NULL>>'\
+          \ WHEN bAccrual = 1 THEN 'TRUE' WHEN bAccrual = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bAccrual,\n    CASE WHEN bAcctProrateAR IS NULL THEN '<<NULL>>'\
+          \ WHEN bAcctProrateAR = 1 THEN 'TRUE' WHEN bAcctProrateAR = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bAcctProrateAR,\n    CASE WHEN bPrepaidRentLiabilityAcct\
+          \ IS NULL THEN '<<NULL>>' WHEN bPrepaidRentLiabilityAcct = 1 THEN 'TRUE'\
+          \ WHEN bPrepaidRentLiabilityAcct = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bPrepaidRentLiabilityAcct,\n    COALESCE(CAST(InsurProviderID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS InsurProviderID,\n    COALESCE(TRIM(sInsurProjectCode),'<<NULL>>')\
+          \ AS sInsurProjectCode,\n    COALESCE(CAST(iRevMgrPlan AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iRevMgrPlan,\n    COALESCE(CAST(iMinInactivityBeforeRefresh AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iMinInactivityBeforeRefresh,\n    COALESCE(TRIM(sACH_ODFI),'<<NULL>>')\
+          \ AS sACH_ODFI,\n    COALESCE(TRIM(sACH_MerchantName),'<<NULL>>') AS sACH_MerchantName,\n\
+          \    COALESCE(CAST(ACHProviderID AS VARCHAR(100)),'<<NULL>>') AS ACHProviderID,\n\
+          \    COALESCE(TRIM(sACHGatewayURL),'<<NULL>>') AS sACHGatewayURL,\n    COALESCE(TRIM(sACHUserID),'<<NULL>>')\
+          \ AS sACHUserID,\n    COALESCE(TRIM(sACHPassword),'<<NULL>>') AS sACHPassword,\n\
+          \    COALESCE(TRIM(sACHUserInterfaceURL),'<<NULL>>') AS sACHUserInterfaceURL,\n\
+          \    CASE WHEN bACHSingleTXForUnpaidCharges IS NULL THEN '<<NULL>>' WHEN\
+          \ bACHSingleTXForUnpaidCharges = 1 THEN 'TRUE' WHEN bACHSingleTXForUnpaidCharges\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bACHSingleTXForUnpaidCharges,\n\
+          \    COALESCE(CAST(iACHCurrency AS VARCHAR(100)),'<<NULL>>') AS iACHCurrency,\n\
+          \    COALESCE(CAST(iOnlinePmtDisableDaysPastDue AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iOnlinePmtDisableDaysPastDue,\n    CASE WHEN bUnitByUnitLateFee IS\
+          \ NULL THEN '<<NULL>>' WHEN bUnitByUnitLateFee = 1 THEN 'TRUE' WHEN bUnitByUnitLateFee\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bUnitByUnitLateFee,\n    CASE\
+          \ WHEN bRequireBackup IS NULL THEN '<<NULL>>' WHEN bRequireBackup = 1 THEN\
+          \ 'TRUE' WHEN bRequireBackup = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRequireBackup,\n\
+          \    CASE WHEN bMoveInAlwaysApplyReservationFee IS NULL THEN '<<NULL>>'\
+          \ WHEN bMoveInAlwaysApplyReservationFee = 1 THEN 'TRUE' WHEN bMoveInAlwaysApplyReservationFee\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveInAlwaysApplyReservationFee,\n\
+          \    CASE WHEN bCreditCardEdit_ShowEntireNumber IS NULL THEN '<<NULL>>'\
+          \ WHEN bCreditCardEdit_ShowEntireNumber = 1 THEN 'TRUE' WHEN bCreditCardEdit_ShowEntireNumber\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCreditCardEdit_ShowEntireNumber,\n\
+          \    CASE WHEN bDailyClose_PromptToSettleBatch IS NULL THEN '<<NULL>>' WHEN\
+          \ bDailyClose_PromptToSettleBatch = 1 THEN 'TRUE' WHEN bDailyClose_PromptToSettleBatch\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bDailyClose_PromptToSettleBatch,\n\
+          \    CASE WHEN bPmtDelete_PromptToReverseCCard IS NULL THEN '<<NULL>>' WHEN\
+          \ bPmtDelete_PromptToReverseCCard = 1 THEN 'TRUE' WHEN bPmtDelete_PromptToReverseCCard\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPmtDelete_PromptToReverseCCard,\n\
+          \    CASE WHEN bDiscounts_ReqReason IS NULL THEN '<<NULL>>' WHEN bDiscounts_ReqReason\
+          \ = 1 THEN 'TRUE' WHEN bDiscounts_ReqReason = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bDiscounts_ReqReason,\n    CASE WHEN bLateFees_ReqReasonIfWaive\
+          \ IS NULL THEN '<<NULL>>' WHEN bLateFees_ReqReasonIfWaive = 1 THEN 'TRUE'\
+          \ WHEN bLateFees_ReqReasonIfWaive = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bLateFees_ReqReasonIfWaive,\n    CASE WHEN bLedgers_ReqReasonEditLateFeeType\
+          \ IS NULL THEN '<<NULL>>' WHEN bLedgers_ReqReasonEditLateFeeType = 1 THEN\
+          \ 'TRUE' WHEN bLedgers_ReqReasonEditLateFeeType = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bLedgers_ReqReasonEditLateFeeType,\n    CASE WHEN bLedgers_ReqReasonEditRent\
+          \ IS NULL THEN '<<NULL>>' WHEN bLedgers_ReqReasonEditRent = 1 THEN 'TRUE'\
+          \ WHEN bLedgers_ReqReasonEditRent = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bLedgers_ReqReasonEditRent,\n    CASE WHEN bLedgers_ReqReasonEditMoveInDate\
+          \ IS NULL THEN '<<NULL>>' WHEN bLedgers_ReqReasonEditMoveInDate = 1 THEN\
+          \ 'TRUE' WHEN bLedgers_ReqReasonEditMoveInDate = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bLedgers_ReqReasonEditMoveInDate,\n    CASE WHEN bLedgers_ReqReasonEditLeaseDate\
+          \ IS NULL THEN '<<NULL>>' WHEN bLedgers_ReqReasonEditLeaseDate = 1 THEN\
+          \ 'TRUE' WHEN bLedgers_ReqReasonEditLeaseDate = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bLedgers_ReqReasonEditLeaseDate,\n    CASE WHEN bLedgers_ReqReasonEditLateFees\
+          \ IS NULL THEN '<<NULL>>' WHEN bLedgers_ReqReasonEditLateFees = 1 THEN 'TRUE'\
+          \ WHEN bLedgers_ReqReasonEditLateFees = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bLedgers_ReqReasonEditLateFees,\n    CASE WHEN bLedgers_ReqReasonEditFees\
+          \ IS NULL THEN '<<NULL>>' WHEN bLedgers_ReqReasonEditFees = 1 THEN 'TRUE'\
+          \ WHEN bLedgers_ReqReasonEditFees = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bLedgers_ReqReasonEditFees,\n    CASE WHEN bLedgers_ReqReasonDisablePDueEvents\
+          \ IS NULL THEN '<<NULL>>' WHEN bLedgers_ReqReasonDisablePDueEvents = 1 THEN\
+          \ 'TRUE' WHEN bLedgers_ReqReasonDisablePDueEvents = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bLedgers_ReqReasonDisablePDueEvents,\n    CASE WHEN\
+          \ bLedgers_ReqReasonEditBillingType IS NULL THEN '<<NULL>>' WHEN bLedgers_ReqReasonEditBillingType\
+          \ = 1 THEN 'TRUE' WHEN bLedgers_ReqReasonEditBillingType = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditBillingType,\n    CASE WHEN\
+          \ bLedgers_ReqReasonEditAnniversaryDate IS NULL THEN '<<NULL>>' WHEN bLedgers_ReqReasonEditAnniversaryDate\
+          \ = 1 THEN 'TRUE' WHEN bLedgers_ReqReasonEditAnniversaryDate = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditAnniversaryDate,\n    CASE\
+          \ WHEN bLedgers_ReqReasonEditTaxableStatus IS NULL THEN '<<NULL>>' WHEN\
+          \ bLedgers_ReqReasonEditTaxableStatus = 1 THEN 'TRUE' WHEN bLedgers_ReqReasonEditTaxableStatus\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditTaxableStatus,\n\
+          \    CASE WHEN bAccess_ReqReasonEditTimeOrKeypadZone IS NULL THEN '<<NULL>>'\
+          \ WHEN bAccess_ReqReasonEditTimeOrKeypadZone = 1 THEN 'TRUE' WHEN bAccess_ReqReasonEditTimeOrKeypadZone\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bAccess_ReqReasonEditTimeOrKeypadZone,\n\
+          \    CASE WHEN bUnits_ReqReasonEditName IS NULL THEN '<<NULL>>' WHEN bUnits_ReqReasonEditName\
+          \ = 1 THEN 'TRUE' WHEN bUnits_ReqReasonEditName = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bUnits_ReqReasonEditName,\n    CASE WHEN bUnits_ReqReasonEditType\
+          \ IS NULL THEN '<<NULL>>' WHEN bUnits_ReqReasonEditType = 1 THEN 'TRUE'\
+          \ WHEN bUnits_ReqReasonEditType = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bUnits_ReqReasonEditType,\n    CASE WHEN bUnits_ReqReasonEditSize IS NULL\
+          \ THEN '<<NULL>>' WHEN bUnits_ReqReasonEditSize = 1 THEN 'TRUE' WHEN bUnits_ReqReasonEditSize\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bUnits_ReqReasonEditSize,\n  \
+          \  CASE WHEN bUnits_ReqReasonEditRate IS NULL THEN '<<NULL>>' WHEN bUnits_ReqReasonEditRate\
+          \ = 1 THEN 'TRUE' WHEN bUnits_ReqReasonEditRate = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bUnits_ReqReasonEditRate,\n    CASE WHEN bUnits_ReqReasonEditSecurityDeposit\
+          \ IS NULL THEN '<<NULL>>' WHEN bUnits_ReqReasonEditSecurityDeposit = 1 THEN\
+          \ 'TRUE' WHEN bUnits_ReqReasonEditSecurityDeposit = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bUnits_ReqReasonEditSecurityDeposit,\n    CASE WHEN\
+          \ bUnits_ReqReasonDelete IS NULL THEN '<<NULL>>' WHEN bUnits_ReqReasonDelete\
+          \ = 1 THEN 'TRUE' WHEN bUnits_ReqReasonDelete = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bUnits_ReqReasonDelete,\n    CASE WHEN bUnitType_ReqReasonDelete\
+          \ IS NULL THEN '<<NULL>>' WHEN bUnitType_ReqReasonDelete = 1 THEN 'TRUE'\
+          \ WHEN bUnitType_ReqReasonDelete = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bUnitType_ReqReasonDelete,\n    CASE WHEN bChargeDesc_ReqReasonEdit IS\
+          \ NULL THEN '<<NULL>>' WHEN bChargeDesc_ReqReasonEdit = 1 THEN 'TRUE' WHEN\
+          \ bChargeDesc_ReqReasonEdit = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bChargeDesc_ReqReasonEdit,\n\
+          \    CASE WHEN bChargeDesc_ReqReasonDelete IS NULL THEN '<<NULL>>' WHEN\
+          \ bChargeDesc_ReqReasonDelete = 1 THEN 'TRUE' WHEN bChargeDesc_ReqReasonDelete\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bChargeDesc_ReqReasonDelete,\n\
+          \    CASE WHEN bEmployees_ReqReasonDelete IS NULL THEN '<<NULL>>' WHEN bEmployees_ReqReasonDelete\
+          \ = 1 THEN 'TRUE' WHEN bEmployees_ReqReasonDelete = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bEmployees_ReqReasonDelete,\n    CASE WHEN bConcessionPlans_ReqReasonDelete\
+          \ IS NULL THEN '<<NULL>>' WHEN bConcessionPlans_ReqReasonDelete = 1 THEN\
+          \ 'TRUE' WHEN bConcessionPlans_ReqReasonDelete = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bConcessionPlans_ReqReasonDelete,\n    CASE WHEN bRevenueMgmtUnits_ReqReasonEdit\
+          \ IS NULL THEN '<<NULL>>' WHEN bRevenueMgmtUnits_ReqReasonEdit = 1 THEN\
+          \ 'TRUE' WHEN bRevenueMgmtUnits_ReqReasonEdit = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bRevenueMgmtUnits_ReqReasonEdit,\n    CASE WHEN bRevenueMgmtUnits_ReqReasonDisable\
+          \ IS NULL THEN '<<NULL>>' WHEN bRevenueMgmtUnits_ReqReasonDisable = 1 THEN\
+          \ 'TRUE' WHEN bRevenueMgmtUnits_ReqReasonDisable = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bRevenueMgmtUnits_ReqReasonDisable,\n    CASE WHEN bRevenueMgmtUnits_ReqReasonDisableForUnitTypes\
+          \ IS NULL THEN '<<NULL>>' WHEN bRevenueMgmtUnits_ReqReasonDisableForUnitTypes\
+          \ = 1 THEN 'TRUE' WHEN bRevenueMgmtUnits_ReqReasonDisableForUnitTypes =\
+          \ 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtUnits_ReqReasonDisableForUnitTypes,\n\
+          \    CASE WHEN bRevenueMgmtTenants_ReqReasonEdit IS NULL THEN '<<NULL>>'\
+          \ WHEN bRevenueMgmtTenants_ReqReasonEdit = 1 THEN 'TRUE' WHEN bRevenueMgmtTenants_ReqReasonEdit\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtTenants_ReqReasonEdit,\n\
+          \    CASE WHEN bRevenueMgmtTenants_ReqReasonDisable IS NULL THEN '<<NULL>>'\
+          \ WHEN bRevenueMgmtTenants_ReqReasonDisable = 1 THEN 'TRUE' WHEN bRevenueMgmtTenants_ReqReasonDisable\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtTenants_ReqReasonDisable,\n\
+          \    CASE WHEN bRevenueMgmtTenants_ReqReasonDisableForUnitTypes IS NULL\
+          \ THEN '<<NULL>>' WHEN bRevenueMgmtTenants_ReqReasonDisableForUnitTypes\
+          \ = 1 THEN 'TRUE' WHEN bRevenueMgmtTenants_ReqReasonDisableForUnitTypes\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtTenants_ReqReasonDisableForUnitTypes,\n\
+          \    CASE WHEN bCompanySub_Use IS NULL THEN '<<NULL>>' WHEN bCompanySub_Use\
+          \ = 1 THEN 'TRUE' WHEN bCompanySub_Use = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCompanySub_Use,\n    CASE WHEN bPmtOnlyAcceptFullPmtsIfNDaysLate\
+          \ IS NULL THEN '<<NULL>>' WHEN bPmtOnlyAcceptFullPmtsIfNDaysLate = 1 THEN\
+          \ 'TRUE' WHEN bPmtOnlyAcceptFullPmtsIfNDaysLate = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPmtOnlyAcceptFullPmtsIfNDaysLate,\n    COALESCE(CAST(iPmtOnlyAcceptFullPmtsDays\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iPmtOnlyAcceptFullPmtsDays,\n    COALESCE(CAST(CAST(dcPmtRoundTo\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPmtRoundTo,\n    CASE\
+          \ WHEN bMoveOut_Prorate30Days IS NULL THEN '<<NULL>>' WHEN bMoveOut_Prorate30Days\
+          \ = 1 THEN 'TRUE' WHEN bMoveOut_Prorate30Days = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bMoveOut_Prorate30Days,\n    CASE WHEN bMoveOut_ProrateFromDayOne\
+          \ IS NULL THEN '<<NULL>>' WHEN bMoveOut_ProrateFromDayOne = 1 THEN 'TRUE'\
+          \ WHEN bMoveOut_ProrateFromDayOne = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bMoveOut_ProrateFromDayOne,\n    COALESCE(CAST(iEmailAttachmentFormat\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iEmailAttachmentFormat,\n    COALESCE(CAST(iAccessCodeMaxDigits\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iAccessCodeMaxDigits,\n    CASE WHEN bCancelInsurOnCancelDay\
+          \ IS NULL THEN '<<NULL>>' WHEN bCancelInsurOnCancelDay = 1 THEN 'TRUE' WHEN\
+          \ bCancelInsurOnCancelDay = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCancelInsurOnCancelDay,\n\
+          \    CASE WHEN bDiscountLiabilityAcct IS NULL THEN '<<NULL>>' WHEN bDiscountLiabilityAcct\
+          \ = 1 THEN 'TRUE' WHEN bDiscountLiabilityAcct = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bDiscountLiabilityAcct,\n    COALESCE(CAST(iPartialPmtsDisableDaysPastDue\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iPartialPmtsDisableDaysPastDue,\n    COALESCE(CAST(iLedgerReportOption\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iLedgerReportOption,\n    CASE WHEN bMoveOut_ReqExitSurvey\
+          \ IS NULL THEN '<<NULL>>' WHEN bMoveOut_ReqExitSurvey = 1 THEN 'TRUE' WHEN\
+          \ bMoveOut_ReqExitSurvey = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOut_ReqExitSurvey,\n\
+          \    CASE WHEN bMoveInPromptToPrintLease IS NULL THEN '<<NULL>>' WHEN bMoveInPromptToPrintLease\
+          \ = 1 THEN 'TRUE' WHEN bMoveInPromptToPrintLease = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bMoveInPromptToPrintLease,\n    COALESCE(CAST(iReportsFYStart AS\
+          \ VARCHAR(100)),'<<NULL>>') AS iReportsFYStart,\n    COALESCE(CAST(iDailyCloseAutomation\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iDailyCloseAutomation,\n    COALESCE(CAST(iDailyCloseHour\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iDailyCloseHour,\n    CASE WHEN bPmtPromptForRecBilling\
+          \ IS NULL THEN '<<NULL>>' WHEN bPmtPromptForRecBilling = 1 THEN 'TRUE' WHEN\
+          \ bPmtPromptForRecBilling = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPmtPromptForRecBilling,\n\
+          \    COALESCE(CAST(iEmailAttachmentType AS VARCHAR(100)),'<<NULL>>') AS\
+          \ iEmailAttachmentType,\n    COALESCE(CAST(iMoveOutUnitNote AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iMoveOutUnitNote,\n    COALESCE(TRIM(sMoveOutUnitNote),'<<NULL>>')\
+          \ AS sMoveOutUnitNote,\n    COALESCE(CAST(iAcctgExport_Prep AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iAcctgExport_Prep,\n    COALESCE(CAST(iAcctgExport_File AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iAcctgExport_File,\n    COALESCE(CAST(iAcctgExport_Period AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iAcctgExport_Period,\n    COALESCE(CAST(iAcctgExport_WeekDayNum AS\
+          \ VARCHAR(100)),'<<NULL>>') AS iAcctgExport_WeekDayNum,\n    COALESCE(CAST(iAcctgExport_WeekNum\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iAcctgExport_WeekNum,\n    COALESCE(CAST(iAcctgExport_CashMgmt\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iAcctgExport_CashMgmt,\n    COALESCE(CAST(iBadDebtWriteOff\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iBadDebtWriteOff,\n    CASE WHEN bCoA_BadDebts\
+          \ IS NULL THEN '<<NULL>>' WHEN bCoA_BadDebts = 1 THEN 'TRUE' WHEN bCoA_BadDebts\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCoA_BadDebts,\n    CASE WHEN\
+          \ bCoA_Discounts IS NULL THEN '<<NULL>>' WHEN bCoA_Discounts = 1 THEN 'TRUE'\
+          \ WHEN bCoA_Discounts = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCoA_Discounts,\n\
+          \    CASE WHEN bCoA_AR_FeesAndOther IS NULL THEN '<<NULL>>' WHEN bCoA_AR_FeesAndOther\
+          \ = 1 THEN 'TRUE' WHEN bCoA_AR_FeesAndOther = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCoA_AR_FeesAndOther,\n    CASE WHEN bCoA_RentRefund IS NULL THEN\
+          \ '<<NULL>>' WHEN bCoA_RentRefund = 1 THEN 'TRUE' WHEN bCoA_RentRefund =\
+          \ 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCoA_RentRefund,\n    CASE WHEN\
+          \ bCoA_RentRefundLiability IS NULL THEN '<<NULL>>' WHEN bCoA_RentRefundLiability\
+          \ = 1 THEN 'TRUE' WHEN bCoA_RentRefundLiability = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCoA_RentRefundLiability,\n    CASE WHEN bCoA_AuctionOverpayLiability\
+          \ IS NULL THEN '<<NULL>>' WHEN bCoA_AuctionOverpayLiability = 1 THEN 'TRUE'\
+          \ WHEN bCoA_AuctionOverpayLiability = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bCoA_AuctionOverpayLiability,\n    CASE WHEN bCoA_InsurRefundsPayable\
+          \ IS NULL THEN '<<NULL>>' WHEN bCoA_InsurRefundsPayable = 1 THEN 'TRUE'\
+          \ WHEN bCoA_InsurRefundsPayable = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bCoA_InsurRefundsPayable,\n    CASE WHEN bCoA_NSFPostMoveOut IS NULL THEN\
+          \ '<<NULL>>' WHEN bCoA_NSFPostMoveOut = 1 THEN 'TRUE' WHEN bCoA_NSFPostMoveOut\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCoA_NSFPostMoveOut,\n    COALESCE(CAST(BillingFreqID_Def\
+          \ AS VARCHAR(100)),'<<NULL>>') AS BillingFreqID_Def,\n    COALESCE(CAST(CAST(dcNonCreditCardPmtDiscPC\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcNonCreditCardPmtDiscPC,\n\
+          \    COALESCE(CAST(iRefreshArchive AS VARCHAR(100)),'<<NULL>>') AS iRefreshArchive,\n\
+          \    COALESCE(CAST(iMoveOut_Prorate AS VARCHAR(100)),'<<NULL>>') AS iMoveOut_Prorate,\n\
+          \    COALESCE(CAST(iWaitingFollowupDays AS VARCHAR(100)),'<<NULL>>') AS\
+          \ iWaitingFollowupDays,\n    COALESCE(CAST(iCreditMgmt_Option AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iCreditMgmt_Option,\n    COALESCE(CAST(iCreditMgmt_Action AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iCreditMgmt_Action,\n    COALESCE(CAST(CAST(dcCreditMgmt_Limit AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcCreditMgmt_Limit,\n    COALESCE(CAST(iRefund_Option\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRefund_Option,\n    COALESCE(CAST(iRefund_FuturePeriods\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRefund_FuturePeriods,\n    COALESCE(CAST(iRefund_PartialPeriods\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRefund_PartialPeriods,\n    COALESCE(CAST(CAST(dcRefund_MinAmt\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRefund_MinAmt,\n \
+          \   COALESCE(CAST(CAST(dcRefund_AutoApprovalMax AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcRefund_AutoApprovalMax,\n    COALESCE(CAST(iRefund_POSMaxReturnDays\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRefund_POSMaxReturnDays,\n    CASE WHEN\
+          \ bServiceFee_WebPmts IS NULL THEN '<<NULL>>' WHEN bServiceFee_WebPmts =\
+          \ 1 THEN 'TRUE' WHEN bServiceFee_WebPmts = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bServiceFee_WebPmts,\n    CASE WHEN bServiceFee_AutoPmts IS NULL\
+          \ THEN '<<NULL>>' WHEN bServiceFee_AutoPmts = 1 THEN 'TRUE' WHEN bServiceFee_AutoPmts\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bServiceFee_AutoPmts,\n    CASE\
+          \ WHEN bServiceFee_KioskPmts IS NULL THEN '<<NULL>>' WHEN bServiceFee_KioskPmts\
+          \ = 1 THEN 'TRUE' WHEN bServiceFee_KioskPmts = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bServiceFee_KioskPmts,\n    CASE WHEN bServiceFee_NormalPmts IS\
+          \ NULL THEN '<<NULL>>' WHEN bServiceFee_NormalPmts = 1 THEN 'TRUE' WHEN\
+          \ bServiceFee_NormalPmts = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bServiceFee_NormalPmts,\n\
+          \    COALESCE(CAST(iInvoice_ChargeDisplayType AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iInvoice_ChargeDisplayType,\n    COALESCE(CAST(iNotReadyToRentType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iNotReadyToRentType,\n    CASE WHEN bReservationFeeApplyAtMoveIn\
+          \ IS NULL THEN '<<NULL>>' WHEN bReservationFeeApplyAtMoveIn = 1 THEN 'TRUE'\
+          \ WHEN bReservationFeeApplyAtMoveIn = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bReservationFeeApplyAtMoveIn,\n    CASE WHEN bRefunds_RequireReason\
+          \ IS NULL THEN '<<NULL>>' WHEN bRefunds_RequireReason = 1 THEN 'TRUE' WHEN\
+          \ bRefunds_RequireReason = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRefunds_RequireReason,\n\
+          \    COALESCE(CAST(iRefundAction_Option_SecLevel AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iRefundAction_Option_SecLevel,\n    COALESCE(CAST(iDocumentDeliveryType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iDocumentDeliveryType,\n    COALESCE(TRIM(sSMTPServerAddress),'<<NULL>>')\
+          \ AS sSMTPServerAddress,\n    COALESCE(CAST(iSMTPPort AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iSMTPPort,\n    CASE WHEN bSMTPUseSSL IS NULL THEN '<<NULL>>' WHEN\
+          \ bSMTPUseSSL = 1 THEN 'TRUE' WHEN bSMTPUseSSL = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bSMTPUseSSL,\n    COALESCE(TRIM(sSMTPUsername),'<<NULL>>') AS sSMTPUsername,\n\
+          \    COALESCE(TRIM(sSMTPPassword),'<<NULL>>') AS sSMTPPassword,\n    CASE\
+          \ WHEN bAcctgExcludeMoveOutProrate IS NULL THEN '<<NULL>>' WHEN bAcctgExcludeMoveOutProrate\
+          \ = 1 THEN 'TRUE' WHEN bAcctgExcludeMoveOutProrate = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bAcctgExcludeMoveOutProrate,\n    CASE WHEN bAcctgExcludeUnnamedDiscounts\
+          \ IS NULL THEN '<<NULL>>' WHEN bAcctgExcludeUnnamedDiscounts = 1 THEN 'TRUE'\
+          \ WHEN bAcctgExcludeUnnamedDiscounts = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bAcctgExcludeUnnamedDiscounts,\n    COALESCE(CAST(iAcctgExcludeMoveOutProrateDays\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iAcctgExcludeMoveOutProrateDays,\n   \
+          \ COALESCE(CAST(iCreditMgmtLedger_Action AS VARCHAR(100)),'<<NULL>>') AS\
+          \ iCreditMgmtLedger_Action,\n    COALESCE(CAST(CAST(dcCreditMgmtLedger_Limit\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcCreditMgmtLedger_Limit,\n\
+          \    CASE WHEN bInsurRequireAtMoveIn IS NULL THEN '<<NULL>>' WHEN bInsurRequireAtMoveIn\
+          \ = 1 THEN 'TRUE' WHEN bInsurRequireAtMoveIn = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bInsurRequireAtMoveIn,\n    COALESCE(CAST(iPastDue_ResetEventOnPartialPmtPDueDays\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iPastDue_ResetEventOnPartialPmtPDueDays,\n\
+          \    COALESCE(CAST(iDataSecurityOption AS VARCHAR(100)),'<<NULL>>') AS iDataSecurityOption,\n\
+          \    COALESCE(CAST(iMoveOutBackdateAllowedDays AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iMoveOutBackdateAllowedDays,\n    COALESCE(CAST(iReservationReqReasonCancel\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iReservationReqReasonCancel,\n    COALESCE(CAST(iIPLogonRestrictions\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iIPLogonRestrictions,\n    COALESCE(CAST(CAST(dcDiscountMerchandise_Limit\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcDiscountMerchandise_Limit,\n\
+          \    COALESCE(CAST(iDiscountMerchandise_SecLevel AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iDiscountMerchandise_SecLevel,\n    COALESCE(CAST(iIPLogonRestrictions_SecLevel\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iIPLogonRestrictions_SecLevel,\n    COALESCE(CAST(iTruckPromoOptOut\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iTruckPromoOptOut,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCreated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dArchived,\n    CASE WHEN bPermanent\
+          \ IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    CASE WHEN bAcctgPostDiscounts\
+          \ IS NULL THEN '<<NULL>>' WHEN bAcctgPostDiscounts = 1 THEN 'TRUE' WHEN\
+          \ bAcctgPostDiscounts = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bAcctgPostDiscounts,\n\
+          \    COALESCE(CAST(iOvernightAcctgOption AS VARCHAR(100)),'<<NULL>>') AS\
+          \ iOvernightAcctgOption,\n    COALESCE(CAST(iOvernightRptOption AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iOvernightRptOption,\n    COALESCE(CAST(iOvernightRevMgmtOption AS\
+          \ VARCHAR(100)),'<<NULL>>') AS iOvernightRevMgmtOption,\n    COALESCE(CAST(iSizeDecimals\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iSizeDecimals\nFROM dbo.DefaultsProg;"
+        target_table_name: DefaultsProg
+        target: snowflake
+        targetcolumn: DefaultsProgID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.DefaultsProgID),'<<NULL>>')\
+          \ AS DefaultsProgID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_CHAR(t.dLastUpdateDate,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dLastUpdateDate,\n    COALESCE(TO_VARCHAR(t.dcTax1Def),'<<NULL>>')\
+          \ AS dcTax1Def,\n    COALESCE(TO_VARCHAR(t.dcTax2Def),'<<NULL>>') AS dcTax2Def,\n\
+          \    CASE WHEN t.bPaidThruPartialMonth IS NULL THEN '<<NULL>>' WHEN t.bPaidThruPartialMonth\
+          \ = TRUE THEN 'TRUE' WHEN t.bPaidThruPartialMonth = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bPaidThruPartialMonth,\n    CASE WHEN t.bAnnivDateLeasing\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bAnnivDateLeasing = TRUE THEN 'TRUE' WHEN\
+          \ t.bAnnivDateLeasing = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bAnnivDateLeasing,\n\
+          \    CASE WHEN t.b2ndMonthProrate IS NULL THEN '<<NULL>>' WHEN t.b2ndMonthProrate\
+          \ = TRUE THEN 'TRUE' WHEN t.b2ndMonthProrate = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS b2ndMonthProrate,\n    COALESCE(TO_VARCHAR(t.iDayStrtProrating),'<<NULL>>')\
+          \ AS iDayStrtProrating,\n    COALESCE(TO_VARCHAR(t.iDayStrtProratePlusNext),'<<NULL>>')\
+          \ AS iDayStrtProratePlusNext,\n    COALESCE(TO_VARCHAR(t.dcMinGateLockAmt),'<<NULL>>')\
+          \ AS dcMinGateLockAmt,\n    COALESCE(TO_VARCHAR(t.iReservExpirDays),'<<NULL>>')\
+          \ AS iReservExpirDays,\n    COALESCE(TO_VARCHAR(t.iDefInvoiceDaysBefore),'<<NULL>>')\
+          \ AS iDefInvoiceDaysBefore,\n    CASE WHEN t.bChargeInvoiceFee IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bChargeInvoiceFee = TRUE THEN 'TRUE' WHEN t.bChargeInvoiceFee\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bChargeInvoiceFee,\n    CASE\
+          \ WHEN t.bOneTimeLateFee IS NULL THEN '<<NULL>>' WHEN t.bOneTimeLateFee\
+          \ = TRUE THEN 'TRUE' WHEN t.bOneTimeLateFee = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bOneTimeLateFee,\n    COALESCE(TO_VARCHAR(t.dcMinBalBeforeLateFee),'<<NULL>>')\
+          \ AS dcMinBalBeforeLateFee,\n    COALESCE(TO_VARCHAR(t.iLateFeeType),'<<NULL>>')\
+          \ AS iLateFeeType,\n    COALESCE(TO_VARCHAR(t.dcPCLateFeeRate),'<<NULL>>')\
+          \ AS dcPCLateFeeRate,\n    COALESCE(TO_VARCHAR(t.dcMinLateFeeIfPC),'<<NULL>>')\
+          \ AS dcMinLateFeeIfPC,\n    CASE WHEN t.bReqMarketingData IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bReqMarketingData = TRUE THEN 'TRUE' WHEN t.bReqMarketingData =\
+          \ FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bReqMarketingData,\n    CASE\
+          \ WHEN t.bReqPredefinedCreditReason IS NULL THEN '<<NULL>>' WHEN t.bReqPredefinedCreditReason\
+          \ = TRUE THEN 'TRUE' WHEN t.bReqPredefinedCreditReason = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bReqPredefinedCreditReason,\n    CASE WHEN t.bReqReasonComplimentary\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bReqReasonComplimentary = TRUE THEN 'TRUE'\
+          \ WHEN t.bReqReasonComplimentary = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bReqReasonComplimentary,\n    CASE WHEN t.bReqReasonUnrentable IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bReqReasonUnrentable = TRUE THEN 'TRUE' WHEN t.bReqReasonUnrentable\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bReqReasonUnrentable,\n  \
+          \  COALESCE(TO_VARCHAR(t.iKeypadZDef),'<<NULL>>') AS iKeypadZDef,\n    COALESCE(TO_VARCHAR(t.iTimeZDef),'<<NULL>>')\
+          \ AS iTimeZDef,\n    COALESCE(TRIM(t.sDefFont),'<<NULL>>') AS sDefFont,\n\
+          \    COALESCE(TO_VARCHAR(t.iDefTopMargin),'<<NULL>>') AS iDefTopMargin,\n\
+          \    COALESCE(TO_VARCHAR(t.iDefBottomMargin),'<<NULL>>') AS iDefBottomMargin,\n\
+          \    COALESCE(TO_VARCHAR(t.iDefLeftMargin),'<<NULL>>') AS iDefLeftMargin,\n\
+          \    COALESCE(TO_VARCHAR(t.iDefRightMargin),'<<NULL>>') AS iDefRightMargin,\n\
+          \    CASE WHEN t.bDefUseA4 IS NULL THEN '<<NULL>>' WHEN t.bDefUseA4 = TRUE\
+          \ THEN 'TRUE' WHEN t.bDefUseA4 = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bDefUseA4,\n    CASE WHEN t.bMoveInApplyAdminFee IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bMoveInApplyAdminFee = TRUE THEN 'TRUE' WHEN t.bMoveInApplyAdminFee\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveInApplyAdminFee,\n  \
+          \  COALESCE(TO_VARCHAR(t.iMoveInDateOption),'<<NULL>>') AS iMoveInDateOption,\n\
+          \    CASE WHEN t.bMoveInDefToSendInvoices IS NULL THEN '<<NULL>>' WHEN t.bMoveInDefToSendInvoices\
+          \ = TRUE THEN 'TRUE' WHEN t.bMoveInDefToSendInvoices = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bMoveInDefToSendInvoices,\n    CASE WHEN t.bMoveInAllowEditingRent\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bMoveInAllowEditingRent = TRUE THEN 'TRUE'\
+          \ WHEN t.bMoveInAllowEditingRent = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bMoveInAllowEditingRent,\n    CASE WHEN t.bMoveInOnlyUseConcessionPlans\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bMoveInOnlyUseConcessionPlans = TRUE THEN\
+          \ 'TRUE' WHEN t.bMoveInOnlyUseConcessionPlans = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bMoveInOnlyUseConcessionPlans,\n    CASE WHEN t.bMoveInAllowEditingRecChgs\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bMoveInAllowEditingRecChgs = TRUE THEN\
+          \ 'TRUE' WHEN t.bMoveInAllowEditingRecChgs = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bMoveInAllowEditingRecChgs,\n    COALESCE(TO_VARCHAR(t.iMoveOutDateOption),'<<NULL>>')\
+          \ AS iMoveOutDateOption,\n    CASE WHEN t.bMoveOutPromptToPrintLedger IS\
+          \ NULL THEN '<<NULL>>' WHEN t.bMoveOutPromptToPrintLedger = TRUE THEN 'TRUE'\
+          \ WHEN t.bMoveOutPromptToPrintLedger = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bMoveOutPromptToPrintLedger,\n    CASE WHEN t.bMoveOutAllowWritingOffBadDebtImmediately\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bMoveOutAllowWritingOffBadDebtImmediately\
+          \ = TRUE THEN 'TRUE' WHEN t.bMoveOutAllowWritingOffBadDebtImmediately =\
+          \ FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOutAllowWritingOffBadDebtImmediately,\n\
+          \    CASE WHEN t.bMoveOutProrate IS NULL THEN '<<NULL>>' WHEN t.bMoveOutProrate\
+          \ = TRUE THEN 'TRUE' WHEN t.bMoveOutProrate = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bMoveOutProrate,\n    CASE WHEN t.bMoveOutPromptToRandomizeAccessCode\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bMoveOutPromptToRandomizeAccessCode = TRUE\
+          \ THEN 'TRUE' WHEN t.bMoveOutPromptToRandomizeAccessCode = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bMoveOutPromptToRandomizeAccessCode,\n    CASE\
+          \ WHEN t.bMoveOutPromptToTransferCreditBalance IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bMoveOutPromptToTransferCreditBalance = TRUE THEN 'TRUE' WHEN t.bMoveOutPromptToTransferCreditBalance\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOutPromptToTransferCreditBalance,\n\
+          \    CASE WHEN t.bMoveOutDisableProrateAfterNPDueDays IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bMoveOutDisableProrateAfterNPDueDays = TRUE THEN 'TRUE' WHEN t.bMoveOutDisableProrateAfterNPDueDays\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOutDisableProrateAfterNPDueDays,\n\
+          \    COALESCE(TO_VARCHAR(t.iMoveOutDisableProratePDueDays),'<<NULL>>') AS\
+          \ iMoveOutDisableProratePDueDays,\n    CASE WHEN t.bPCI_RequirePasswordSecurity\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bPCI_RequirePasswordSecurity = TRUE THEN\
+          \ 'TRUE' WHEN t.bPCI_RequirePasswordSecurity = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPCI_RequirePasswordSecurity,\n    CASE WHEN t.bDiscounts_ReqReasonIfWaivePOS\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bDiscounts_ReqReasonIfWaivePOS = TRUE THEN\
+          \ 'TRUE' WHEN t.bDiscounts_ReqReasonIfWaivePOS = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bDiscounts_ReqReasonIfWaivePOS,\n    CASE WHEN t.bTransferApplyTfrFee\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bTransferApplyTfrFee = TRUE THEN 'TRUE'\
+          \ WHEN t.bTransferApplyTfrFee = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bTransferApplyTfrFee,\n    COALESCE(TO_VARCHAR(t.iPrintAutoAtStart),'<<NULL>>')\
+          \ AS iPrintAutoAtStart,\n    CASE WHEN t.bPrintLettersWOFeeAtStart IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bPrintLettersWOFeeAtStart = TRUE THEN 'TRUE' WHEN\
+          \ t.bPrintLettersWOFeeAtStart = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bPrintLettersWOFeeAtStart,\n    CASE WHEN t.bPrintLettersWithFeeAtStart\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bPrintLettersWithFeeAtStart = TRUE THEN\
+          \ 'TRUE' WHEN t.bPrintLettersWithFeeAtStart = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPrintLettersWithFeeAtStart,\n    CASE WHEN t.bPrintInvoicesAtStart\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bPrintInvoicesAtStart = TRUE THEN 'TRUE'\
+          \ WHEN t.bPrintInvoicesAtStart = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bPrintInvoicesAtStart,\n    CASE WHEN t.bPrintReportsAtStart IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bPrintReportsAtStart = TRUE THEN 'TRUE' WHEN t.bPrintReportsAtStart\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bPrintReportsAtStart,\n  \
+          \  CASE WHEN t.bPrintUnitIDsOnLabels IS NULL THEN '<<NULL>>' WHEN t.bPrintUnitIDsOnLabels\
+          \ = TRUE THEN 'TRUE' WHEN t.bPrintUnitIDsOnLabels = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bPrintUnitIDsOnLabels,\n    CASE WHEN t.bPmtShowCardNumIfAvail\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bPmtShowCardNumIfAvail = TRUE THEN 'TRUE'\
+          \ WHEN t.bPmtShowCardNumIfAvail = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bPmtShowCardNumIfAvail,\n    CASE WHEN t.bPmtPromptToDisablePDueIfPartialPmt\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bPmtPromptToDisablePDueIfPartialPmt = TRUE\
+          \ THEN 'TRUE' WHEN t.bPmtPromptToDisablePDueIfPartialPmt = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPmtPromptToDisablePDueIfPartialPmt,\n    CASE\
+          \ WHEN t.bPmtPromptToPrintReminderIfPartialPmt IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPmtPromptToPrintReminderIfPartialPmt = TRUE THEN 'TRUE' WHEN t.bPmtPromptToPrintReminderIfPartialPmt\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bPmtPromptToPrintReminderIfPartialPmt,\n\
+          \    CASE WHEN t.bPmtAllowBackdatedCharges IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPmtAllowBackdatedCharges = TRUE THEN 'TRUE' WHEN t.bPmtAllowBackdatedCharges\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bPmtAllowBackdatedCharges,\n\
+          \    COALESCE(TO_VARCHAR(t.iPmtOrder),'<<NULL>>') AS iPmtOrder,\n    COALESCE(TO_VARCHAR(t.iPmtReceiptPrompt),'<<NULL>>')\
+          \ AS iPmtReceiptPrompt,\n    COALESCE(TO_VARCHAR(t.iPmtRcptEmailOption),'<<NULL>>')\
+          \ AS iPmtRcptEmailOption,\n    CASE WHEN t.bCloseReqWalkinsAndCalls IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bCloseReqWalkinsAndCalls = TRUE THEN 'TRUE' WHEN\
+          \ t.bCloseReqWalkinsAndCalls = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bCloseReqWalkinsAndCalls,\n    CASE WHEN t.bSecurityReqLogInEveryPmt IS\
+          \ NULL THEN '<<NULL>>' WHEN t.bSecurityReqLogInEveryPmt = TRUE THEN 'TRUE'\
+          \ WHEN t.bSecurityReqLogInEveryPmt = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bSecurityReqLogInEveryPmt,\n    CASE WHEN t.bStartupFromMap IS\
+          \ NULL THEN '<<NULL>>' WHEN t.bStartupFromMap = TRUE THEN 'TRUE' WHEN t.bStartupFromMap\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bStartupFromMap,\n    CASE\
+          \ WHEN t.bPromptToDownloadRentRoll IS NULL THEN '<<NULL>>' WHEN t.bPromptToDownloadRentRoll\
+          \ = TRUE THEN 'TRUE' WHEN t.bPromptToDownloadRentRoll = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPromptToDownloadRentRoll,\n    CASE WHEN t.bUseMeters\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bUseMeters = TRUE THEN 'TRUE' WHEN t.bUseMeters\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bUseMeters,\n    CASE WHEN\
+          \ t.bShowAreasInsteadOfSize IS NULL THEN '<<NULL>>' WHEN t.bShowAreasInsteadOfSize\
+          \ = TRUE THEN 'TRUE' WHEN t.bShowAreasInsteadOfSize = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bShowAreasInsteadOfSize,\n    CASE WHEN t.bNoPhoneFormatting\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bNoPhoneFormatting = TRUE THEN 'TRUE' WHEN\
+          \ t.bNoPhoneFormatting = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bNoPhoneFormatting,\n\
+          \    CASE WHEN t.bNoSSNFormatting IS NULL THEN '<<NULL>>' WHEN t.bNoSSNFormatting\
+          \ = TRUE THEN 'TRUE' WHEN t.bNoSSNFormatting = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bNoSSNFormatting,\n    COALESCE(TO_VARCHAR(t.iReportsCustomEndDay),'<<NULL>>')\
+          \ AS iReportsCustomEndDay,\n    COALESCE(TO_VARCHAR(t.iReportsDateOption),'<<NULL>>')\
+          \ AS iReportsDateOption,\n    COALESCE(TO_VARCHAR(t.iCurrencyDecimalPlaces),'<<NULL>>')\
+          \ AS iCurrencyDecimalPlaces,\n    COALESCE(TO_VARCHAR(t.iTaxDecimalPlaces),'<<NULL>>')\
+          \ AS iTaxDecimalPlaces,\n    COALESCE(TRIM(t.sCreditCardProcessor),'<<NULL>>')\
+          \ AS sCreditCardProcessor,\n    COALESCE(TRIM(t.sCreditCardTerminalID),'<<NULL>>')\
+          \ AS sCreditCardTerminalID,\n    COALESCE(TO_VARCHAR(t.iInvoiceFormat),'<<NULL>>')\
+          \ AS iInvoiceFormat,\n    COALESCE(TRIM(t.sInvoiceRemitAddr1),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr1,\n    COALESCE(TRIM(t.sInvoiceRemitAddr2),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr2,\n    COALESCE(TRIM(t.sInvoiceRemitAddr3),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr3,\n    COALESCE(TRIM(t.sInvoiceRemitAddr4),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr4,\n    COALESCE(TRIM(t.sInvoiceRemitAddr5),'<<NULL>>')\
+          \ AS sInvoiceRemitAddr5,\n    COALESCE(TRIM(t.sInvoiceLocCode),'<<NULL>>')\
+          \ AS sInvoiceLocCode,\n    COALESCE(TRIM(t.sInvoiceMess1),'<<NULL>>') AS\
+          \ sInvoiceMess1,\n    COALESCE(TRIM(t.sInvoiceMess2),'<<NULL>>') AS sInvoiceMess2,\n\
+          \    COALESCE(TRIM(t.sInvoiceMess3),'<<NULL>>') AS sInvoiceMess3,\n    COALESCE(TRIM(t.sInvoiceMess4),'<<NULL>>')\
+          \ AS sInvoiceMess4,\n    COALESCE(TRIM(t.sInvoiceMess5),'<<NULL>>') AS sInvoiceMess5,\n\
+          \    COALESCE(TRIM(t.sInvoiceMess6),'<<NULL>>') AS sInvoiceMess6,\n    COALESCE(TRIM(t.sInvoiceMess7),'<<NULL>>')\
+          \ AS sInvoiceMess7,\n    COALESCE(TRIM(t.sInvoiceMess8),'<<NULL>>') AS sInvoiceMess8,\n\
+          \    COALESCE(TRIM(t.sInvoiceMess9),'<<NULL>>') AS sInvoiceMess9,\n    COALESCE(TO_VARCHAR(t.iBulletinsShow),'<<NULL>>')\
+          \ AS iBulletinsShow,\n    COALESCE(TO_VARCHAR(t.iBulletinsKeepMonths),'<<NULL>>')\
+          \ AS iBulletinsKeepMonths,\n    COALESCE(TRIM(t.sPhoneFormat),'<<NULL>>')\
+          \ AS sPhoneFormat,\n    COALESCE(TRIM(t.sBusinessTaxNum),'<<NULL>>') AS\
+          \ sBusinessTaxNum,\n    COALESCE(TO_VARCHAR(t.iEmailType),'<<NULL>>') AS\
+          \ iEmailType,\n    COALESCE(TRIM(t.sEmailURL),'<<NULL>>') AS sEmailURL,\n\
+          \    COALESCE(TO_VARCHAR(t.iInternetAccessType),'<<NULL>>') AS iInternetAccessType,\n\
+          \    COALESCE(TO_VARCHAR(t.AcctSoftwareID),'<<NULL>>') AS AcctSoftwareID,\n\
+          \    COALESCE(TRIM(t.sAcctSoftwareCode),'<<NULL>>') AS sAcctSoftwareCode,\n\
+          \    CASE WHEN t.bAccrual IS NULL THEN '<<NULL>>' WHEN t.bAccrual = TRUE\
+          \ THEN 'TRUE' WHEN t.bAccrual = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bAccrual,\n    CASE WHEN t.bAcctProrateAR IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bAcctProrateAR = TRUE THEN 'TRUE' WHEN t.bAcctProrateAR = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bAcctProrateAR,\n    CASE WHEN t.bPrepaidRentLiabilityAcct\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bPrepaidRentLiabilityAcct = TRUE THEN 'TRUE'\
+          \ WHEN t.bPrepaidRentLiabilityAcct = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPrepaidRentLiabilityAcct,\n    COALESCE(TO_VARCHAR(t.InsurProviderID),'<<NULL>>')\
+          \ AS InsurProviderID,\n    COALESCE(TRIM(t.sInsurProjectCode),'<<NULL>>')\
+          \ AS sInsurProjectCode,\n    COALESCE(TO_VARCHAR(t.iRevMgrPlan),'<<NULL>>')\
+          \ AS iRevMgrPlan,\n    COALESCE(TO_VARCHAR(t.iMinInactivityBeforeRefresh),'<<NULL>>')\
+          \ AS iMinInactivityBeforeRefresh,\n    COALESCE(TRIM(t.sACH_ODFI),'<<NULL>>')\
+          \ AS sACH_ODFI,\n    COALESCE(TRIM(t.sACH_MerchantName),'<<NULL>>') AS sACH_MerchantName,\n\
+          \    COALESCE(TO_VARCHAR(t.ACHProviderID),'<<NULL>>') AS ACHProviderID,\n\
+          \    COALESCE(TRIM(t.sACHGatewayURL),'<<NULL>>') AS sACHGatewayURL,\n  \
+          \  COALESCE(TRIM(t.sACHUserID),'<<NULL>>') AS sACHUserID,\n    COALESCE(TRIM(t.sACHPassword),'<<NULL>>')\
+          \ AS sACHPassword,\n    COALESCE(TRIM(t.sACHUserInterfaceURL),'<<NULL>>')\
+          \ AS sACHUserInterfaceURL,\n    CASE WHEN t.bACHSingleTXForUnpaidCharges\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bACHSingleTXForUnpaidCharges = TRUE THEN\
+          \ 'TRUE' WHEN t.bACHSingleTXForUnpaidCharges = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bACHSingleTXForUnpaidCharges,\n    COALESCE(TO_VARCHAR(t.iACHCurrency),'<<NULL>>')\
+          \ AS iACHCurrency,\n    COALESCE(TO_VARCHAR(t.iOnlinePmtDisableDaysPastDue),'<<NULL>>')\
+          \ AS iOnlinePmtDisableDaysPastDue,\n    CASE WHEN t.bUnitByUnitLateFee IS\
+          \ NULL THEN '<<NULL>>' WHEN t.bUnitByUnitLateFee = TRUE THEN 'TRUE' WHEN\
+          \ t.bUnitByUnitLateFee = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bUnitByUnitLateFee,\n\
+          \    CASE WHEN t.bRequireBackup IS NULL THEN '<<NULL>>' WHEN t.bRequireBackup\
+          \ = TRUE THEN 'TRUE' WHEN t.bRequireBackup = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bRequireBackup,\n    CASE WHEN t.bMoveInAlwaysApplyReservationFee\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bMoveInAlwaysApplyReservationFee = TRUE\
+          \ THEN 'TRUE' WHEN t.bMoveInAlwaysApplyReservationFee = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bMoveInAlwaysApplyReservationFee,\n    CASE WHEN\
+          \ t.bCreditCardEdit_ShowEntireNumber IS NULL THEN '<<NULL>>' WHEN t.bCreditCardEdit_ShowEntireNumber\
+          \ = TRUE THEN 'TRUE' WHEN t.bCreditCardEdit_ShowEntireNumber = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bCreditCardEdit_ShowEntireNumber,\n   \
+          \ CASE WHEN t.bDailyClose_PromptToSettleBatch IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bDailyClose_PromptToSettleBatch = TRUE THEN 'TRUE' WHEN t.bDailyClose_PromptToSettleBatch\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bDailyClose_PromptToSettleBatch,\n\
+          \    CASE WHEN t.bPmtDelete_PromptToReverseCCard IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bPmtDelete_PromptToReverseCCard = TRUE THEN 'TRUE' WHEN t.bPmtDelete_PromptToReverseCCard\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bPmtDelete_PromptToReverseCCard,\n\
+          \    CASE WHEN t.bDiscounts_ReqReason IS NULL THEN '<<NULL>>' WHEN t.bDiscounts_ReqReason\
+          \ = TRUE THEN 'TRUE' WHEN t.bDiscounts_ReqReason = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bDiscounts_ReqReason,\n    CASE WHEN t.bLateFees_ReqReasonIfWaive\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bLateFees_ReqReasonIfWaive = TRUE THEN\
+          \ 'TRUE' WHEN t.bLateFees_ReqReasonIfWaive = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bLateFees_ReqReasonIfWaive,\n    CASE WHEN t.bLedgers_ReqReasonEditLateFeeType\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bLedgers_ReqReasonEditLateFeeType = TRUE\
+          \ THEN 'TRUE' WHEN t.bLedgers_ReqReasonEditLateFeeType = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditLateFeeType,\n    CASE WHEN\
+          \ t.bLedgers_ReqReasonEditRent IS NULL THEN '<<NULL>>' WHEN t.bLedgers_ReqReasonEditRent\
+          \ = TRUE THEN 'TRUE' WHEN t.bLedgers_ReqReasonEditRent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditRent,\n    CASE WHEN t.bLedgers_ReqReasonEditMoveInDate\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bLedgers_ReqReasonEditMoveInDate = TRUE\
+          \ THEN 'TRUE' WHEN t.bLedgers_ReqReasonEditMoveInDate = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditMoveInDate,\n    CASE WHEN\
+          \ t.bLedgers_ReqReasonEditLeaseDate IS NULL THEN '<<NULL>>' WHEN t.bLedgers_ReqReasonEditLeaseDate\
+          \ = TRUE THEN 'TRUE' WHEN t.bLedgers_ReqReasonEditLeaseDate = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditLeaseDate,\n    CASE\
+          \ WHEN t.bLedgers_ReqReasonEditLateFees IS NULL THEN '<<NULL>>' WHEN t.bLedgers_ReqReasonEditLateFees\
+          \ = TRUE THEN 'TRUE' WHEN t.bLedgers_ReqReasonEditLateFees = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditLateFees,\n    CASE\
+          \ WHEN t.bLedgers_ReqReasonEditFees IS NULL THEN '<<NULL>>' WHEN t.bLedgers_ReqReasonEditFees\
+          \ = TRUE THEN 'TRUE' WHEN t.bLedgers_ReqReasonEditFees = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditFees,\n    CASE WHEN t.bLedgers_ReqReasonDisablePDueEvents\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bLedgers_ReqReasonDisablePDueEvents = TRUE\
+          \ THEN 'TRUE' WHEN t.bLedgers_ReqReasonDisablePDueEvents = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bLedgers_ReqReasonDisablePDueEvents,\n    CASE\
+          \ WHEN t.bLedgers_ReqReasonEditBillingType IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bLedgers_ReqReasonEditBillingType = TRUE THEN 'TRUE' WHEN t.bLedgers_ReqReasonEditBillingType\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditBillingType,\n\
+          \    CASE WHEN t.bLedgers_ReqReasonEditAnniversaryDate IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bLedgers_ReqReasonEditAnniversaryDate = TRUE THEN 'TRUE' WHEN t.bLedgers_ReqReasonEditAnniversaryDate\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditAnniversaryDate,\n\
+          \    CASE WHEN t.bLedgers_ReqReasonEditTaxableStatus IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bLedgers_ReqReasonEditTaxableStatus = TRUE THEN 'TRUE' WHEN t.bLedgers_ReqReasonEditTaxableStatus\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bLedgers_ReqReasonEditTaxableStatus,\n\
+          \    CASE WHEN t.bAccess_ReqReasonEditTimeOrKeypadZone IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bAccess_ReqReasonEditTimeOrKeypadZone = TRUE THEN 'TRUE' WHEN t.bAccess_ReqReasonEditTimeOrKeypadZone\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bAccess_ReqReasonEditTimeOrKeypadZone,\n\
+          \    CASE WHEN t.bUnits_ReqReasonEditName IS NULL THEN '<<NULL>>' WHEN t.bUnits_ReqReasonEditName\
+          \ = TRUE THEN 'TRUE' WHEN t.bUnits_ReqReasonEditName = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bUnits_ReqReasonEditName,\n    CASE WHEN t.bUnits_ReqReasonEditType\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bUnits_ReqReasonEditType = TRUE THEN 'TRUE'\
+          \ WHEN t.bUnits_ReqReasonEditType = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bUnits_ReqReasonEditType,\n    CASE WHEN t.bUnits_ReqReasonEditSize\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bUnits_ReqReasonEditSize = TRUE THEN 'TRUE'\
+          \ WHEN t.bUnits_ReqReasonEditSize = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bUnits_ReqReasonEditSize,\n    CASE WHEN t.bUnits_ReqReasonEditRate\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bUnits_ReqReasonEditRate = TRUE THEN 'TRUE'\
+          \ WHEN t.bUnits_ReqReasonEditRate = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bUnits_ReqReasonEditRate,\n    CASE WHEN t.bUnits_ReqReasonEditSecurityDeposit\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bUnits_ReqReasonEditSecurityDeposit = TRUE\
+          \ THEN 'TRUE' WHEN t.bUnits_ReqReasonEditSecurityDeposit = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bUnits_ReqReasonEditSecurityDeposit,\n    CASE\
+          \ WHEN t.bUnits_ReqReasonDelete IS NULL THEN '<<NULL>>' WHEN t.bUnits_ReqReasonDelete\
+          \ = TRUE THEN 'TRUE' WHEN t.bUnits_ReqReasonDelete = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bUnits_ReqReasonDelete,\n    CASE WHEN t.bUnitType_ReqReasonDelete\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bUnitType_ReqReasonDelete = TRUE THEN 'TRUE'\
+          \ WHEN t.bUnitType_ReqReasonDelete = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bUnitType_ReqReasonDelete,\n    CASE WHEN t.bChargeDesc_ReqReasonEdit\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bChargeDesc_ReqReasonEdit = TRUE THEN 'TRUE'\
+          \ WHEN t.bChargeDesc_ReqReasonEdit = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bChargeDesc_ReqReasonEdit,\n    CASE WHEN t.bChargeDesc_ReqReasonDelete\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bChargeDesc_ReqReasonDelete = TRUE THEN\
+          \ 'TRUE' WHEN t.bChargeDesc_ReqReasonDelete = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bChargeDesc_ReqReasonDelete,\n    CASE WHEN t.bEmployees_ReqReasonDelete\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bEmployees_ReqReasonDelete = TRUE THEN\
+          \ 'TRUE' WHEN t.bEmployees_ReqReasonDelete = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bEmployees_ReqReasonDelete,\n    CASE WHEN t.bConcessionPlans_ReqReasonDelete\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bConcessionPlans_ReqReasonDelete = TRUE\
+          \ THEN 'TRUE' WHEN t.bConcessionPlans_ReqReasonDelete = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bConcessionPlans_ReqReasonDelete,\n    CASE WHEN\
+          \ t.bRevenueMgmtUnits_ReqReasonEdit IS NULL THEN '<<NULL>>' WHEN t.bRevenueMgmtUnits_ReqReasonEdit\
+          \ = TRUE THEN 'TRUE' WHEN t.bRevenueMgmtUnits_ReqReasonEdit = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtUnits_ReqReasonEdit,\n    CASE\
+          \ WHEN t.bRevenueMgmtUnits_ReqReasonDisable IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bRevenueMgmtUnits_ReqReasonDisable = TRUE THEN 'TRUE' WHEN t.bRevenueMgmtUnits_ReqReasonDisable\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtUnits_ReqReasonDisable,\n\
+          \    CASE WHEN t.bRevenueMgmtUnits_ReqReasonDisableForUnitTypes IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bRevenueMgmtUnits_ReqReasonDisableForUnitTypes\
+          \ = TRUE THEN 'TRUE' WHEN t.bRevenueMgmtUnits_ReqReasonDisableForUnitTypes\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtUnits_ReqReasonDisableForUnitTypes,\n\
+          \    CASE WHEN t.bRevenueMgmtTenants_ReqReasonEdit IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bRevenueMgmtTenants_ReqReasonEdit = TRUE THEN 'TRUE' WHEN t.bRevenueMgmtTenants_ReqReasonEdit\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtTenants_ReqReasonEdit,\n\
+          \    CASE WHEN t.bRevenueMgmtTenants_ReqReasonDisable IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bRevenueMgmtTenants_ReqReasonDisable = TRUE THEN 'TRUE' WHEN t.bRevenueMgmtTenants_ReqReasonDisable\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtTenants_ReqReasonDisable,\n\
+          \    CASE WHEN t.bRevenueMgmtTenants_ReqReasonDisableForUnitTypes IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bRevenueMgmtTenants_ReqReasonDisableForUnitTypes\
+          \ = TRUE THEN 'TRUE' WHEN t.bRevenueMgmtTenants_ReqReasonDisableForUnitTypes\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bRevenueMgmtTenants_ReqReasonDisableForUnitTypes,\n\
+          \    CASE WHEN t.bCompanySub_Use IS NULL THEN '<<NULL>>' WHEN t.bCompanySub_Use\
+          \ = TRUE THEN 'TRUE' WHEN t.bCompanySub_Use = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCompanySub_Use,\n    CASE WHEN t.bPmtOnlyAcceptFullPmtsIfNDaysLate\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bPmtOnlyAcceptFullPmtsIfNDaysLate = TRUE\
+          \ THEN 'TRUE' WHEN t.bPmtOnlyAcceptFullPmtsIfNDaysLate = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPmtOnlyAcceptFullPmtsIfNDaysLate,\n    COALESCE(TO_VARCHAR(t.iPmtOnlyAcceptFullPmtsDays),'<<NULL>>')\
+          \ AS iPmtOnlyAcceptFullPmtsDays,\n    COALESCE(TO_VARCHAR(t.dcPmtRoundTo),'<<NULL>>')\
+          \ AS dcPmtRoundTo,\n    CASE WHEN t.bMoveOut_Prorate30Days IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bMoveOut_Prorate30Days = TRUE THEN 'TRUE' WHEN t.bMoveOut_Prorate30Days\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOut_Prorate30Days,\n\
+          \    CASE WHEN t.bMoveOut_ProrateFromDayOne IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bMoveOut_ProrateFromDayOne = TRUE THEN 'TRUE' WHEN t.bMoveOut_ProrateFromDayOne\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOut_ProrateFromDayOne,\n\
+          \    COALESCE(TO_VARCHAR(t.iEmailAttachmentFormat),'<<NULL>>') AS iEmailAttachmentFormat,\n\
+          \    COALESCE(TO_VARCHAR(t.iAccessCodeMaxDigits),'<<NULL>>') AS iAccessCodeMaxDigits,\n\
+          \    CASE WHEN t.bCancelInsurOnCancelDay IS NULL THEN '<<NULL>>' WHEN t.bCancelInsurOnCancelDay\
+          \ = TRUE THEN 'TRUE' WHEN t.bCancelInsurOnCancelDay = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bCancelInsurOnCancelDay,\n    CASE WHEN t.bDiscountLiabilityAcct\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bDiscountLiabilityAcct = TRUE THEN 'TRUE'\
+          \ WHEN t.bDiscountLiabilityAcct = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bDiscountLiabilityAcct,\n    COALESCE(TO_VARCHAR(t.iPartialPmtsDisableDaysPastDue),'<<NULL>>')\
+          \ AS iPartialPmtsDisableDaysPastDue,\n    COALESCE(TO_VARCHAR(t.iLedgerReportOption),'<<NULL>>')\
+          \ AS iLedgerReportOption,\n    CASE WHEN t.bMoveOut_ReqExitSurvey IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bMoveOut_ReqExitSurvey = TRUE THEN 'TRUE' WHEN\
+          \ t.bMoveOut_ReqExitSurvey = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOut_ReqExitSurvey,\n\
+          \    CASE WHEN t.bMoveInPromptToPrintLease IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bMoveInPromptToPrintLease = TRUE THEN 'TRUE' WHEN t.bMoveInPromptToPrintLease\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveInPromptToPrintLease,\n\
+          \    COALESCE(TO_VARCHAR(t.iReportsFYStart),'<<NULL>>') AS iReportsFYStart,\n\
+          \    COALESCE(TO_VARCHAR(t.iDailyCloseAutomation),'<<NULL>>') AS iDailyCloseAutomation,\n\
+          \    COALESCE(TO_VARCHAR(t.iDailyCloseHour),'<<NULL>>') AS iDailyCloseHour,\n\
+          \    CASE WHEN t.bPmtPromptForRecBilling IS NULL THEN '<<NULL>>' WHEN t.bPmtPromptForRecBilling\
+          \ = TRUE THEN 'TRUE' WHEN t.bPmtPromptForRecBilling = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPmtPromptForRecBilling,\n    COALESCE(TO_VARCHAR(t.iEmailAttachmentType),'<<NULL>>')\
+          \ AS iEmailAttachmentType,\n    COALESCE(TO_VARCHAR(t.iMoveOutUnitNote),'<<NULL>>')\
+          \ AS iMoveOutUnitNote,\n    COALESCE(TRIM(t.sMoveOutUnitNote),'<<NULL>>')\
+          \ AS sMoveOutUnitNote,\n    COALESCE(TO_VARCHAR(t.iAcctgExport_Prep),'<<NULL>>')\
+          \ AS iAcctgExport_Prep,\n    COALESCE(TO_VARCHAR(t.iAcctgExport_File),'<<NULL>>')\
+          \ AS iAcctgExport_File,\n    COALESCE(TO_VARCHAR(t.iAcctgExport_Period),'<<NULL>>')\
+          \ AS iAcctgExport_Period,\n    COALESCE(TO_VARCHAR(t.iAcctgExport_WeekDayNum),'<<NULL>>')\
+          \ AS iAcctgExport_WeekDayNum,\n    COALESCE(TO_VARCHAR(t.iAcctgExport_WeekNum),'<<NULL>>')\
+          \ AS iAcctgExport_WeekNum,\n    COALESCE(TO_VARCHAR(t.iAcctgExport_CashMgmt),'<<NULL>>')\
+          \ AS iAcctgExport_CashMgmt,\n    COALESCE(TO_VARCHAR(t.iBadDebtWriteOff),'<<NULL>>')\
+          \ AS iBadDebtWriteOff,\n    CASE WHEN t.bCoA_BadDebts IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bCoA_BadDebts = TRUE THEN 'TRUE' WHEN t.bCoA_BadDebts = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bCoA_BadDebts,\n    CASE WHEN t.bCoA_Discounts\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bCoA_Discounts = TRUE THEN 'TRUE' WHEN\
+          \ t.bCoA_Discounts = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bCoA_Discounts,\n\
+          \    CASE WHEN t.bCoA_AR_FeesAndOther IS NULL THEN '<<NULL>>' WHEN t.bCoA_AR_FeesAndOther\
+          \ = TRUE THEN 'TRUE' WHEN t.bCoA_AR_FeesAndOther = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bCoA_AR_FeesAndOther,\n    CASE WHEN t.bCoA_RentRefund\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bCoA_RentRefund = TRUE THEN 'TRUE' WHEN\
+          \ t.bCoA_RentRefund = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bCoA_RentRefund,\n\
+          \    CASE WHEN t.bCoA_RentRefundLiability IS NULL THEN '<<NULL>>' WHEN t.bCoA_RentRefundLiability\
+          \ = TRUE THEN 'TRUE' WHEN t.bCoA_RentRefundLiability = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bCoA_RentRefundLiability,\n    CASE WHEN t.bCoA_AuctionOverpayLiability\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bCoA_AuctionOverpayLiability = TRUE THEN\
+          \ 'TRUE' WHEN t.bCoA_AuctionOverpayLiability = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCoA_AuctionOverpayLiability,\n    CASE WHEN t.bCoA_InsurRefundsPayable\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bCoA_InsurRefundsPayable = TRUE THEN 'TRUE'\
+          \ WHEN t.bCoA_InsurRefundsPayable = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bCoA_InsurRefundsPayable,\n    CASE WHEN t.bCoA_NSFPostMoveOut IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bCoA_NSFPostMoveOut = TRUE THEN 'TRUE' WHEN t.bCoA_NSFPostMoveOut\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bCoA_NSFPostMoveOut,\n   \
+          \ COALESCE(TO_VARCHAR(t.BillingFreqID_Def),'<<NULL>>') AS BillingFreqID_Def,\n\
+          \    COALESCE(TO_VARCHAR(t.dcNonCreditCardPmtDiscPC),'<<NULL>>') AS dcNonCreditCardPmtDiscPC,\n\
+          \    COALESCE(TO_VARCHAR(t.iRefreshArchive),'<<NULL>>') AS iRefreshArchive,\n\
+          \    COALESCE(TO_VARCHAR(t.iMoveOut_Prorate),'<<NULL>>') AS iMoveOut_Prorate,\n\
+          \    COALESCE(TO_VARCHAR(t.iWaitingFollowupDays),'<<NULL>>') AS iWaitingFollowupDays,\n\
+          \    COALESCE(TO_VARCHAR(t.iCreditMgmt_Option),'<<NULL>>') AS iCreditMgmt_Option,\n\
+          \    COALESCE(TO_VARCHAR(t.iCreditMgmt_Action),'<<NULL>>') AS iCreditMgmt_Action,\n\
+          \    COALESCE(TO_VARCHAR(t.dcCreditMgmt_Limit),'<<NULL>>') AS dcCreditMgmt_Limit,\n\
+          \    COALESCE(TO_VARCHAR(t.iRefund_Option),'<<NULL>>') AS iRefund_Option,\n\
+          \    COALESCE(TO_VARCHAR(t.iRefund_FuturePeriods),'<<NULL>>') AS iRefund_FuturePeriods,\n\
+          \    COALESCE(TO_VARCHAR(t.iRefund_PartialPeriods),'<<NULL>>') AS iRefund_PartialPeriods,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRefund_MinAmt),'<<NULL>>') AS dcRefund_MinAmt,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRefund_AutoApprovalMax),'<<NULL>>') AS dcRefund_AutoApprovalMax,\n\
+          \    COALESCE(TO_VARCHAR(t.iRefund_POSMaxReturnDays),'<<NULL>>') AS iRefund_POSMaxReturnDays,\n\
+          \    CASE WHEN t.bServiceFee_WebPmts IS NULL THEN '<<NULL>>' WHEN t.bServiceFee_WebPmts\
+          \ = TRUE THEN 'TRUE' WHEN t.bServiceFee_WebPmts = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bServiceFee_WebPmts,\n    CASE WHEN t.bServiceFee_AutoPmts\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bServiceFee_AutoPmts = TRUE THEN 'TRUE'\
+          \ WHEN t.bServiceFee_AutoPmts = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bServiceFee_AutoPmts,\n    CASE WHEN t.bServiceFee_KioskPmts IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bServiceFee_KioskPmts = TRUE THEN 'TRUE' WHEN t.bServiceFee_KioskPmts\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bServiceFee_KioskPmts,\n \
+          \   CASE WHEN t.bServiceFee_NormalPmts IS NULL THEN '<<NULL>>' WHEN t.bServiceFee_NormalPmts\
+          \ = TRUE THEN 'TRUE' WHEN t.bServiceFee_NormalPmts = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bServiceFee_NormalPmts,\n    COALESCE(TO_VARCHAR(t.iInvoice_ChargeDisplayType),'<<NULL>>')\
+          \ AS iInvoice_ChargeDisplayType,\n    COALESCE(TO_VARCHAR(t.iNotReadyToRentType),'<<NULL>>')\
+          \ AS iNotReadyToRentType,\n    CASE WHEN t.bReservationFeeApplyAtMoveIn\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bReservationFeeApplyAtMoveIn = TRUE THEN\
+          \ 'TRUE' WHEN t.bReservationFeeApplyAtMoveIn = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bReservationFeeApplyAtMoveIn,\n    CASE WHEN t.bRefunds_RequireReason\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bRefunds_RequireReason = TRUE THEN 'TRUE'\
+          \ WHEN t.bRefunds_RequireReason = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bRefunds_RequireReason,\n    COALESCE(TO_VARCHAR(t.iRefundAction_Option_SecLevel),'<<NULL>>')\
+          \ AS iRefundAction_Option_SecLevel,\n    COALESCE(TO_VARCHAR(t.iDocumentDeliveryType),'<<NULL>>')\
+          \ AS iDocumentDeliveryType,\n    COALESCE(TRIM(t.sSMTPServerAddress),'<<NULL>>')\
+          \ AS sSMTPServerAddress,\n    COALESCE(TO_VARCHAR(t.iSMTPPort),'<<NULL>>')\
+          \ AS iSMTPPort,\n    CASE WHEN t.bSMTPUseSSL IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bSMTPUseSSL = TRUE THEN 'TRUE' WHEN t.bSMTPUseSSL = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bSMTPUseSSL,\n    COALESCE(TRIM(t.sSMTPUsername),'<<NULL>>')\
+          \ AS sSMTPUsername,\n    COALESCE(TRIM(t.sSMTPPassword),'<<NULL>>') AS sSMTPPassword,\n\
+          \    CASE WHEN t.bAcctgExcludeMoveOutProrate IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bAcctgExcludeMoveOutProrate = TRUE THEN 'TRUE' WHEN t.bAcctgExcludeMoveOutProrate\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bAcctgExcludeMoveOutProrate,\n\
+          \    CASE WHEN t.bAcctgExcludeUnnamedDiscounts IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bAcctgExcludeUnnamedDiscounts = TRUE THEN 'TRUE' WHEN t.bAcctgExcludeUnnamedDiscounts\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bAcctgExcludeUnnamedDiscounts,\n\
+          \    COALESCE(TO_VARCHAR(t.iAcctgExcludeMoveOutProrateDays),'<<NULL>>')\
+          \ AS iAcctgExcludeMoveOutProrateDays,\n    COALESCE(TO_VARCHAR(t.iCreditMgmtLedger_Action),'<<NULL>>')\
+          \ AS iCreditMgmtLedger_Action,\n    COALESCE(TO_VARCHAR(t.dcCreditMgmtLedger_Limit),'<<NULL>>')\
+          \ AS dcCreditMgmtLedger_Limit,\n    CASE WHEN t.bInsurRequireAtMoveIn IS\
+          \ NULL THEN '<<NULL>>' WHEN t.bInsurRequireAtMoveIn = TRUE THEN 'TRUE' WHEN\
+          \ t.bInsurRequireAtMoveIn = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bInsurRequireAtMoveIn,\n\
+          \    COALESCE(TO_VARCHAR(t.iPastDue_ResetEventOnPartialPmtPDueDays),'<<NULL>>')\
+          \ AS iPastDue_ResetEventOnPartialPmtPDueDays,\n    COALESCE(TO_VARCHAR(t.iDataSecurityOption),'<<NULL>>')\
+          \ AS iDataSecurityOption,\n    COALESCE(TO_VARCHAR(t.iMoveOutBackdateAllowedDays),'<<NULL>>')\
+          \ AS iMoveOutBackdateAllowedDays,\n    COALESCE(TO_VARCHAR(t.iReservationReqReasonCancel),'<<NULL>>')\
+          \ AS iReservationReqReasonCancel,\n    COALESCE(TO_VARCHAR(t.iIPLogonRestrictions),'<<NULL>>')\
+          \ AS iIPLogonRestrictions,\n    COALESCE(TO_VARCHAR(t.dcDiscountMerchandise_Limit),'<<NULL>>')\
+          \ AS dcDiscountMerchandise_Limit,\n    COALESCE(TO_VARCHAR(t.iDiscountMerchandise_SecLevel),'<<NULL>>')\
+          \ AS iDiscountMerchandise_SecLevel,\n    COALESCE(TO_VARCHAR(t.iIPLogonRestrictions_SecLevel),'<<NULL>>')\
+          \ AS iIPLogonRestrictions_SecLevel,\n    COALESCE(TO_VARCHAR(t.iTruckPromoOptOut),'<<NULL>>')\
+          \ AS iTruckPromoOptOut,\n    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCreated,\n    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dArchived,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPermanent = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK,\n    CASE WHEN t.bAcctgPostDiscounts IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bAcctgPostDiscounts = TRUE THEN 'TRUE' WHEN t.bAcctgPostDiscounts\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bAcctgPostDiscounts,\n   \
+          \ COALESCE(TO_VARCHAR(t.iOvernightAcctgOption),'<<NULL>>') AS iOvernightAcctgOption,\n\
+          \    COALESCE(TO_VARCHAR(t.iOvernightRptOption),'<<NULL>>') AS iOvernightRptOption,\n\
+          \    COALESCE(TO_VARCHAR(t.iOvernightRevMgmtOption),'<<NULL>>') AS iOvernightRevMgmtOption,\n\
+          \    COALESCE(TO_VARCHAR(t.iSizeDecimals),'<<NULL>>') AS iSizeDecimals\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.DefaultsProg t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

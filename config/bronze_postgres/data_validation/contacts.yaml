@@ -1,0 +1,84 @@
+tables:
+  contacts:
+    validations:
+      data_validation:
+        source_table_name: contacts
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(first_name),'<<NULL>>') AS first_name,\n    COALESCE(TRIM(last_name),'<<NULL>>')\
+          \ AS last_name,\n    COALESCE(TRIM(middle_initial),'<<NULL>>') AS middle_initial,\n\
+          \    CASE WHEN deletable IS NULL THEN '<<NULL>>' WHEN deletable IS TRUE\
+          \ THEN 'TRUE' WHEN deletable IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ deletable,\n    CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN deleted\
+          \ IS TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(CAST(tenant_id AS TEXT),'<<NULL>>') AS tenant_id,\n\
+          \    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(description),'<<NULL>>') AS description,\n\
+          \    COALESCE(TRIM(title),'<<NULL>>') AS title,\n    COALESCE(TRIM(email),'<<NULL>>')\
+          \ AS email,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>') AS\
+          \ uuid,\n    COALESCE(CAST(primary_phone_number_id AS TEXT),'<<NULL>>')\
+          \ AS primary_phone_number_id,\n    CASE WHEN opt_in_to_transactional_sms\
+          \ IS NULL THEN '<<NULL>>' WHEN opt_in_to_transactional_sms IS TRUE THEN\
+          \ 'TRUE' WHEN opt_in_to_transactional_sms IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS opt_in_to_transactional_sms,\n    CASE WHEN opt_in_to_marketing_sms\
+          \ IS NULL THEN '<<NULL>>' WHEN opt_in_to_marketing_sms IS TRUE THEN 'TRUE'\
+          \ WHEN opt_in_to_marketing_sms IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS opt_in_to_marketing_sms,\n    CASE WHEN opt_in_to_marketing_emails\
+          \ IS NULL THEN '<<NULL>>' WHEN opt_in_to_marketing_emails IS TRUE THEN 'TRUE'\
+          \ WHEN opt_in_to_marketing_emails IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS opt_in_to_marketing_emails,\n    CASE WHEN email_invoices IS NULL\
+          \ THEN '<<NULL>>' WHEN email_invoices IS TRUE THEN 'TRUE' WHEN email_invoices\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS email_invoices,\n    CASE\
+          \ WHEN delinquency_docs_by_email IS NULL THEN '<<NULL>>' WHEN delinquency_docs_by_email\
+          \ IS TRUE THEN 'TRUE' WHEN delinquency_docs_by_email IS FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS delinquency_docs_by_email,\n    CASE WHEN receive_legal_notices_by_email\
+          \ IS NULL THEN '<<NULL>>' WHEN receive_legal_notices_by_email IS TRUE THEN\
+          \ 'TRUE' WHEN receive_legal_notices_by_email IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS receive_legal_notices_by_email,\n    COALESCE(UPPER(TRIM(CAST(deleted_by_uuid\
+          \ AS TEXT))),'<<NULL>>') AS deleted_by_uuid,\n    COALESCE(UPPER(TRIM(CAST(primary_phone_number_uuid\
+          \ AS TEXT))),'<<NULL>>') AS primary_phone_number_uuid,\n    COALESCE(UPPER(TRIM(CAST(tenant_uuid\
+          \ AS TEXT))),'<<NULL>>') AS tenant_uuid\nFROM public.contacts;"
+        target_table_name: contacts
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.first_name),'<<NULL>>') AS first_name,\n    COALESCE(TRIM(t.last_name),'<<NULL>>')\
+          \ AS last_name,\n    COALESCE(TRIM(t.middle_initial),'<<NULL>>') AS middle_initial,\n\
+          \    CASE WHEN t.deletable IS NULL THEN '<<NULL>>' WHEN t.deletable = TRUE\
+          \ THEN 'TRUE' WHEN t.deletable = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS deletable,\n    CASE WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN t.deleted\
+          \ = TRUE THEN 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TO_VARCHAR(t.tenant_id),'<<NULL>>') AS tenant_id,\n\
+          \    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.description),'<<NULL>>') AS description,\n\
+          \    COALESCE(TRIM(t.title),'<<NULL>>') AS title,\n    COALESCE(TRIM(t.email),'<<NULL>>')\
+          \ AS email,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TO_VARCHAR(t.primary_phone_number_id),'<<NULL>>')\
+          \ AS primary_phone_number_id,\n    CASE WHEN t.opt_in_to_transactional_sms\
+          \ IS NULL THEN '<<NULL>>' WHEN t.opt_in_to_transactional_sms = TRUE THEN\
+          \ 'TRUE' WHEN t.opt_in_to_transactional_sms = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS opt_in_to_transactional_sms,\n    CASE WHEN t.opt_in_to_marketing_sms\
+          \ IS NULL THEN '<<NULL>>' WHEN t.opt_in_to_marketing_sms = TRUE THEN 'TRUE'\
+          \ WHEN t.opt_in_to_marketing_sms = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS opt_in_to_marketing_sms,\n    CASE WHEN t.opt_in_to_marketing_emails\
+          \ IS NULL THEN '<<NULL>>' WHEN t.opt_in_to_marketing_emails = TRUE THEN\
+          \ 'TRUE' WHEN t.opt_in_to_marketing_emails = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS opt_in_to_marketing_emails,\n    CASE WHEN t.email_invoices IS\
+          \ NULL THEN '<<NULL>>' WHEN t.email_invoices = TRUE THEN 'TRUE' WHEN t.email_invoices\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS email_invoices,\n    CASE\
+          \ WHEN t.delinquency_docs_by_email IS NULL THEN '<<NULL>>' WHEN t.delinquency_docs_by_email\
+          \ = TRUE THEN 'TRUE' WHEN t.delinquency_docs_by_email = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS delinquency_docs_by_email,\n    CASE WHEN t.receive_legal_notices_by_email\
+          \ IS NULL THEN '<<NULL>>' WHEN t.receive_legal_notices_by_email = TRUE THEN\
+          \ 'TRUE' WHEN t.receive_legal_notices_by_email = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS receive_legal_notices_by_email,\n    COALESCE(TRIM(t.deleted_by_uuid),'<<NULL>>')\
+          \ AS deleted_by_uuid,\n    COALESCE(TRIM(t.primary_phone_number_uuid),'<<NULL>>')\
+          \ AS primary_phone_number_uuid,\n    COALESCE(TRIM(t.tenant_uuid),'<<NULL>>')\
+          \ AS tenant_uuid\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.contacts t\n\
+          WHERE t._FIVETRAN_ACTIVE = TRUE"

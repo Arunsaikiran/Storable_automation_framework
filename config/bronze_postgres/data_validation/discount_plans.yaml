@@ -1,0 +1,104 @@
+tables:
+  discount_plans:
+    validations:
+      data_validation:
+        source_table_name: discount_plans
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(name),'<<NULL>>') AS name,\n    COALESCE(TRIM(description),'<<NULL>>')\
+          \ AS description,\n    CASE WHEN hide_from_website IS NULL THEN '<<NULL>>'\
+          \ WHEN hide_from_website IS TRUE THEN 'TRUE' WHEN hide_from_website IS FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS hide_from_website,\n    COALESCE(TO_CHAR(start_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS start_date,\n    COALESCE(TO_CHAR(end_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS end_date,\n    CASE WHEN turned_on IS NULL THEN '<<NULL>>' WHEN turned_on\
+          \ IS TRUE THEN 'TRUE' WHEN turned_on IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS turned_on,\n    CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN\
+          \ deleted IS TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(kind),'<<NULL>>') AS kind,\n    CASE\
+          \ WHEN min_occupancy_required IS NULL THEN '<<NULL>>' WHEN min_occupancy_required\
+          \ IS TRUE THEN 'TRUE' WHEN min_occupancy_required IS FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS min_occupancy_required,\n    COALESCE(CAST(min_occupancy_months\
+          \ AS TEXT),'<<NULL>>') AS min_occupancy_months,\n    CASE WHEN prepay_required\
+          \ IS NULL THEN '<<NULL>>' WHEN prepay_required IS TRUE THEN 'TRUE' WHEN\
+          \ prepay_required IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS prepay_required,\n\
+          \    COALESCE(CAST(prepay_months AS TEXT),'<<NULL>>') AS prepay_months,\n\
+          \    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>') AS uuid,\n   \
+          \ COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS\
+          \ created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(CAST(CAST(round_to_nearest AS NUMERIC(38,2))\
+          \ AS TEXT),'<<NULL>>') AS round_to_nearest,\n    COALESCE(CAST(priority\
+          \ AS TEXT),'<<NULL>>') AS priority,\n    COALESCE(TRIM(promotion_type),'<<NULL>>')\
+          \ AS promotion_type,\n    COALESCE(CAST(company_id AS TEXT),'<<NULL>>')\
+          \ AS company_id,\n    CASE WHEN available_for_all_facilities IS NULL THEN\
+          \ '<<NULL>>' WHEN available_for_all_facilities IS TRUE THEN 'TRUE' WHEN\
+          \ available_for_all_facilities IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS available_for_all_facilities,\n    COALESCE(TO_CHAR(turned_off_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS turned_off_on,\n    CASE WHEN auto_apply\
+          \ IS NULL THEN '<<NULL>>' WHEN auto_apply IS TRUE THEN 'TRUE' WHEN auto_apply\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS auto_apply,\n    CASE WHEN\
+          \ move_in_only IS NULL THEN '<<NULL>>' WHEN move_in_only IS TRUE THEN 'TRUE'\
+          \ WHEN move_in_only IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS move_in_only,\n\
+          \    COALESCE(CAST(tenant_account_kind_id AS TEXT),'<<NULL>>') AS tenant_account_kind_id,\n\
+          \    CASE WHEN existing_tenant_only IS NULL THEN '<<NULL>>' WHEN existing_tenant_only\
+          \ IS TRUE THEN 'TRUE' WHEN existing_tenant_only IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS existing_tenant_only,\n    COALESCE(TRIM(public_description),'<<NULL>>')\
+          \ AS public_description,\n    COALESCE(TRIM(role_permission),'<<NULL>>')\
+          \ AS role_permission,\n    CASE WHEN choose_your_own_promo IS NULL THEN\
+          \ '<<NULL>>' WHEN choose_your_own_promo IS TRUE THEN 'TRUE' WHEN choose_your_own_promo\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS choose_your_own_promo,\n\
+          \    CASE WHEN month_zero_available IS NULL THEN '<<NULL>>' WHEN month_zero_available\
+          \ IS TRUE THEN 'TRUE' WHEN month_zero_available IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS month_zero_available\nFROM public.discount_plans;"
+        target_table_name: discount_plans
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.name),'<<NULL>>') AS name,\n    COALESCE(TRIM(t.description),'<<NULL>>')\
+          \ AS description,\n    CASE WHEN t.hide_from_website IS NULL THEN '<<NULL>>'\
+          \ WHEN t.hide_from_website = TRUE THEN 'TRUE' WHEN t.hide_from_website =\
+          \ FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS hide_from_website,\n    COALESCE(TO_CHAR(t.start_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS start_date,\n    COALESCE(TO_CHAR(t.end_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS end_date,\n    CASE WHEN t.turned_on IS NULL THEN '<<NULL>>' WHEN t.turned_on\
+          \ = TRUE THEN 'TRUE' WHEN t.turned_on = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS turned_on,\n    CASE WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN\
+          \ t.deleted = TRUE THEN 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>')\
+          \ AS deleted_by_id,\n    COALESCE(TRIM(t.kind),'<<NULL>>') AS kind,\n  \
+          \  CASE WHEN t.min_occupancy_required IS NULL THEN '<<NULL>>' WHEN t.min_occupancy_required\
+          \ = TRUE THEN 'TRUE' WHEN t.min_occupancy_required = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS min_occupancy_required,\n    COALESCE(TO_VARCHAR(t.min_occupancy_months),'<<NULL>>')\
+          \ AS min_occupancy_months,\n    CASE WHEN t.prepay_required IS NULL THEN\
+          \ '<<NULL>>' WHEN t.prepay_required = TRUE THEN 'TRUE' WHEN t.prepay_required\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS prepay_required,\n    COALESCE(TO_VARCHAR(t.prepay_months),'<<NULL>>')\
+          \ AS prepay_months,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n  \
+          \  COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TO_VARCHAR(t.round_to_nearest),'<<NULL>>')\
+          \ AS round_to_nearest,\n    COALESCE(TO_VARCHAR(t.priority),'<<NULL>>')\
+          \ AS priority,\n    COALESCE(TRIM(t.promotion_type),'<<NULL>>') AS promotion_type,\n\
+          \    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>') AS company_id,\n    CASE\
+          \ WHEN t.available_for_all_facilities IS NULL THEN '<<NULL>>' WHEN t.available_for_all_facilities\
+          \ = TRUE THEN 'TRUE' WHEN t.available_for_all_facilities = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS available_for_all_facilities,\n    COALESCE(TO_CHAR(t.turned_off_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS turned_off_on,\n    CASE WHEN t.auto_apply\
+          \ IS NULL THEN '<<NULL>>' WHEN t.auto_apply = TRUE THEN 'TRUE' WHEN t.auto_apply\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS auto_apply,\n    CASE WHEN\
+          \ t.move_in_only IS NULL THEN '<<NULL>>' WHEN t.move_in_only = TRUE THEN\
+          \ 'TRUE' WHEN t.move_in_only = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ move_in_only,\n    COALESCE(TO_VARCHAR(t.tenant_account_kind_id),'<<NULL>>')\
+          \ AS tenant_account_kind_id,\n    CASE WHEN t.existing_tenant_only IS NULL\
+          \ THEN '<<NULL>>' WHEN t.existing_tenant_only = TRUE THEN 'TRUE' WHEN t.existing_tenant_only\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS existing_tenant_only,\n  \
+          \  COALESCE(TRIM(t.public_description),'<<NULL>>') AS public_description,\n\
+          \    COALESCE(TRIM(t.role_permission),'<<NULL>>') AS role_permission,\n\
+          \    CASE WHEN t.choose_your_own_promo IS NULL THEN '<<NULL>>' WHEN t.choose_your_own_promo\
+          \ = TRUE THEN 'TRUE' WHEN t.choose_your_own_promo = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS choose_your_own_promo,\n    CASE WHEN t.month_zero_available\
+          \ IS NULL THEN '<<NULL>>' WHEN t.month_zero_available = TRUE THEN 'TRUE'\
+          \ WHEN t.month_zero_available = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ month_zero_available\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plans\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

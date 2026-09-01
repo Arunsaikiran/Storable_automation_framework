@@ -1,0 +1,116 @@
+tables:
+  units:
+    validations:
+      data_validation:
+        source_table_name: units
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(name),'<<NULL>>') AS name,\n    COALESCE(TRIM(status),'<<NULL>>')\
+          \ AS status,\n    CASE WHEN damaged IS NULL THEN '<<NULL>>' WHEN damaged\
+          \ IS TRUE THEN 'TRUE' WHEN damaged IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS damaged,\n    CASE WHEN dirty IS NULL THEN '<<NULL>>' WHEN dirty\
+          \ IS TRUE THEN 'TRUE' WHEN dirty IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS dirty,\n    CASE WHEN rentable IS NULL THEN '<<NULL>>' WHEN rentable\
+          \ IS TRUE THEN 'TRUE' WHEN rentable IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS rentable,\n    COALESCE(TO_CHAR(available_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS available_on,\n    COALESCE(CAST(width AS TEXT),'<<NULL>>') AS width,\n\
+          \    COALESCE(CAST(height AS TEXT),'<<NULL>>') AS height,\n    COALESCE(CAST(length\
+          \ AS TEXT),'<<NULL>>') AS length,\n    COALESCE(CAST(CAST(standard_rate\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS standard_rate,\n    COALESCE(CAST(door_width\
+          \ AS TEXT),'<<NULL>>') AS door_width,\n    COALESCE(CAST(door_height AS\
+          \ TEXT),'<<NULL>>') AS door_height,\n    COALESCE(TRIM(door_type),'<<NULL>>')\
+          \ AS door_type,\n    COALESCE(TRIM(access_type),'<<NULL>>') AS access_type,\n\
+          \    COALESCE(CAST(floor AS TEXT),'<<NULL>>') AS floor,\n    COALESCE(CAST(tax_id\
+          \ AS TEXT),'<<NULL>>') AS tax_id,\n    COALESCE(CAST(unit_type_id AS TEXT),'<<NULL>>')\
+          \ AS unit_type_id,\n    COALESCE(CAST(facility_id AS TEXT),'<<NULL>>') AS\
+          \ facility_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(CAST(walk_thru_order AS TEXT),'<<NULL>>')\
+          \ AS walk_thru_order,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    CASE WHEN exclude_from_api IS NULL THEN '<<NULL>>' WHEN\
+          \ exclude_from_api IS TRUE THEN 'TRUE' WHEN exclude_from_api IS FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS exclude_from_api,\n    COALESCE(TRIM(sort_string),'<<NULL>>')\
+          \ AS sort_string,\n    COALESCE(CAST(rate_plan_id AS TEXT),'<<NULL>>') AS\
+          \ rate_plan_id,\n    COALESCE(CAST(CAST(managed_rate AS NUMERIC(38,2)) AS\
+          \ TEXT),'<<NULL>>') AS managed_rate,\n    CASE WHEN deleted IS NULL THEN\
+          \ '<<NULL>>' WHEN deleted IS TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(CAST(deleted_by_id\
+          \ AS TEXT),'<<NULL>>') AS deleted_by_id,\n    COALESCE(TRIM(combination_lock_number),'<<NULL>>')\
+          \ AS combination_lock_number,\n    COALESCE(CAST(unit_group_id AS TEXT),'<<NULL>>')\
+          \ AS unit_group_id,\n    COALESCE(TRIM(attribute_description),'<<NULL>>')\
+          \ AS attribute_description,\n    COALESCE(CAST(area AS TEXT),'<<NULL>>')\
+          \ AS area,\n    COALESCE(CAST(unoccupied_rate_plan_id AS TEXT),'<<NULL>>')\
+          \ AS unoccupied_rate_plan_id,\n    CASE WHEN company_owned IS NULL THEN\
+          \ '<<NULL>>' WHEN company_owned IS TRUE THEN 'TRUE' WHEN company_owned IS\
+          \ FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS company_owned,\n    CASE WHEN\
+          \ manually_set_area IS NULL THEN '<<NULL>>' WHEN manually_set_area IS TRUE\
+          \ THEN 'TRUE' WHEN manually_set_area IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS manually_set_area,\n    COALESCE(TRIM(directions),'<<NULL>>') AS\
+          \ directions,\n    COALESCE(CAST(combo_lock_group_id AS TEXT),'<<NULL>>')\
+          \ AS combo_lock_group_id,\n    CASE WHEN needs_prepped IS NULL THEN '<<NULL>>'\
+          \ WHEN needs_prepped IS TRUE THEN 'TRUE' WHEN needs_prepped IS FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS needs_prepped,\n    COALESCE(TRIM(overlock_lock_number),'<<NULL>>')\
+          \ AS overlock_lock_number,\n    COALESCE(CAST(rank AS TEXT),'<<NULL>>')\
+          \ AS rank,\n    COALESCE(CAST(tier_id AS TEXT),'<<NULL>>') AS tier_id,\n\
+          \    COALESCE(CAST(unit_group_tier_rate_id AS TEXT),'<<NULL>>') AS unit_group_tier_rate_id,\n\
+          \    COALESCE(CAST(CAST(tiered_rate AS NUMERIC(38,2)) AS TEXT),'<<NULL>>')\
+          \ AS tiered_rate,\n    COALESCE(CAST(allow_future_move_ins_limit AS TEXT),'<<NULL>>')\
+          \ AS allow_future_move_ins_limit\nFROM public.units;"
+        target_table_name: units
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.name),'<<NULL>>') AS name,\n    COALESCE(TRIM(t.status),'<<NULL>>')\
+          \ AS status,\n    CASE WHEN t.damaged IS NULL THEN '<<NULL>>' WHEN t.damaged\
+          \ = TRUE THEN 'TRUE' WHEN t.damaged = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS damaged,\n    CASE WHEN t.dirty IS NULL THEN '<<NULL>>' WHEN t.dirty\
+          \ = TRUE THEN 'TRUE' WHEN t.dirty = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS dirty,\n    CASE WHEN t.rentable IS NULL THEN '<<NULL>>' WHEN t.rentable\
+          \ = TRUE THEN 'TRUE' WHEN t.rentable = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS rentable,\n    COALESCE(TO_CHAR(t.available_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS available_on,\n    COALESCE(TO_VARCHAR(t.width),'<<NULL>>') AS width,\n\
+          \    COALESCE(TO_VARCHAR(t.height),'<<NULL>>') AS height,\n    COALESCE(TO_VARCHAR(t.length),'<<NULL>>')\
+          \ AS length,\n    COALESCE(TO_VARCHAR(t.standard_rate),'<<NULL>>') AS standard_rate,\n\
+          \    COALESCE(TO_VARCHAR(t.door_width),'<<NULL>>') AS door_width,\n    COALESCE(TO_VARCHAR(t.door_height),'<<NULL>>')\
+          \ AS door_height,\n    COALESCE(TRIM(t.door_type),'<<NULL>>') AS door_type,\n\
+          \    COALESCE(TRIM(t.access_type),'<<NULL>>') AS access_type,\n    COALESCE(TO_VARCHAR(t.floor),'<<NULL>>')\
+          \ AS floor,\n    COALESCE(TO_VARCHAR(t.tax_id),'<<NULL>>') AS tax_id,\n\
+          \    COALESCE(TO_VARCHAR(t.unit_type_id),'<<NULL>>') AS unit_type_id,\n\
+          \    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS facility_id,\n  \
+          \  COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TO_VARCHAR(t.walk_thru_order),'<<NULL>>')\
+          \ AS walk_thru_order,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n\
+          \    CASE WHEN t.exclude_from_api IS NULL THEN '<<NULL>>' WHEN t.exclude_from_api\
+          \ = TRUE THEN 'TRUE' WHEN t.exclude_from_api = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS exclude_from_api,\n    COALESCE(TRIM(t.sort_string),'<<NULL>>')\
+          \ AS sort_string,\n    COALESCE(TO_VARCHAR(t.rate_plan_id),'<<NULL>>') AS\
+          \ rate_plan_id,\n    COALESCE(TO_VARCHAR(t.managed_rate),'<<NULL>>') AS\
+          \ managed_rate,\n    CASE WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN t.deleted\
+          \ = TRUE THEN 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(t.combination_lock_number),'<<NULL>>')\
+          \ AS combination_lock_number,\n    COALESCE(TO_VARCHAR(t.unit_group_id),'<<NULL>>')\
+          \ AS unit_group_id,\n    COALESCE(TRIM(t.attribute_description),'<<NULL>>')\
+          \ AS attribute_description,\n    COALESCE(TO_VARCHAR(t.area),'<<NULL>>')\
+          \ AS area,\n    COALESCE(TO_VARCHAR(t.unoccupied_rate_plan_id),'<<NULL>>')\
+          \ AS unoccupied_rate_plan_id,\n    CASE WHEN t.company_owned IS NULL THEN\
+          \ '<<NULL>>' WHEN t.company_owned = TRUE THEN 'TRUE' WHEN t.company_owned\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS company_owned,\n    CASE WHEN\
+          \ t.manually_set_area IS NULL THEN '<<NULL>>' WHEN t.manually_set_area =\
+          \ TRUE THEN 'TRUE' WHEN t.manually_set_area = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS manually_set_area,\n    COALESCE(TRIM(t.directions),'<<NULL>>')\
+          \ AS directions,\n    COALESCE(TO_VARCHAR(t.combo_lock_group_id),'<<NULL>>')\
+          \ AS combo_lock_group_id,\n    CASE WHEN t.needs_prepped IS NULL THEN '<<NULL>>'\
+          \ WHEN t.needs_prepped = TRUE THEN 'TRUE' WHEN t.needs_prepped = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS needs_prepped,\n    COALESCE(TRIM(t.overlock_lock_number),'<<NULL>>')\
+          \ AS overlock_lock_number,\n    COALESCE(TO_VARCHAR(t.rank),'<<NULL>>')\
+          \ AS rank,\n    COALESCE(TO_VARCHAR(t.tier_id),'<<NULL>>') AS tier_id,\n\
+          \    COALESCE(TO_VARCHAR(t.unit_group_tier_rate_id),'<<NULL>>') AS unit_group_tier_rate_id,\n\
+          \    COALESCE(TO_VARCHAR(t.tiered_rate),'<<NULL>>') AS tiered_rate,\n  \
+          \  COALESCE(TO_VARCHAR(t.allow_future_move_ins_limit),'<<NULL>>') AS allow_future_move_ins_limit\n\
+          FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.units t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

@@ -1,0 +1,221 @@
+tables:
+  Sites:
+    validations:
+      data_validation:
+        source_table_name: Sites
+        source: mssql
+        sourcecolumn: SiteID
+        sourcequery: "SELECT\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(OwnerID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ OwnerID,\n    COALESCE(CAST(LanguageID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ LanguageID,\n    COALESCE(TRIM(sLocationCode),'<<NULL>>') AS sLocationCode,\n\
+          \    COALESCE(TRIM(sGlobalSiteNum),'<<NULL>>') AS sGlobalSiteNum,\n    COALESCE(CAST(iMobileType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iMobileType,\n    COALESCE(CAST(iRegionalOptions\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRegionalOptions,\n    COALESCE(CAST(iOnLineChargeType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iOnLineChargeType,\n    COALESCE(CAST(iGMTTimeOffset\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iGMTTimeOffset,\n    COALESCE(TRIM(sLocationDesc),'<<NULL>>')\
+          \ AS sLocationDesc,\n    COALESCE(TRIM(sSiteIDCode),'<<NULL>>') AS sSiteIDCode,\n\
+          \    COALESCE(TRIM(sSiteRegionCode),'<<NULL>>') AS sSiteRegionCode,\n  \
+          \  COALESCE(TRIM(sContactName),'<<NULL>>') AS sContactName,\n    COALESCE(TRIM(sEmailAddress),'<<NULL>>')\
+          \ AS sEmailAddress,\n    COALESCE(TRIM(sSiteName),'<<NULL>>') AS sSiteName,\n\
+          \    COALESCE(TRIM(sSiteAddr1),'<<NULL>>') AS sSiteAddr1,\n    COALESCE(TRIM(sSiteAddr2),'<<NULL>>')\
+          \ AS sSiteAddr2,\n    COALESCE(TRIM(sSiteCity),'<<NULL>>') AS sSiteCity,\n\
+          \    COALESCE(TRIM(sSiteRegion),'<<NULL>>') AS sSiteRegion,\n    COALESCE(TRIM(sSitePostalCode),'<<NULL>>')\
+          \ AS sSitePostalCode,\n    COALESCE(TRIM(sSiteCountry),'<<NULL>>') AS sSiteCountry,\n\
+          \    COALESCE(TRIM(sSitePhone),'<<NULL>>') AS sSitePhone,\n    COALESCE(TRIM(sSiteFAX),'<<NULL>>')\
+          \ AS sSiteFAX,\n    COALESCE(TRIM(sWebSiteURL),'<<NULL>>') AS sWebSiteURL,\n\
+          \    COALESCE(CAST(iFeatMaxUnits AS VARCHAR(100)),'<<NULL>>') AS iFeatMaxUnits,\n\
+          \    CASE WHEN bFeatGate IS NULL THEN '<<NULL>>' WHEN bFeatGate = 1 THEN\
+          \ 'TRUE' WHEN bFeatGate = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatGate,\n\
+          \    CASE WHEN bFeatKiosk IS NULL THEN '<<NULL>>' WHEN bFeatKiosk = 1 THEN\
+          \ 'TRUE' WHEN bFeatKiosk = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatKiosk,\n\
+          \    CASE WHEN bFeatRevMgmt IS NULL THEN '<<NULL>>' WHEN bFeatRevMgmt =\
+          \ 1 THEN 'TRUE' WHEN bFeatRevMgmt = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bFeatRevMgmt,\n    CASE WHEN bFeatCreditCards IS NULL THEN '<<NULL>>'\
+          \ WHEN bFeatCreditCards = 1 THEN 'TRUE' WHEN bFeatCreditCards = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bFeatCreditCards,\n    CASE WHEN bFeatCorpOffice\
+          \ IS NULL THEN '<<NULL>>' WHEN bFeatCorpOffice = 1 THEN 'TRUE' WHEN bFeatCorpOffice\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatCorpOffice,\n    CASE WHEN\
+          \ bFeatAccounting IS NULL THEN '<<NULL>>' WHEN bFeatAccounting = 1 THEN\
+          \ 'TRUE' WHEN bFeatAccounting = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatAccounting,\n\
+          \    CASE WHEN bFeatRecordStorage IS NULL THEN '<<NULL>>' WHEN bFeatRecordStorage\
+          \ = 1 THEN 'TRUE' WHEN bFeatRecordStorage = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bFeatRecordStorage,\n    CASE WHEN bFeatACH IS NULL THEN '<<NULL>>'\
+          \ WHEN bFeatACH = 1 THEN 'TRUE' WHEN bFeatACH = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bFeatACH,\n    CASE WHEN bFeatMobileStorage IS NULL THEN '<<NULL>>'\
+          \ WHEN bFeatMobileStorage = 1 THEN 'TRUE' WHEN bFeatMobileStorage = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bFeatMobileStorage,\n    CASE WHEN bFeatPromoAdvanced\
+          \ IS NULL THEN '<<NULL>>' WHEN bFeatPromoAdvanced = 1 THEN 'TRUE' WHEN bFeatPromoAdvanced\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatPromoAdvanced,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dACHStatus\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dACHStatus,\n    CASE WHEN bLiteVersion\
+          \ IS NULL THEN '<<NULL>>' WHEN bLiteVersion = 1 THEN 'TRUE' WHEN bLiteVersion\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bLiteVersion,\n    CASE WHEN bTrial\
+          \ IS NULL THEN '<<NULL>>' WHEN bTrial = 1 THEN 'TRUE' WHEN bTrial = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bTrial,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dTrialEnds\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dTrialEnds,\n    CASE WHEN bSubscription\
+          \ IS NULL THEN '<<NULL>>' WHEN bSubscription = 1 THEN 'TRUE' WHEN bSubscription\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bSubscription,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dSubscriptionEnds\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dSubscriptionEnds,\n    CASE WHEN\
+          \ bSiteDisabled IS NULL THEN '<<NULL>>' WHEN bSiteDisabled = 1 THEN 'TRUE'\
+          \ WHEN bSiteDisabled = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bSiteDisabled,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dSiteDisabled AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dSiteDisabled,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dGateUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dGateUpdated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dOvernightProcess\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dOvernightProcess,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dStartOfDay\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dStartOfDay,\n    COALESCE(TRIM(sLegalName),'<<NULL>>')\
+          \ AS sLegalName,\n    CASE WHEN bZipCodeData_Use IS NULL THEN '<<NULL>>'\
+          \ WHEN bZipCodeData_Use = 1 THEN 'TRUE' WHEN bZipCodeData_Use = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bZipCodeData_Use,\n    COALESCE(CAST(CAST(dcLongitude\
+          \ AS DECIMAL(38,10)) AS VARCHAR(100)),'<<NULL>>') AS dcLongitude,\n    COALESCE(CAST(CAST(dcLatitude\
+          \ AS DECIMAL(38,10)) AS VARCHAR(100)),'<<NULL>>') AS dcLatitude,\n    CASE\
+          \ WHEN bClosedWeekdays IS NULL THEN '<<NULL>>' WHEN bClosedWeekdays = 1\
+          \ THEN 'TRUE' WHEN bClosedWeekdays = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bClosedWeekdays,\n    CASE WHEN bClosedSaturday IS NULL THEN '<<NULL>>'\
+          \ WHEN bClosedSaturday = 1 THEN 'TRUE' WHEN bClosedSaturday = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bClosedSaturday,\n    CASE WHEN bClosedSunday IS\
+          \ NULL THEN '<<NULL>>' WHEN bClosedSunday = 1 THEN 'TRUE' WHEN bClosedSunday\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bClosedSunday,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dWeekdayStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dWeekdayStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dWeekdayEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dWeekdayEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dSaturdayStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dSaturdayStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dSaturdayEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dSaturdayEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dSundayStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dSundayStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dSundayEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dSundayEnd,\n    COALESCE(CAST(iIdentifier\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iIdentifier,\n    COALESCE(TRIM(sIdentifier),'<<NULL>>')\
+          \ AS sIdentifier,\n    CASE WHEN bUseInclusiveTaxation IS NULL THEN '<<NULL>>'\
+          \ WHEN bUseInclusiveTaxation = 1 THEN 'TRUE' WHEN bUseInclusiveTaxation\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bUseInclusiveTaxation,\n    COALESCE(CAST(iBusinessType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iBusinessType,\n    COALESCE(CAST(iSiteDataType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iSiteDataType,\n    COALESCE(TRIM(sTaxNumber),'<<NULL>>')\
+          \ AS sTaxNumber,\n    COALESCE(CAST(iFacilityUsage AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iFacilityUsage,\n    COALESCE(CAST(iFacilityOwnership AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iFacilityOwnership,\n    COALESCE(CAST(iFacilityMgmt AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iFacilityMgmt,\n    COALESCE(CAST(iFacilityLocType AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iFacilityLocType,\n    COALESCE(CAST(iMobileBungoRules AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iMobileBungoRules,\n    COALESCE(CAST(iOnLinePmtsAllowed AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iOnLinePmtsAllowed,\n    COALESCE(CAST(iEdition AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iEdition,\n    COALESCE(CAST(iTerminalServices AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iTerminalServices,\n    COALESCE(CAST(iDST AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iDST,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dCreated,\n    CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent\
+          \ = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bPermanent,\n    CASE WHEN bArchived IS NULL THEN '<<NULL>>' WHEN bArchived\
+          \ = 1 THEN 'TRUE' WHEN bArchived = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bArchived,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dArchived,\n    COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS\
+          \ OldPK,\n    COALESCE(CAST(DivisionID AS VARCHAR(100)),'<<NULL>>') AS DivisionID,\n\
+          \    COALESCE(CAST(iVerboseLogging AS VARCHAR(100)),'<<NULL>>') AS iVerboseLogging,\n\
+          \    COALESCE(CAST(iSiteLinkStoreTier AS VARCHAR(100)),'<<NULL>>') AS iSiteLinkStoreTier,\n\
+          \    COALESCE(TRIM(sSLBillingRef),'<<NULL>>') AS sSLBillingRef,\n    COALESCE(CAST(iSubscriptionType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iSubscriptionType\nFROM dbo.Sites;"
+        target_table_name: Sites
+        target: snowflake
+        targetcolumn: SiteID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.OwnerID),'<<NULL>>') AS OwnerID,\n    COALESCE(TO_VARCHAR(t.LanguageID),'<<NULL>>')\
+          \ AS LanguageID,\n    COALESCE(TRIM(t.sLocationCode),'<<NULL>>') AS sLocationCode,\n\
+          \    COALESCE(TRIM(t.sGlobalSiteNum),'<<NULL>>') AS sGlobalSiteNum,\n  \
+          \  COALESCE(TO_VARCHAR(t.iMobileType),'<<NULL>>') AS iMobileType,\n    COALESCE(TO_VARCHAR(t.iRegionalOptions),'<<NULL>>')\
+          \ AS iRegionalOptions,\n    COALESCE(TO_VARCHAR(t.iOnLineChargeType),'<<NULL>>')\
+          \ AS iOnLineChargeType,\n    COALESCE(TO_VARCHAR(t.iGMTTimeOffset),'<<NULL>>')\
+          \ AS iGMTTimeOffset,\n    COALESCE(TRIM(t.sLocationDesc),'<<NULL>>') AS\
+          \ sLocationDesc,\n    COALESCE(TRIM(t.sSiteIDCode),'<<NULL>>') AS sSiteIDCode,\n\
+          \    COALESCE(TRIM(t.sSiteRegionCode),'<<NULL>>') AS sSiteRegionCode,\n\
+          \    COALESCE(TRIM(t.sContactName),'<<NULL>>') AS sContactName,\n    COALESCE(TRIM(t.sEmailAddress),'<<NULL>>')\
+          \ AS sEmailAddress,\n    COALESCE(TRIM(t.sSiteName),'<<NULL>>') AS sSiteName,\n\
+          \    COALESCE(TRIM(t.sSiteAddr1),'<<NULL>>') AS sSiteAddr1,\n    COALESCE(TRIM(t.sSiteAddr2),'<<NULL>>')\
+          \ AS sSiteAddr2,\n    COALESCE(TRIM(t.sSiteCity),'<<NULL>>') AS sSiteCity,\n\
+          \    COALESCE(TRIM(t.sSiteRegion),'<<NULL>>') AS sSiteRegion,\n    COALESCE(TRIM(t.sSitePostalCode),'<<NULL>>')\
+          \ AS sSitePostalCode,\n    COALESCE(TRIM(t.sSiteCountry),'<<NULL>>') AS\
+          \ sSiteCountry,\n    COALESCE(TRIM(t.sSitePhone),'<<NULL>>') AS sSitePhone,\n\
+          \    COALESCE(TRIM(t.sSiteFAX),'<<NULL>>') AS sSiteFAX,\n    COALESCE(TRIM(t.sWebSiteURL),'<<NULL>>')\
+          \ AS sWebSiteURL,\n    COALESCE(TO_VARCHAR(t.iFeatMaxUnits),'<<NULL>>')\
+          \ AS iFeatMaxUnits,\n    CASE WHEN t.bFeatGate IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bFeatGate = TRUE THEN 'TRUE' WHEN t.bFeatGate = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bFeatGate,\n    CASE WHEN t.bFeatKiosk IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bFeatKiosk = TRUE THEN 'TRUE' WHEN t.bFeatKiosk = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatKiosk,\n    CASE WHEN t.bFeatRevMgmt\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bFeatRevMgmt = TRUE THEN 'TRUE' WHEN t.bFeatRevMgmt\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatRevMgmt,\n    CASE WHEN\
+          \ t.bFeatCreditCards IS NULL THEN '<<NULL>>' WHEN t.bFeatCreditCards = TRUE\
+          \ THEN 'TRUE' WHEN t.bFeatCreditCards = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bFeatCreditCards,\n    CASE WHEN t.bFeatCorpOffice IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bFeatCorpOffice = TRUE THEN 'TRUE' WHEN t.bFeatCorpOffice\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatCorpOffice,\n    CASE\
+          \ WHEN t.bFeatAccounting IS NULL THEN '<<NULL>>' WHEN t.bFeatAccounting\
+          \ = TRUE THEN 'TRUE' WHEN t.bFeatAccounting = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bFeatAccounting,\n    CASE WHEN t.bFeatRecordStorage IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bFeatRecordStorage = TRUE THEN 'TRUE' WHEN t.bFeatRecordStorage\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatRecordStorage,\n    CASE\
+          \ WHEN t.bFeatACH IS NULL THEN '<<NULL>>' WHEN t.bFeatACH = TRUE THEN 'TRUE'\
+          \ WHEN t.bFeatACH = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatACH,\n\
+          \    CASE WHEN t.bFeatMobileStorage IS NULL THEN '<<NULL>>' WHEN t.bFeatMobileStorage\
+          \ = TRUE THEN 'TRUE' WHEN t.bFeatMobileStorage = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bFeatMobileStorage,\n    CASE WHEN t.bFeatPromoAdvanced\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bFeatPromoAdvanced = TRUE THEN 'TRUE' WHEN\
+          \ t.bFeatPromoAdvanced = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bFeatPromoAdvanced,\n\
+          \    COALESCE(TO_CHAR(t.dACHStatus,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dACHStatus,\n    CASE WHEN t.bLiteVersion IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bLiteVersion = TRUE THEN 'TRUE' WHEN t.bLiteVersion = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bLiteVersion,\n    CASE WHEN t.bTrial IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bTrial = TRUE THEN 'TRUE' WHEN t.bTrial = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bTrial,\n    COALESCE(TO_CHAR(t.dTrialEnds,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dTrialEnds,\n    CASE WHEN t.bSubscription\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bSubscription = TRUE THEN 'TRUE' WHEN t.bSubscription\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bSubscription,\n    COALESCE(TO_CHAR(t.dSubscriptionEnds,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dSubscriptionEnds,\n    CASE WHEN t.bSiteDisabled\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bSiteDisabled = TRUE THEN 'TRUE' WHEN t.bSiteDisabled\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bSiteDisabled,\n    COALESCE(TO_CHAR(t.dSiteDisabled,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dSiteDisabled,\n    COALESCE(TO_CHAR(t.dGateUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dGateUpdated,\n    COALESCE(TO_CHAR(t.dOvernightProcess,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dOvernightProcess,\n    COALESCE(TO_CHAR(t.dStartOfDay,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dStartOfDay,\n    COALESCE(TRIM(t.sLegalName),'<<NULL>>')\
+          \ AS sLegalName,\n    CASE WHEN t.bZipCodeData_Use IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bZipCodeData_Use = TRUE THEN 'TRUE' WHEN t.bZipCodeData_Use = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS bZipCodeData_Use,\n    COALESCE(TO_VARCHAR(t.dcLongitude),'<<NULL>>')\
+          \ AS dcLongitude,\n    COALESCE(TO_VARCHAR(t.dcLatitude),'<<NULL>>') AS\
+          \ dcLatitude,\n    CASE WHEN t.bClosedWeekdays IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bClosedWeekdays = TRUE THEN 'TRUE' WHEN t.bClosedWeekdays = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bClosedWeekdays,\n    CASE WHEN t.bClosedSaturday\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bClosedSaturday = TRUE THEN 'TRUE' WHEN\
+          \ t.bClosedSaturday = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bClosedSaturday,\n\
+          \    CASE WHEN t.bClosedSunday IS NULL THEN '<<NULL>>' WHEN t.bClosedSunday\
+          \ = TRUE THEN 'TRUE' WHEN t.bClosedSunday = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bClosedSunday,\n    COALESCE(TO_CHAR(t.dWeekdayStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dWeekdayStrt,\n    COALESCE(TO_CHAR(t.dWeekdayEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dWeekdayEnd,\n    COALESCE(TO_CHAR(t.dSaturdayStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dSaturdayStrt,\n    COALESCE(TO_CHAR(t.dSaturdayEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dSaturdayEnd,\n    COALESCE(TO_CHAR(t.dSundayStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dSundayStrt,\n    COALESCE(TO_CHAR(t.dSundayEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dSundayEnd,\n    COALESCE(TO_VARCHAR(t.iIdentifier),'<<NULL>>')\
+          \ AS iIdentifier,\n    COALESCE(TRIM(t.sIdentifier),'<<NULL>>') AS sIdentifier,\n\
+          \    CASE WHEN t.bUseInclusiveTaxation IS NULL THEN '<<NULL>>' WHEN t.bUseInclusiveTaxation\
+          \ = TRUE THEN 'TRUE' WHEN t.bUseInclusiveTaxation = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bUseInclusiveTaxation,\n    COALESCE(TO_VARCHAR(t.iBusinessType),'<<NULL>>')\
+          \ AS iBusinessType,\n    COALESCE(TO_VARCHAR(t.iSiteDataType),'<<NULL>>')\
+          \ AS iSiteDataType,\n    COALESCE(TRIM(t.sTaxNumber),'<<NULL>>') AS sTaxNumber,\n\
+          \    COALESCE(TO_VARCHAR(t.iFacilityUsage),'<<NULL>>') AS iFacilityUsage,\n\
+          \    COALESCE(TO_VARCHAR(t.iFacilityOwnership),'<<NULL>>') AS iFacilityOwnership,\n\
+          \    COALESCE(TO_VARCHAR(t.iFacilityMgmt),'<<NULL>>') AS iFacilityMgmt,\n\
+          \    COALESCE(TO_VARCHAR(t.iFacilityLocType),'<<NULL>>') AS iFacilityLocType,\n\
+          \    COALESCE(TO_VARCHAR(t.iMobileBungoRules),'<<NULL>>') AS iMobileBungoRules,\n\
+          \    COALESCE(TO_VARCHAR(t.iOnLinePmtsAllowed),'<<NULL>>') AS iOnLinePmtsAllowed,\n\
+          \    COALESCE(TO_VARCHAR(t.iEdition),'<<NULL>>') AS iEdition,\n    COALESCE(TO_VARCHAR(t.iTerminalServices),'<<NULL>>')\
+          \ AS iTerminalServices,\n    COALESCE(TO_VARCHAR(t.iDST),'<<NULL>>') AS\
+          \ iDST,\n    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCreated,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPermanent = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPermanent,\n    CASE WHEN t.bArchived IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bArchived = TRUE THEN 'TRUE' WHEN t.bArchived =\
+          \ FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bArchived,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dArchived,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK,\n    COALESCE(TO_VARCHAR(t.DivisionID),'<<NULL>>') AS DivisionID,\n\
+          \    COALESCE(TO_VARCHAR(t.iVerboseLogging),'<<NULL>>') AS iVerboseLogging,\n\
+          \    COALESCE(TO_VARCHAR(t.iSiteLinkStoreTier),'<<NULL>>') AS iSiteLinkStoreTier,\n\
+          \    COALESCE(TRIM(t.sSLBillingRef),'<<NULL>>') AS sSLBillingRef,\n    COALESCE(TO_VARCHAR(t.iSubscriptionType),'<<NULL>>')\
+          \ AS iSubscriptionType\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Sites\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

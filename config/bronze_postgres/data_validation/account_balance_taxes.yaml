@@ -1,0 +1,29 @@
+tables:
+  account_balance_taxes:
+    validations:
+      data_validation:
+        source_table_name: account_balance_taxes
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(account_balance_id AS TEXT),'<<NULL>>') AS account_balance_id,\n\
+          \    COALESCE(CAST(tax_rate_id AS TEXT),'<<NULL>>') AS tax_rate_id,\n  \
+          \  COALESCE(CAST(CAST(amount AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS amount,\n\
+          \    COALESCE(CAST(CAST(rate AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS rate,\n\
+          \    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(TRIM(internal_account_code),'<<NULL>>') AS internal_account_code\n\
+          FROM public.account_balance_taxes;"
+        target_table_name: account_balance_taxes
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.account_balance_id),'<<NULL>>') AS account_balance_id,\n\
+          \    COALESCE(TO_VARCHAR(t.tax_rate_id),'<<NULL>>') AS tax_rate_id,\n  \
+          \  COALESCE(TO_VARCHAR(t.amount),'<<NULL>>') AS amount,\n    COALESCE(TO_VARCHAR(t.rate),'<<NULL>>')\
+          \ AS rate,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TRIM(t.internal_account_code),'<<NULL>>')\
+          \ AS internal_account_code\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_taxes\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

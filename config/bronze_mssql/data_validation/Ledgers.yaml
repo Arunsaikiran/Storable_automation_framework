@@ -1,0 +1,481 @@
+tables:
+  Ledgers:
+    validations:
+      data_validation:
+        source_table_name: Ledgers
+        source: mssql
+        sourcecolumn: LedgerID
+        sourcequery: "SELECT\n    COALESCE(CAST(LedgerID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS LedgerID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ SiteID,\n    COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ EmployeeID,\n    COALESCE(CAST(unitID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ unitID,\n    COALESCE(CAST(BillingFreqID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS BillingFreqID,\n    COALESCE(CAST(ConcessionID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ConcessionID,\n    COALESCE(TRIM(sPurchOrderCode),'<<NULL>>') AS sPurchOrderCode,\n\
+          \    COALESCE(CAST(iLeaseNum AS VARCHAR(100)),'<<NULL>>') AS iLeaseNum,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dLease AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dLease,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dMovedIn AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dMovedIn,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dSchedOut AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dSchedOut,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dMovedOut AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dMovedOut,\n    CASE WHEN bAnniv IS NULL THEN '<<NULL>>' WHEN bAnniv\
+          \ = 1 THEN 'TRUE' WHEN bAnniv = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bAnniv,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dAnniv AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dAnniv,\n    COALESCE(CAST(iInByEmpID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iInByEmpID,\n    COALESCE(CAST(iOutByEmpID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iOutByEmpID,\n    COALESCE(CAST(iTferByEmpID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iTferByEmpID,\n    COALESCE(CAST(iTferToLedID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iTferToLedID,\n    COALESCE(CAST(iTferFromLedID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iTferFromLedID,\n    COALESCE(CAST(CAST(dcInsurPremium AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcInsurPremium,\n    COALESCE(CAST(CAST(dcSchedRent\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcSchedRent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dSchedRentStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dSchedRentStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRentLastChanged\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRentLastChanged,\n    COALESCE(CAST(CAST(dcRent\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRent,\n    COALESCE(CAST(CAST(dcRecChg1\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg1,\n    COALESCE(CAST(CAST(dcRecChg2\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg2,\n    COALESCE(CAST(CAST(dcRecChg3\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg3,\n    COALESCE(CAST(CAST(dcRecChg4\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg4,\n    COALESCE(CAST(CAST(dcRecChg5\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg5,\n    COALESCE(CAST(CAST(dcRecChg6\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg6,\n    COALESCE(CAST(CAST(dcRecChg7\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg7,\n    COALESCE(CAST(CAST(dcRecChg8\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg8,\n    COALESCE(CAST(iRecChg1Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg1Qty,\n    COALESCE(CAST(iRecChg2Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg2Qty,\n    COALESCE(CAST(iRecChg3Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg3Qty,\n    COALESCE(CAST(iRecChg4Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg4Qty,\n    COALESCE(CAST(iRecChg5Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg5Qty,\n    COALESCE(CAST(iRecChg6Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg6Qty,\n    COALESCE(CAST(iRecChg7Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg7Qty,\n    COALESCE(CAST(iRecChg8Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg8Qty,\n    COALESCE(CAST(CAST(dcAdminFee\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcAdminFee,\n    COALESCE(CAST(CAST(dcCutLockFee\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcCutLockFee,\n    COALESCE(CAST(CAST(dcNSFFee\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcNSFFee,\n    COALESCE(CAST(CAST(dcAuctionFee\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcAuctionFee,\n    COALESCE(CAST(CAST(dcLateFee1\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFee1,\n    COALESCE(CAST(CAST(dcLateFee2\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFee2,\n    COALESCE(CAST(CAST(dcLateFee3\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFee3,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dLF1Strt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dLF1Strt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dLF2Strt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dLF2Strt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dLF3Strt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dLF3Strt,\n    COALESCE(CAST(iLateFeeType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iLateFeeType,\n    COALESCE(CAST(CAST(dcPercentLateFee\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPercentLateFee,\n\
+          \    CASE WHEN bLateFee1IsApplied IS NULL THEN '<<NULL>>' WHEN bLateFee1IsApplied\
+          \ = 1 THEN 'TRUE' WHEN bLateFee1IsApplied = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bLateFee1IsApplied,\n    CASE WHEN bLateFee2IsApplied IS NULL THEN\
+          \ '<<NULL>>' WHEN bLateFee2IsApplied = 1 THEN 'TRUE' WHEN bLateFee2IsApplied\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bLateFee2IsApplied,\n    CASE\
+          \ WHEN bLateFee3IsApplied IS NULL THEN '<<NULL>>' WHEN bLateFee3IsApplied\
+          \ = 1 THEN 'TRUE' WHEN bLateFee3IsApplied = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bLateFee3IsApplied,\n    COALESCE(CAST(iCreditCardTypeID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iCreditCardTypeID,\n    COALESCE(TRIM(sCreditCardNum),'<<NULL>>') AS\
+          \ sCreditCardNum,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreditCardExpir\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCreditCardExpir,\n    COALESCE(TRIM(sCreditCardHolderName),'<<NULL>>')\
+          \ AS sCreditCardHolderName,\n    COALESCE(TRIM(sCreditCardCVV2),'<<NULL>>')\
+          \ AS sCreditCardCVV2,\n    COALESCE(TRIM(sCreditCardStreet),'<<NULL>>')\
+          \ AS sCreditCardStreet,\n    COALESCE(TRIM(sCreditCardZip),'<<NULL>>') AS\
+          \ sCreditCardZip,\n    COALESCE(CAST(iCreditCardAVSResult AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iCreditCardAVSResult,\n    CASE WHEN bDisablePDue IS NULL THEN '<<NULL>>'\
+          \ WHEN bDisablePDue = 1 THEN 'TRUE' WHEN bDisablePDue = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bDisablePDue,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDisablePDueStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDisablePDueStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDisablePDueEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDisablePDueEnd,\n    COALESCE(CAST(iAutoBillType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iAutoBillType,\n    CASE WHEN bHadNSF\
+          \ IS NULL THEN '<<NULL>>' WHEN bHadNSF = 1 THEN 'TRUE' WHEN bHadNSF = 0\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS bHadNSF,\n    COALESCE(CAST(nNSF AS\
+          \ VARCHAR(100)),'<<NULL>>') AS nNSF,\n    CASE WHEN bTaxRent IS NULL THEN\
+          \ '<<NULL>>' WHEN bTaxRent = 1 THEN 'TRUE' WHEN bTaxRent = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bTaxRent,\n    CASE WHEN bOverlocked IS NULL THEN\
+          \ '<<NULL>>' WHEN bOverlocked = 1 THEN 'TRUE' WHEN bOverlocked = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bOverlocked,\n    CASE WHEN bGateLocked\
+          \ IS NULL THEN '<<NULL>>' WHEN bGateLocked = 1 THEN 'TRUE' WHEN bGateLocked\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bGateLocked,\n    CASE WHEN bWaiveInvoiceFee\
+          \ IS NULL THEN '<<NULL>>' WHEN bWaiveInvoiceFee = 1 THEN 'TRUE' WHEN bWaiveInvoiceFee\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bWaiveInvoiceFee,\n    CASE WHEN\
+          \ bInvoice IS NULL THEN '<<NULL>>' WHEN bInvoice = 1 THEN 'TRUE' WHEN bInvoice\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bInvoice,\n    COALESCE(CAST(iInvoiceDaysBefore\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iInvoiceDaysBefore,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dInvoiceLast\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dInvoiceLast,\n    COALESCE(CAST(CAST(dcSecDepPaid\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcSecDepPaid,\n    COALESCE(CAST(CAST(dcSecDepBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcSecDepBal,\n    COALESCE(CAST(CAST(dcRentBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRentBal,\n    COALESCE(CAST(CAST(dcLateFee1Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFee1Bal,\n   \
+          \ COALESCE(CAST(CAST(dcLateFee2Bal AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcLateFee2Bal,\n    COALESCE(CAST(CAST(dcLateFee3Bal AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcLateFee3Bal,\n    COALESCE(CAST(CAST(dcLateFee1CurrBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFee1CurrBal,\n\
+          \    COALESCE(CAST(CAST(dcLateFee2CurrBal AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcLateFee2CurrBal,\n    COALESCE(CAST(CAST(dcLateFee3CurrBal AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcLateFee3CurrBal,\n    COALESCE(CAST(CAST(dcNSFBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcNSFBal,\n    COALESCE(CAST(CAST(dcAdminFeeBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcAdminFeeBal,\n   \
+          \ COALESCE(CAST(CAST(dcCutLockFeeBal AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcCutLockFeeBal,\n    COALESCE(CAST(CAST(dcAuctionFeeBal AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcAuctionFeeBal,\n    COALESCE(CAST(CAST(dcRecChg1Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg1Bal,\n    COALESCE(CAST(CAST(dcRecChg2Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg2Bal,\n    COALESCE(CAST(CAST(dcRecChg3Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg3Bal,\n    COALESCE(CAST(CAST(dcRecChg4Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg4Bal,\n    COALESCE(CAST(CAST(dcRecChg5Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg5Bal,\n    COALESCE(CAST(CAST(dcRecChg6Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg6Bal,\n    COALESCE(CAST(CAST(dcRecChg7Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg7Bal,\n    COALESCE(CAST(CAST(dcRecChg8Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg8Bal,\n    COALESCE(CAST(CAST(dcInsurBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcInsurBal,\n    COALESCE(CAST(CAST(dcPOSBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPOSBal,\n    COALESCE(CAST(CAST(dcCreditBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcCreditBal,\n    COALESCE(CAST(CAST(dcOtherBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcOtherBal,\n    COALESCE(CAST(CAST(dcRentTaxBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRentTaxBal,\n    COALESCE(CAST(CAST(dcLateFeeTaxBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFeeTaxBal,\n \
+          \   COALESCE(CAST(CAST(dcOtherTaxBal AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcOtherTaxBal,\n    COALESCE(CAST(CAST(dcRecChgTaxBal AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcRecChgTaxBal,\n    COALESCE(CAST(CAST(dcInsurTaxBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcInsurTaxBal,\n   \
+          \ COALESCE(CAST(CAST(dcPOSTaxBal AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcPOSTaxBal,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dPaidThru AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dPaidThru,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRentLastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRentLastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRentLastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRentLastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dInsurLastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dInsurLastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dInsurLastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dInsurLastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg1LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg1LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg1LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg1LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg2LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg2LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg2LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg2LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg3LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg3LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg3LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg3LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg4LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg4LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg4LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg4LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg5LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg5LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg5LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg5LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg6LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg6LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg6LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg6LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg7LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg7LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg7LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg7LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg8LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg8LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg8LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg8LastChgEnd,\n    COALESCE(TRIM(sLicPlate),'<<NULL>>')\
+          \ AS sLicPlate,\n    COALESCE(TRIM(sVehicleDesc),'<<NULL>>') AS sVehicleDesc,\n\
+          \    COALESCE(TRIM(sReasonComplimentary),'<<NULL>>') AS sReasonComplimentary,\n\
+          \    COALESCE(TRIM(sACH_CheckWriterAcctNum),'<<NULL>>') AS sACH_CheckWriterAcctNum,\n\
+          \    COALESCE(TRIM(sACH_CheckWriterAcctName),'<<NULL>>') AS sACH_CheckWriterAcctName,\n\
+          \    COALESCE(TRIM(sACH_ABA_RoutingNum),'<<NULL>>') AS sACH_ABA_RoutingNum,\n\
+          \    COALESCE(TRIM(sACH_RDFI),'<<NULL>>') AS sACH_RDFI,\n    COALESCE(TRIM(sACH_Check_SavingsCode),'<<NULL>>')\
+          \ AS sACH_Check_SavingsCode,\n    COALESCE(CAST(iProcessDayOfMonth AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iProcessDayOfMonth,\n    CASE WHEN bAutoBillChargeFee IS NULL THEN\
+          \ '<<NULL>>' WHEN bAutoBillChargeFee = 1 THEN 'TRUE' WHEN bAutoBillChargeFee\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bAutoBillChargeFee,\n    CASE\
+          \ WHEN bAutoBillEmailNotify IS NULL THEN '<<NULL>>' WHEN bAutoBillEmailNotify\
+          \ = 1 THEN 'TRUE' WHEN bAutoBillEmailNotify = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bAutoBillEmailNotify,\n    COALESCE(CAST(CAST(dcTR_RateIncreaseAmt\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcTR_RateIncreaseAmt,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dTR_LastRateIncreaseNotice AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dTR_LastRateIncreaseNotice,\n    CASE WHEN bExcludeFromRevenueMgmt\
+          \ IS NULL THEN '<<NULL>>' WHEN bExcludeFromRevenueMgmt = 1 THEN 'TRUE' WHEN\
+          \ bExcludeFromRevenueMgmt = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bExcludeFromRevenueMgmt,\n\
+          \    COALESCE(CAST(iTR_RateIncreasePendingStatus AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iTR_RateIncreasePendingStatus,\n    COALESCE(TRIM(sCompanySub),'<<NULL>>')\
+          \ AS sCompanySub,\n    CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN\
+          \ bPermanent = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted AS\
+          \ DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    CASE WHEN bInvoiceEmail IS\
+          \ NULL THEN '<<NULL>>' WHEN bInvoiceEmail = 1 THEN 'TRUE' WHEN bInvoiceEmail\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bInvoiceEmail,\n    COALESCE(CAST(PromoRentalID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS PromoRentalID,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dArchived,\n    COALESCE(CAST(iInvoiceDeliveryType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iInvoiceDeliveryType,\n    COALESCE(CAST(iAuctionStatus\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iAuctionStatus,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dAuctionDate\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dAuctionDate,\n    COALESCE(CAST(CreditCardID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS CreditCardID,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dInsurPaidThru\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dInsurPaidThru,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dPmtLast\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dPmtLast,\n    COALESCE(CAST(CAST(dcPmtLastAmt\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPmtLastAmt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCreated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dMovedOutExpected\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dMovedOutExpected,\n    COALESCE(CAST(iLateFeeType1\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iLateFeeType1,\n    COALESCE(CAST(iLateFeeType2\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iLateFeeType2,\n    COALESCE(CAST(iLateFeeType3\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iLateFeeType3,\n    COALESCE(CAST(iLateFeeType4\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iLateFeeType4,\n    COALESCE(CAST(iLateFeeType5\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iLateFeeType5,\n    COALESCE(CAST(CAST(dcPercentLateFee2\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPercentLateFee2,\n\
+          \    COALESCE(CAST(CAST(dcPercentLateFee3 AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcPercentLateFee3,\n    COALESCE(CAST(CAST(dcPercentLateFee4 AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcPercentLateFee4,\n    COALESCE(CAST(CAST(dcPercentLateFee5\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPercentLateFee5,\n\
+          \    CASE WHEN bLateFee4IsApplied IS NULL THEN '<<NULL>>' WHEN bLateFee4IsApplied\
+          \ = 1 THEN 'TRUE' WHEN bLateFee4IsApplied = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bLateFee4IsApplied,\n    CASE WHEN bLateFee5IsApplied IS NULL THEN\
+          \ '<<NULL>>' WHEN bLateFee5IsApplied = 1 THEN 'TRUE' WHEN bLateFee5IsApplied\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bLateFee5IsApplied,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dLF4Strt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dLF4Strt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dLF5Strt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dLF5Strt,\n    COALESCE(CAST(CAST(dcLateFee4\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFee4,\n    COALESCE(CAST(CAST(dcLateFee5\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFee5,\n    COALESCE(CAST(CAST(dcLateFee4Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFee4Bal,\n   \
+          \ COALESCE(CAST(CAST(dcLateFee5Bal AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcLateFee5Bal,\n    COALESCE(CAST(CAST(dcLateFee4CurrBal AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcLateFee4CurrBal,\n    COALESCE(CAST(CAST(dcLateFee5CurrBal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcLateFee5CurrBal,\n\
+          \    COALESCE(CAST(CAST(dcRefundDue AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcRefundDue,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dAutoBillEnabled\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dAutoBillEnabled,\n    COALESCE(CAST(CAST(dcPushRateAtMoveIn\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPushRateAtMoveIn,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dTR_NextRateReview AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dTR_NextRateReview,\n    COALESCE(CAST(iRemoveDiscPlanOnSchedRateChange\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRemoveDiscPlanOnSchedRateChange,\n  \
+          \  COALESCE(CONVERT(VARCHAR(23),CAST(dSchedOutCreated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dSchedOutCreated,\n    COALESCE(CAST(ACHBankInfoID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ACHBankInfoID,\n    COALESCE(CAST(CAST(dcRecChg9 AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcRecChg9,\n    COALESCE(CAST(CAST(dcRecChg10\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg10,\n    COALESCE(CAST(CAST(dcRecChg11\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg11,\n    COALESCE(CAST(CAST(dcRecChg12\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg12,\n    COALESCE(CAST(CAST(dcRecChg13\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg13,\n    COALESCE(CAST(iRecChg9Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg9Qty,\n    COALESCE(CAST(iRecChg10Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg10Qty,\n    COALESCE(CAST(iRecChg11Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg11Qty,\n    COALESCE(CAST(iRecChg12Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg12Qty,\n    COALESCE(CAST(iRecChg13Qty\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRecChg13Qty,\n    COALESCE(CAST(CAST(dcRecChg9Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg9Bal,\n    COALESCE(CAST(CAST(dcRecChg10Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg10Bal,\n   \
+          \ COALESCE(CAST(CAST(dcRecChg11Bal AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcRecChg11Bal,\n    COALESCE(CAST(CAST(dcRecChg12Bal AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcRecChg12Bal,\n    COALESCE(CAST(CAST(dcRecChg13Bal\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRecChg13Bal,\n   \
+          \ COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg9LastChgStrt AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dRecChg9LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg9LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg9LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg10LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg10LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg10LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg10LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg11LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg11LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg11LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg11LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg12LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg12LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg12LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg12LastChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg13LastChgStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg13LastChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dRecChg13LastChgEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dRecChg13LastChgEnd\nFROM dbo.Ledgers;"
+        target_table_name: Ledgers
+        target: snowflake
+        targetcolumn: LedgerID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.LedgerID),'<<NULL>>') AS LedgerID,\n\
+          \    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n    COALESCE(TO_VARCHAR(t.EmployeeID),'<<NULL>>')\
+          \ AS EmployeeID,\n    COALESCE(TO_VARCHAR(t.unitID),'<<NULL>>') AS unitID,\n\
+          \    COALESCE(TO_VARCHAR(t.BillingFreqID),'<<NULL>>') AS BillingFreqID,\n\
+          \    COALESCE(TO_VARCHAR(t.ConcessionID),'<<NULL>>') AS ConcessionID,\n\
+          \    COALESCE(TRIM(t.sPurchOrderCode),'<<NULL>>') AS sPurchOrderCode,\n\
+          \    COALESCE(TO_VARCHAR(t.iLeaseNum),'<<NULL>>') AS iLeaseNum,\n    COALESCE(TO_CHAR(t.dLease,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dLease,\n    COALESCE(TO_CHAR(t.dMovedIn,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dMovedIn,\n    COALESCE(TO_CHAR(t.dSchedOut,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dSchedOut,\n    COALESCE(TO_CHAR(t.dMovedOut,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dMovedOut,\n    CASE WHEN t.bAnniv IS\
+          \ NULL THEN '<<NULL>>' WHEN t.bAnniv = TRUE THEN 'TRUE' WHEN t.bAnniv =\
+          \ FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bAnniv,\n    COALESCE(TO_CHAR(t.dAnniv,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dAnniv,\n    COALESCE(TO_VARCHAR(t.iInByEmpID),'<<NULL>>')\
+          \ AS iInByEmpID,\n    COALESCE(TO_VARCHAR(t.iOutByEmpID),'<<NULL>>') AS\
+          \ iOutByEmpID,\n    COALESCE(TO_VARCHAR(t.iTferByEmpID),'<<NULL>>') AS iTferByEmpID,\n\
+          \    COALESCE(TO_VARCHAR(t.iTferToLedID),'<<NULL>>') AS iTferToLedID,\n\
+          \    COALESCE(TO_VARCHAR(t.iTferFromLedID),'<<NULL>>') AS iTferFromLedID,\n\
+          \    COALESCE(TO_VARCHAR(t.dcInsurPremium),'<<NULL>>') AS dcInsurPremium,\n\
+          \    COALESCE(TO_VARCHAR(t.dcSchedRent),'<<NULL>>') AS dcSchedRent,\n  \
+          \  COALESCE(TO_CHAR(t.dSchedRentStrt,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dSchedRentStrt,\n    COALESCE(TO_CHAR(t.dRentLastChanged,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRentLastChanged,\n    COALESCE(TO_VARCHAR(t.dcRent),'<<NULL>>')\
+          \ AS dcRent,\n    COALESCE(TO_VARCHAR(t.dcRecChg1),'<<NULL>>') AS dcRecChg1,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRecChg2),'<<NULL>>') AS dcRecChg2,\n    COALESCE(TO_VARCHAR(t.dcRecChg3),'<<NULL>>')\
+          \ AS dcRecChg3,\n    COALESCE(TO_VARCHAR(t.dcRecChg4),'<<NULL>>') AS dcRecChg4,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRecChg5),'<<NULL>>') AS dcRecChg5,\n    COALESCE(TO_VARCHAR(t.dcRecChg6),'<<NULL>>')\
+          \ AS dcRecChg6,\n    COALESCE(TO_VARCHAR(t.dcRecChg7),'<<NULL>>') AS dcRecChg7,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRecChg8),'<<NULL>>') AS dcRecChg8,\n    COALESCE(TO_VARCHAR(t.iRecChg1Qty),'<<NULL>>')\
+          \ AS iRecChg1Qty,\n    COALESCE(TO_VARCHAR(t.iRecChg2Qty),'<<NULL>>') AS\
+          \ iRecChg2Qty,\n    COALESCE(TO_VARCHAR(t.iRecChg3Qty),'<<NULL>>') AS iRecChg3Qty,\n\
+          \    COALESCE(TO_VARCHAR(t.iRecChg4Qty),'<<NULL>>') AS iRecChg4Qty,\n  \
+          \  COALESCE(TO_VARCHAR(t.iRecChg5Qty),'<<NULL>>') AS iRecChg5Qty,\n    COALESCE(TO_VARCHAR(t.iRecChg6Qty),'<<NULL>>')\
+          \ AS iRecChg6Qty,\n    COALESCE(TO_VARCHAR(t.iRecChg7Qty),'<<NULL>>') AS\
+          \ iRecChg7Qty,\n    COALESCE(TO_VARCHAR(t.iRecChg8Qty),'<<NULL>>') AS iRecChg8Qty,\n\
+          \    COALESCE(TO_VARCHAR(t.dcAdminFee),'<<NULL>>') AS dcAdminFee,\n    COALESCE(TO_VARCHAR(t.dcCutLockFee),'<<NULL>>')\
+          \ AS dcCutLockFee,\n    COALESCE(TO_VARCHAR(t.dcNSFFee),'<<NULL>>') AS dcNSFFee,\n\
+          \    COALESCE(TO_VARCHAR(t.dcAuctionFee),'<<NULL>>') AS dcAuctionFee,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee1),'<<NULL>>') AS dcLateFee1,\n    COALESCE(TO_VARCHAR(t.dcLateFee2),'<<NULL>>')\
+          \ AS dcLateFee2,\n    COALESCE(TO_VARCHAR(t.dcLateFee3),'<<NULL>>') AS dcLateFee3,\n\
+          \    COALESCE(TO_CHAR(t.dLF1Strt,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dLF1Strt,\n    COALESCE(TO_CHAR(t.dLF2Strt,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dLF2Strt,\n    COALESCE(TO_CHAR(t.dLF3Strt,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dLF3Strt,\n    COALESCE(TO_VARCHAR(t.iLateFeeType),'<<NULL>>') AS iLateFeeType,\n\
+          \    COALESCE(TO_VARCHAR(t.dcPercentLateFee),'<<NULL>>') AS dcPercentLateFee,\n\
+          \    CASE WHEN t.bLateFee1IsApplied IS NULL THEN '<<NULL>>' WHEN t.bLateFee1IsApplied\
+          \ = TRUE THEN 'TRUE' WHEN t.bLateFee1IsApplied = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bLateFee1IsApplied,\n    CASE WHEN t.bLateFee2IsApplied\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bLateFee2IsApplied = TRUE THEN 'TRUE' WHEN\
+          \ t.bLateFee2IsApplied = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bLateFee2IsApplied,\n\
+          \    CASE WHEN t.bLateFee3IsApplied IS NULL THEN '<<NULL>>' WHEN t.bLateFee3IsApplied\
+          \ = TRUE THEN 'TRUE' WHEN t.bLateFee3IsApplied = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bLateFee3IsApplied,\n    COALESCE(TO_VARCHAR(t.iCreditCardTypeID),'<<NULL>>')\
+          \ AS iCreditCardTypeID,\n    COALESCE(TRIM(t.sCreditCardNum),'<<NULL>>')\
+          \ AS sCreditCardNum,\n    COALESCE(TO_CHAR(t.dCreditCardExpir,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dCreditCardExpir,\n    COALESCE(TRIM(t.sCreditCardHolderName),'<<NULL>>')\
+          \ AS sCreditCardHolderName,\n    COALESCE(TRIM(t.sCreditCardCVV2),'<<NULL>>')\
+          \ AS sCreditCardCVV2,\n    COALESCE(TRIM(t.sCreditCardStreet),'<<NULL>>')\
+          \ AS sCreditCardStreet,\n    COALESCE(TRIM(t.sCreditCardZip),'<<NULL>>')\
+          \ AS sCreditCardZip,\n    COALESCE(TO_VARCHAR(t.iCreditCardAVSResult),'<<NULL>>')\
+          \ AS iCreditCardAVSResult,\n    CASE WHEN t.bDisablePDue IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bDisablePDue = TRUE THEN 'TRUE' WHEN t.bDisablePDue = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bDisablePDue,\n    COALESCE(TO_CHAR(t.dDisablePDueStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDisablePDueStrt,\n    COALESCE(TO_CHAR(t.dDisablePDueEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDisablePDueEnd,\n    COALESCE(TO_VARCHAR(t.iAutoBillType),'<<NULL>>')\
+          \ AS iAutoBillType,\n    CASE WHEN t.bHadNSF IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bHadNSF = TRUE THEN 'TRUE' WHEN t.bHadNSF = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bHadNSF,\n    COALESCE(TO_VARCHAR(t.nNSF),'<<NULL>>')\
+          \ AS nNSF,\n    CASE WHEN t.bTaxRent IS NULL THEN '<<NULL>>' WHEN t.bTaxRent\
+          \ = TRUE THEN 'TRUE' WHEN t.bTaxRent = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bTaxRent,\n    CASE WHEN t.bOverlocked IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bOverlocked = TRUE THEN 'TRUE' WHEN t.bOverlocked = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bOverlocked,\n    CASE WHEN t.bGateLocked\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bGateLocked = TRUE THEN 'TRUE' WHEN t.bGateLocked\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bGateLocked,\n    CASE WHEN\
+          \ t.bWaiveInvoiceFee IS NULL THEN '<<NULL>>' WHEN t.bWaiveInvoiceFee = TRUE\
+          \ THEN 'TRUE' WHEN t.bWaiveInvoiceFee = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bWaiveInvoiceFee,\n    CASE WHEN t.bInvoice IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bInvoice = TRUE THEN 'TRUE' WHEN t.bInvoice = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bInvoice,\n    COALESCE(TO_VARCHAR(t.iInvoiceDaysBefore),'<<NULL>>')\
+          \ AS iInvoiceDaysBefore,\n    COALESCE(TO_CHAR(t.dInvoiceLast,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dInvoiceLast,\n    COALESCE(TO_VARCHAR(t.dcSecDepPaid),'<<NULL>>')\
+          \ AS dcSecDepPaid,\n    COALESCE(TO_VARCHAR(t.dcSecDepBal),'<<NULL>>') AS\
+          \ dcSecDepBal,\n    COALESCE(TO_VARCHAR(t.dcRentBal),'<<NULL>>') AS dcRentBal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee1Bal),'<<NULL>>') AS dcLateFee1Bal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee2Bal),'<<NULL>>') AS dcLateFee2Bal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee3Bal),'<<NULL>>') AS dcLateFee3Bal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee1CurrBal),'<<NULL>>') AS dcLateFee1CurrBal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee2CurrBal),'<<NULL>>') AS dcLateFee2CurrBal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee3CurrBal),'<<NULL>>') AS dcLateFee3CurrBal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcNSFBal),'<<NULL>>') AS dcNSFBal,\n    COALESCE(TO_VARCHAR(t.dcAdminFeeBal),'<<NULL>>')\
+          \ AS dcAdminFeeBal,\n    COALESCE(TO_VARCHAR(t.dcCutLockFeeBal),'<<NULL>>')\
+          \ AS dcCutLockFeeBal,\n    COALESCE(TO_VARCHAR(t.dcAuctionFeeBal),'<<NULL>>')\
+          \ AS dcAuctionFeeBal,\n    COALESCE(TO_VARCHAR(t.dcRecChg1Bal),'<<NULL>>')\
+          \ AS dcRecChg1Bal,\n    COALESCE(TO_VARCHAR(t.dcRecChg2Bal),'<<NULL>>')\
+          \ AS dcRecChg2Bal,\n    COALESCE(TO_VARCHAR(t.dcRecChg3Bal),'<<NULL>>')\
+          \ AS dcRecChg3Bal,\n    COALESCE(TO_VARCHAR(t.dcRecChg4Bal),'<<NULL>>')\
+          \ AS dcRecChg4Bal,\n    COALESCE(TO_VARCHAR(t.dcRecChg5Bal),'<<NULL>>')\
+          \ AS dcRecChg5Bal,\n    COALESCE(TO_VARCHAR(t.dcRecChg6Bal),'<<NULL>>')\
+          \ AS dcRecChg6Bal,\n    COALESCE(TO_VARCHAR(t.dcRecChg7Bal),'<<NULL>>')\
+          \ AS dcRecChg7Bal,\n    COALESCE(TO_VARCHAR(t.dcRecChg8Bal),'<<NULL>>')\
+          \ AS dcRecChg8Bal,\n    COALESCE(TO_VARCHAR(t.dcInsurBal),'<<NULL>>') AS\
+          \ dcInsurBal,\n    COALESCE(TO_VARCHAR(t.dcPOSBal),'<<NULL>>') AS dcPOSBal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcCreditBal),'<<NULL>>') AS dcCreditBal,\n  \
+          \  COALESCE(TO_VARCHAR(t.dcOtherBal),'<<NULL>>') AS dcOtherBal,\n    COALESCE(TO_VARCHAR(t.dcRentTaxBal),'<<NULL>>')\
+          \ AS dcRentTaxBal,\n    COALESCE(TO_VARCHAR(t.dcLateFeeTaxBal),'<<NULL>>')\
+          \ AS dcLateFeeTaxBal,\n    COALESCE(TO_VARCHAR(t.dcOtherTaxBal),'<<NULL>>')\
+          \ AS dcOtherTaxBal,\n    COALESCE(TO_VARCHAR(t.dcRecChgTaxBal),'<<NULL>>')\
+          \ AS dcRecChgTaxBal,\n    COALESCE(TO_VARCHAR(t.dcInsurTaxBal),'<<NULL>>')\
+          \ AS dcInsurTaxBal,\n    COALESCE(TO_VARCHAR(t.dcPOSTaxBal),'<<NULL>>')\
+          \ AS dcPOSTaxBal,\n    COALESCE(TO_CHAR(t.dPaidThru,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dPaidThru,\n    COALESCE(TO_CHAR(t.dRentLastChgStrt,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dRentLastChgStrt,\n    COALESCE(TO_CHAR(t.dRentLastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRentLastChgEnd,\n    COALESCE(TO_CHAR(t.dInsurLastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dInsurLastChgStrt,\n    COALESCE(TO_CHAR(t.dInsurLastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dInsurLastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg1LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg1LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg1LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg1LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg2LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg2LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg2LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg2LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg3LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg3LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg3LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg3LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg4LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg4LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg4LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg4LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg5LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg5LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg5LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg5LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg6LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg6LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg6LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg6LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg7LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg7LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg7LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg7LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg8LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg8LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg8LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg8LastChgEnd,\n    COALESCE(TRIM(t.sLicPlate),'<<NULL>>')\
+          \ AS sLicPlate,\n    COALESCE(TRIM(t.sVehicleDesc),'<<NULL>>') AS sVehicleDesc,\n\
+          \    COALESCE(TRIM(t.sReasonComplimentary),'<<NULL>>') AS sReasonComplimentary,\n\
+          \    COALESCE(TRIM(t.sACH_CheckWriterAcctNum),'<<NULL>>') AS sACH_CheckWriterAcctNum,\n\
+          \    COALESCE(TRIM(t.sACH_CheckWriterAcctName),'<<NULL>>') AS sACH_CheckWriterAcctName,\n\
+          \    COALESCE(TRIM(t.sACH_ABA_RoutingNum),'<<NULL>>') AS sACH_ABA_RoutingNum,\n\
+          \    COALESCE(TRIM(t.sACH_RDFI),'<<NULL>>') AS sACH_RDFI,\n    COALESCE(TRIM(t.sACH_Check_SavingsCode),'<<NULL>>')\
+          \ AS sACH_Check_SavingsCode,\n    COALESCE(TO_VARCHAR(t.iProcessDayOfMonth),'<<NULL>>')\
+          \ AS iProcessDayOfMonth,\n    CASE WHEN t.bAutoBillChargeFee IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bAutoBillChargeFee = TRUE THEN 'TRUE' WHEN t.bAutoBillChargeFee\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bAutoBillChargeFee,\n    CASE\
+          \ WHEN t.bAutoBillEmailNotify IS NULL THEN '<<NULL>>' WHEN t.bAutoBillEmailNotify\
+          \ = TRUE THEN 'TRUE' WHEN t.bAutoBillEmailNotify = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bAutoBillEmailNotify,\n    COALESCE(TO_VARCHAR(t.dcTR_RateIncreaseAmt),'<<NULL>>')\
+          \ AS dcTR_RateIncreaseAmt,\n    COALESCE(TO_CHAR(t.dTR_LastRateIncreaseNotice,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dTR_LastRateIncreaseNotice,\n    CASE\
+          \ WHEN t.bExcludeFromRevenueMgmt IS NULL THEN '<<NULL>>' WHEN t.bExcludeFromRevenueMgmt\
+          \ = TRUE THEN 'TRUE' WHEN t.bExcludeFromRevenueMgmt = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bExcludeFromRevenueMgmt,\n    COALESCE(TO_VARCHAR(t.iTR_RateIncreasePendingStatus),'<<NULL>>')\
+          \ AS iTR_RateIncreasePendingStatus,\n    COALESCE(TRIM(t.sCompanySub),'<<NULL>>')\
+          \ AS sCompanySub,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPermanent = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK,\n    CASE WHEN t.bInvoiceEmail IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bInvoiceEmail = TRUE THEN 'TRUE' WHEN t.bInvoiceEmail = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bInvoiceEmail,\n    COALESCE(TO_VARCHAR(t.PromoRentalID),'<<NULL>>')\
+          \ AS PromoRentalID,\n    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dArchived,\n    COALESCE(TO_VARCHAR(t.iInvoiceDeliveryType),'<<NULL>>')\
+          \ AS iInvoiceDeliveryType,\n    COALESCE(TO_VARCHAR(t.iAuctionStatus),'<<NULL>>')\
+          \ AS iAuctionStatus,\n    COALESCE(TO_CHAR(t.dAuctionDate,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dAuctionDate,\n    COALESCE(TO_VARCHAR(t.CreditCardID),'<<NULL>>')\
+          \ AS CreditCardID,\n    COALESCE(TO_CHAR(t.dInsurPaidThru,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dInsurPaidThru,\n    COALESCE(TO_CHAR(t.dPmtLast,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dPmtLast,\n    COALESCE(TO_VARCHAR(t.dcPmtLastAmt),'<<NULL>>') AS dcPmtLastAmt,\n\
+          \    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCreated,\n    COALESCE(TO_CHAR(t.dMovedOutExpected,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dMovedOutExpected,\n    COALESCE(TO_VARCHAR(t.iLateFeeType1),'<<NULL>>')\
+          \ AS iLateFeeType1,\n    COALESCE(TO_VARCHAR(t.iLateFeeType2),'<<NULL>>')\
+          \ AS iLateFeeType2,\n    COALESCE(TO_VARCHAR(t.iLateFeeType3),'<<NULL>>')\
+          \ AS iLateFeeType3,\n    COALESCE(TO_VARCHAR(t.iLateFeeType4),'<<NULL>>')\
+          \ AS iLateFeeType4,\n    COALESCE(TO_VARCHAR(t.iLateFeeType5),'<<NULL>>')\
+          \ AS iLateFeeType5,\n    COALESCE(TO_VARCHAR(t.dcPercentLateFee2),'<<NULL>>')\
+          \ AS dcPercentLateFee2,\n    COALESCE(TO_VARCHAR(t.dcPercentLateFee3),'<<NULL>>')\
+          \ AS dcPercentLateFee3,\n    COALESCE(TO_VARCHAR(t.dcPercentLateFee4),'<<NULL>>')\
+          \ AS dcPercentLateFee4,\n    COALESCE(TO_VARCHAR(t.dcPercentLateFee5),'<<NULL>>')\
+          \ AS dcPercentLateFee5,\n    CASE WHEN t.bLateFee4IsApplied IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bLateFee4IsApplied = TRUE THEN 'TRUE' WHEN t.bLateFee4IsApplied\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bLateFee4IsApplied,\n    CASE\
+          \ WHEN t.bLateFee5IsApplied IS NULL THEN '<<NULL>>' WHEN t.bLateFee5IsApplied\
+          \ = TRUE THEN 'TRUE' WHEN t.bLateFee5IsApplied = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bLateFee5IsApplied,\n    COALESCE(TO_CHAR(t.dLF4Strt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dLF4Strt,\n    COALESCE(TO_CHAR(t.dLF5Strt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dLF5Strt,\n    COALESCE(TO_VARCHAR(t.dcLateFee4),'<<NULL>>')\
+          \ AS dcLateFee4,\n    COALESCE(TO_VARCHAR(t.dcLateFee5),'<<NULL>>') AS dcLateFee5,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee4Bal),'<<NULL>>') AS dcLateFee4Bal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee5Bal),'<<NULL>>') AS dcLateFee5Bal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee4CurrBal),'<<NULL>>') AS dcLateFee4CurrBal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcLateFee5CurrBal),'<<NULL>>') AS dcLateFee5CurrBal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRefundDue),'<<NULL>>') AS dcRefundDue,\n  \
+          \  COALESCE(TO_CHAR(t.dAutoBillEnabled,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dAutoBillEnabled,\n    COALESCE(TO_VARCHAR(t.dcPushRateAtMoveIn),'<<NULL>>')\
+          \ AS dcPushRateAtMoveIn,\n    COALESCE(TO_CHAR(t.dTR_NextRateReview,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dTR_NextRateReview,\n    COALESCE(TO_VARCHAR(t.iRemoveDiscPlanOnSchedRateChange),'<<NULL>>')\
+          \ AS iRemoveDiscPlanOnSchedRateChange,\n    COALESCE(TO_CHAR(t.dSchedOutCreated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dSchedOutCreated,\n    COALESCE(TO_VARCHAR(t.ACHBankInfoID),'<<NULL>>')\
+          \ AS ACHBankInfoID,\n    COALESCE(TO_VARCHAR(t.dcRecChg9),'<<NULL>>') AS\
+          \ dcRecChg9,\n    COALESCE(TO_VARCHAR(t.dcRecChg10),'<<NULL>>') AS dcRecChg10,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRecChg11),'<<NULL>>') AS dcRecChg11,\n    COALESCE(TO_VARCHAR(t.dcRecChg12),'<<NULL>>')\
+          \ AS dcRecChg12,\n    COALESCE(TO_VARCHAR(t.dcRecChg13),'<<NULL>>') AS dcRecChg13,\n\
+          \    COALESCE(TO_VARCHAR(t.iRecChg9Qty),'<<NULL>>') AS iRecChg9Qty,\n  \
+          \  COALESCE(TO_VARCHAR(t.iRecChg10Qty),'<<NULL>>') AS iRecChg10Qty,\n  \
+          \  COALESCE(TO_VARCHAR(t.iRecChg11Qty),'<<NULL>>') AS iRecChg11Qty,\n  \
+          \  COALESCE(TO_VARCHAR(t.iRecChg12Qty),'<<NULL>>') AS iRecChg12Qty,\n  \
+          \  COALESCE(TO_VARCHAR(t.iRecChg13Qty),'<<NULL>>') AS iRecChg13Qty,\n  \
+          \  COALESCE(TO_VARCHAR(t.dcRecChg9Bal),'<<NULL>>') AS dcRecChg9Bal,\n  \
+          \  COALESCE(TO_VARCHAR(t.dcRecChg10Bal),'<<NULL>>') AS dcRecChg10Bal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRecChg11Bal),'<<NULL>>') AS dcRecChg11Bal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRecChg12Bal),'<<NULL>>') AS dcRecChg12Bal,\n\
+          \    COALESCE(TO_VARCHAR(t.dcRecChg13Bal),'<<NULL>>') AS dcRecChg13Bal,\n\
+          \    COALESCE(TO_CHAR(t.dRecChg9LastChgStrt,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dRecChg9LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg9LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg9LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg10LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg10LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg10LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg10LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg11LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg11LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg11LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg11LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg12LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg12LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg12LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg12LastChgEnd,\n    COALESCE(TO_CHAR(t.dRecChg13LastChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg13LastChgStrt,\n    COALESCE(TO_CHAR(t.dRecChg13LastChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dRecChg13LastChgEnd\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Ledgers\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

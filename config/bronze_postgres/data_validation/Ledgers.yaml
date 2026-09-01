@@ -1,0 +1,149 @@
+tables:
+  ledgers:
+    validations:
+      data_validation:
+        source_table_name: ledgers
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(CAST(current_rate AS NUMERIC(38,2)) AS TEXT),'<<NULL>>')\
+          \ AS current_rate,\n    COALESCE(TO_CHAR(rate_last_changed_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS rate_last_changed_on,\n    COALESCE(TO_CHAR(closed_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS closed_on,\n    COALESCE(TO_CHAR(moved_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS moved_in_at,\n    COALESCE(CAST(invoice_day_of_month\
+          \ AS TEXT),'<<NULL>>') AS invoice_day_of_month,\n    COALESCE(CAST(unit_id\
+          \ AS TEXT),'<<NULL>>') AS unit_id,\n    COALESCE(CAST(tenant_id AS TEXT),'<<NULL>>')\
+          \ AS tenant_id,\n    COALESCE(CAST(facility_id AS TEXT),'<<NULL>>') AS facility_id,\n\
+          \    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(CAST(lease_number AS TEXT),'<<NULL>>') AS\
+          \ lease_number,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    CASE WHEN locked_out IS NULL THEN '<<NULL>>' WHEN locked_out\
+          \ IS TRUE THEN 'TRUE' WHEN locked_out IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS locked_out,\n    CASE WHEN lock_out_exempt IS NULL THEN '<<NULL>>'\
+          \ WHEN lock_out_exempt IS TRUE THEN 'TRUE' WHEN lock_out_exempt IS FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS lock_out_exempt,\n    COALESCE(CAST(autopay_day\
+          \ AS TEXT),'<<NULL>>') AS autopay_day,\n    COALESCE(CAST(revenue_plan_id\
+          \ AS TEXT),'<<NULL>>') AS revenue_plan_id,\n    COALESCE(TRIM(manage_revenue),'<<NULL>>')\
+          \ AS manage_revenue,\n    COALESCE(TO_CHAR(delinquent_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS delinquent_on,\n    COALESCE(TO_CHAR(past_due_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS past_due_on,\n    CASE WHEN not_taxed IS NULL THEN '<<NULL>>' WHEN\
+          \ not_taxed IS TRUE THEN 'TRUE' WHEN not_taxed IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS not_taxed,\n    CASE WHEN deleted IS NULL THEN '<<NULL>>'\
+          \ WHEN deleted IS TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(CAST(deleted_by_id\
+          \ AS TEXT),'<<NULL>>') AS deleted_by_id,\n    COALESCE(TO_CHAR(paid_thru,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS paid_thru,\n    CASE WHEN private_insurance IS NULL THEN '<<NULL>>'\
+          \ ELSE COALESCE('{' || (SELECT STRING_AGG(TO_JSON(h.key::TEXT) || ': ' ||\
+          \ TO_JSON(h.value::TEXT), ', ' ORDER BY h.key) FROM EACH(private_insurance)\
+          \ h) || '}', '{}') END AS private_insurance,\n    COALESCE(CAST(CAST(original_rate\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS original_rate,\n    COALESCE(CAST(auction_id\
+          \ AS TEXT),'<<NULL>>') AS auction_id,\n    COALESCE(CAST(delinquency_start_day_modifier\
+          \ AS TEXT),'<<NULL>>') AS delinquency_start_day_modifier,\n    COALESCE(CAST(acs_access_group_id\
+          \ AS TEXT),'<<NULL>>') AS acs_access_group_id,\n    CASE WHEN rate_increase_exempt\
+          \ IS NULL THEN '<<NULL>>' WHEN rate_increase_exempt IS TRUE THEN 'TRUE'\
+          \ WHEN rate_increase_exempt IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ rate_increase_exempt,\n    CASE WHEN declined_insurance IS NULL THEN '<<NULL>>'\
+          \ WHEN declined_insurance IS TRUE THEN 'TRUE' WHEN declined_insurance IS\
+          \ FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS declined_insurance,\n    COALESCE(TO_CHAR(last_payment_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_payment_at,\n    COALESCE(TO_CHAR(lease_signed_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS lease_signed_at,\n    COALESCE(TO_CHAR(generate_next_invoice_on,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS generate_next_invoice_on,\n    COALESCE(TRIM(proof_submission_url),'<<NULL>>')\
+          \ AS proof_submission_url,\n    COALESCE(TO_CHAR(checked_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS checked_in_at,\n    COALESCE(CAST(CAST(stored_goods_value\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS stored_goods_value,\n    COALESCE(CAST(CAST(locked_max_rate\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS locked_max_rate,\n    COALESCE(TO_CHAR(locked_max_rate_end_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS locked_max_rate_end_date,\n    COALESCE(CAST(transferred_from_ledger_id\
+          \ AS TEXT),'<<NULL>>') AS transferred_from_ledger_id,\n    COALESCE(TO_CHAR(original_moved_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS original_moved_in_at\nFROM public.ledgers;"
+        target_table_name: ledgers
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_private_insurance AS\n(\n    SELECT\n        _flt.id\
+          \ AS id,\n        LISTAGG(\n            CASE\n                WHEN f.key\
+          \ IS NULL THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
+          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
+          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledgers\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.private_insurance, RECURSIVE\
+          \ => FALSE)) f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.private_insurance)\
+          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
+          ),\nvariant_private_insurance AS\n(\n    SELECT\n        t.id AS id,\n \
+          \       CASE\n\n    -- ======================================================\n\
+          \    -- SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.private_insurance IS NULL\n        THEN '<<NULL>>'\n\n\n  \
+          \  -- =====================================================\n    -- JSON\
+          \ NULL\n    -- =====================================================\n\n\
+          \    WHEN IS_NULL_VALUE(\n        t.private_insurance\n    )\n        THEN\
+          \ 'null'\n\n\n    -- =====================================================\n\
+          \    -- OBJECT\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.private_insurance\n    ) = 'OBJECT'\n\n  \
+          \      THEN\n\n            CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.private_insurance\n    ) = 'ARRAY'\n\n   \
+          \     THEN COALESCE(\n\n            TO_JSON(\n                t.private_insurance\n\
+          \            ),\n\n            '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.private_insurance\n            ),\n\n            '<<NULL>>'\n\n   \
+          \     )\n\nEND AS private_insurance\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledgers\
+          \ t\n    LEFT JOIN obj_agg_private_insurance obj ON obj.id = t.id\n    WHERE\
+          \ t._FIVETRAN_ACTIVE = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>')\
+          \ AS id,\n    COALESCE(TO_VARCHAR(t.current_rate),'<<NULL>>') AS current_rate,\n\
+          \    COALESCE(TO_CHAR(t.rate_last_changed_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS rate_last_changed_on,\n    COALESCE(TO_CHAR(t.closed_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS closed_on,\n    COALESCE(TO_CHAR(t.moved_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS moved_in_at,\n    COALESCE(TO_VARCHAR(t.invoice_day_of_month),'<<NULL>>')\
+          \ AS invoice_day_of_month,\n    COALESCE(TO_VARCHAR(t.unit_id),'<<NULL>>')\
+          \ AS unit_id,\n    COALESCE(TO_VARCHAR(t.tenant_id),'<<NULL>>') AS tenant_id,\n\
+          \    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS facility_id,\n  \
+          \  COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TO_VARCHAR(t.lease_number),'<<NULL>>') AS\
+          \ lease_number,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    CASE\
+          \ WHEN t.locked_out IS NULL THEN '<<NULL>>' WHEN t.locked_out = TRUE THEN\
+          \ 'TRUE' WHEN t.locked_out = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS locked_out,\n\
+          \    CASE WHEN t.lock_out_exempt IS NULL THEN '<<NULL>>' WHEN t.lock_out_exempt\
+          \ = TRUE THEN 'TRUE' WHEN t.lock_out_exempt = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS lock_out_exempt,\n    COALESCE(TO_VARCHAR(t.autopay_day),'<<NULL>>')\
+          \ AS autopay_day,\n    COALESCE(TO_VARCHAR(t.revenue_plan_id),'<<NULL>>')\
+          \ AS revenue_plan_id,\n    COALESCE(TRIM(t.manage_revenue),'<<NULL>>') AS\
+          \ manage_revenue,\n    COALESCE(TO_CHAR(t.delinquent_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS delinquent_on,\n    COALESCE(TO_CHAR(t.past_due_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS past_due_on,\n    CASE WHEN t.not_taxed IS NULL THEN '<<NULL>>' WHEN\
+          \ t.not_taxed = TRUE THEN 'TRUE' WHEN t.not_taxed = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS not_taxed,\n    CASE WHEN t.deleted IS NULL THEN '<<NULL>>'\
+          \ WHEN t.deleted = TRUE THEN 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>')\
+          \ AS deleted_by_id,\n    COALESCE(TO_CHAR(t.paid_thru,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS paid_thru,\n    v_private_insurance.private_insurance AS private_insurance,\n\
+          \    COALESCE(TO_VARCHAR(t.original_rate),'<<NULL>>') AS original_rate,\n\
+          \    COALESCE(TO_VARCHAR(t.auction_id),'<<NULL>>') AS auction_id,\n    COALESCE(TO_VARCHAR(t.delinquency_start_day_modifier),'<<NULL>>')\
+          \ AS delinquency_start_day_modifier,\n    COALESCE(TO_VARCHAR(t.acs_access_group_id),'<<NULL>>')\
+          \ AS acs_access_group_id,\n    CASE WHEN t.rate_increase_exempt IS NULL\
+          \ THEN '<<NULL>>' WHEN t.rate_increase_exempt = TRUE THEN 'TRUE' WHEN t.rate_increase_exempt\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS rate_increase_exempt,\n  \
+          \  CASE WHEN t.declined_insurance IS NULL THEN '<<NULL>>' WHEN t.declined_insurance\
+          \ = TRUE THEN 'TRUE' WHEN t.declined_insurance = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS declined_insurance,\n    COALESCE(TO_CHAR(t.last_payment_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_payment_at,\n    COALESCE(TO_CHAR(t.lease_signed_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS lease_signed_at,\n    COALESCE(TO_CHAR(t.generate_next_invoice_on,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS generate_next_invoice_on,\n    COALESCE(TRIM(t.proof_submission_url),'<<NULL>>')\
+          \ AS proof_submission_url,\n    COALESCE(TO_CHAR(t.checked_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS checked_in_at,\n    COALESCE(TO_VARCHAR(t.stored_goods_value),'<<NULL>>')\
+          \ AS stored_goods_value,\n    COALESCE(TO_VARCHAR(t.locked_max_rate),'<<NULL>>')\
+          \ AS locked_max_rate,\n    COALESCE(TO_CHAR(t.locked_max_rate_end_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS locked_max_rate_end_date,\n    COALESCE(TO_VARCHAR(t.transferred_from_ledger_id),'<<NULL>>')\
+          \ AS transferred_from_ledger_id,\n    COALESCE(TO_CHAR(t.original_moved_in_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS original_moved_in_at\nFROM variant_private_insurance\
+          \ v_private_insurance LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledgers\
+          \ t ON v_private_insurance.id = t.id\nWHERE t._FIVETRAN_ACTIVE = TRUE"

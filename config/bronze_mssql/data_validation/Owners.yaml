@@ -1,0 +1,43 @@
+tables:
+  Owners:
+    validations:
+      data_validation:
+        source_table_name: Owners
+        source: mssql
+        sourcecolumn: OwnerID
+        sourcequery: "SELECT\n    COALESCE(CAST(OwnerID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS OwnerID,\n    COALESCE(TRIM(sCorpCode),'<<NULL>>') AS sCorpCode,\n\
+          \    COALESCE(TRIM(sKeycode),'<<NULL>>') AS sKeycode,\n    COALESCE(TRIM(sFeatureCode),'<<NULL>>')\
+          \ AS sFeatureCode,\n    COALESCE(TRIM(sOwnerCompany),'<<NULL>>') AS sOwnerCompany,\n\
+          \    COALESCE(TRIM(sOwnerAddr1),'<<NULL>>') AS sOwnerAddr1,\n    COALESCE(TRIM(sOwnerAddr2),'<<NULL>>')\
+          \ AS sOwnerAddr2,\n    COALESCE(TRIM(sOwnerCity),'<<NULL>>') AS sOwnerCity,\n\
+          \    COALESCE(TRIM(sOwnerRegion),'<<NULL>>') AS sOwnerRegion,\n    COALESCE(TRIM(sOwnerPostalCode),'<<NULL>>')\
+          \ AS sOwnerPostalCode,\n    COALESCE(TRIM(sOwnerCountry),'<<NULL>>') AS\
+          \ sOwnerCountry,\n    COALESCE(TRIM(sOwnerPhone),'<<NULL>>') AS sOwnerPhone,\n\
+          \    COALESCE(TRIM(sOwnerFAX),'<<NULL>>') AS sOwnerFAX,\n    COALESCE(TRIM(sOwnerAcctContact),'<<NULL>>')\
+          \ AS sOwnerAcctContact,\n    CASE WHEN bPermanent IS NULL THEN '<<NULL>>'\
+          \ WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK\nFROM dbo.Owners;"
+        target_table_name: Owners
+        target: snowflake
+        targetcolumn: OwnerID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.OwnerID),'<<NULL>>') AS OwnerID,\n\
+          \    COALESCE(TRIM(t.sCorpCode),'<<NULL>>') AS sCorpCode,\n    COALESCE(TRIM(t.sKeycode),'<<NULL>>')\
+          \ AS sKeycode,\n    COALESCE(TRIM(t.sFeatureCode),'<<NULL>>') AS sFeatureCode,\n\
+          \    COALESCE(TRIM(t.sOwnerCompany),'<<NULL>>') AS sOwnerCompany,\n    COALESCE(TRIM(t.sOwnerAddr1),'<<NULL>>')\
+          \ AS sOwnerAddr1,\n    COALESCE(TRIM(t.sOwnerAddr2),'<<NULL>>') AS sOwnerAddr2,\n\
+          \    COALESCE(TRIM(t.sOwnerCity),'<<NULL>>') AS sOwnerCity,\n    COALESCE(TRIM(t.sOwnerRegion),'<<NULL>>')\
+          \ AS sOwnerRegion,\n    COALESCE(TRIM(t.sOwnerPostalCode),'<<NULL>>') AS\
+          \ sOwnerPostalCode,\n    COALESCE(TRIM(t.sOwnerCountry),'<<NULL>>') AS sOwnerCountry,\n\
+          \    COALESCE(TRIM(t.sOwnerPhone),'<<NULL>>') AS sOwnerPhone,\n    COALESCE(TRIM(t.sOwnerFAX),'<<NULL>>')\
+          \ AS sOwnerFAX,\n    COALESCE(TRIM(t.sOwnerAcctContact),'<<NULL>>') AS sOwnerAcctContact,\n\
+          \    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN t.bPermanent =\
+          \ TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Owners t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

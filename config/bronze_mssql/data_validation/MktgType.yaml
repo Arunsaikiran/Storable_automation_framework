@@ -1,0 +1,37 @@
+tables:
+  MktgType:
+    validations:
+      data_validation:
+        source_table_name: MktgType
+        source: mssql
+        sourcecolumn: MktgTypeID
+        sourcequery: "SELECT\n    COALESCE(CAST(MktgTypeID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS MktgTypeID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(MktgMktgType_TermID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS MktgMktgType_TermID,\n    COALESCE(TRIM(sDefMktgTypeDesc),'<<NULL>>')\
+          \ AS sDefMktgTypeDesc,\n    COALESCE(TRIM(sMktgTypeDesc),'<<NULL>>') AS\
+          \ sMktgTypeDesc,\n    CASE WHEN bCommercial IS NULL THEN '<<NULL>>' WHEN\
+          \ bCommercial = 1 THEN 'TRUE' WHEN bCommercial = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCommercial,\n    CASE WHEN bPermanent IS NULL THEN '<<NULL>>'\
+          \ WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK\nFROM dbo.MktgType;"
+        target_table_name: MktgType
+        target: snowflake
+        targetcolumn: MktgTypeID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.MktgTypeID),'<<NULL>>') AS\
+          \ MktgTypeID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.MktgMktgType_TermID),'<<NULL>>') AS MktgMktgType_TermID,\n\
+          \    COALESCE(TRIM(t.sDefMktgTypeDesc),'<<NULL>>') AS sDefMktgTypeDesc,\n\
+          \    COALESCE(TRIM(t.sMktgTypeDesc),'<<NULL>>') AS sMktgTypeDesc,\n    CASE\
+          \ WHEN t.bCommercial IS NULL THEN '<<NULL>>' WHEN t.bCommercial = TRUE THEN\
+          \ 'TRUE' WHEN t.bCommercial = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bCommercial,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPermanent = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.MktgType t\nWHERE\
+          \ t._FIVETRAN_ACTIVE = TRUE"

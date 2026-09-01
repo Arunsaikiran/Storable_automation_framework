@@ -1,0 +1,123 @@
+tables:
+  discount_lines:
+    validations:
+      data_validation:
+        source_table_name: discount_lines
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(kind),'<<NULL>>') AS kind,\n    COALESCE(CAST(CAST(amount\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS amount,\n    COALESCE(CAST(CAST(discount_amount\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS discount_amount,\n    COALESCE(CAST(CAST(original_subtotal\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS original_subtotal,\n    COALESCE(TRIM(note),'<<NULL>>')\
+          \ AS note,\n    COALESCE(TO_CHAR(discounted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS discounted_on,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(CAST(owner_id AS TEXT),'<<NULL>>') AS owner_id,\n\
+          \    COALESCE(TRIM(owner_type),'<<NULL>>') AS owner_type,\n    COALESCE(CAST(facility_id\
+          \ AS TEXT),'<<NULL>>') AS facility_id,\n    COALESCE(CAST(discounted_by_id\
+          \ AS TEXT),'<<NULL>>') AS discounted_by_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(CAST(source\
+          \ AS TEXT),'<<NULL>>') AS source,\n    CASE WHEN discount_amount_per_type\
+          \ IS NULL THEN '<<NULL>>' ELSE COALESCE('{' || (SELECT STRING_AGG(TO_JSON(h.key::TEXT)\
+          \ || ': ' || TO_JSON(h.value::TEXT), ', ' ORDER BY h.key) FROM EACH(discount_amount_per_type)\
+          \ h) || '}', '{}') END AS discount_amount_per_type,\n    CASE WHEN discount_amount_by_id\
+          \ IS NULL THEN '<<NULL>>' ELSE COALESCE('{' || (SELECT STRING_AGG(TO_JSON(h.key::TEXT)\
+          \ || ': ' || TO_JSON(h.value::TEXT), ', ' ORDER BY h.key) FROM EACH(discount_amount_by_id)\
+          \ h) || '}', '{}') END AS discount_amount_by_id\nFROM public.discount_lines;"
+        target_table_name: discount_lines
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_discount_amount_per_type AS\n(\n    SELECT\n \
+          \       _flt.id AS id,\n        LISTAGG(\n            CASE\n           \
+          \     WHEN f.key IS NULL THEN NULL\n                ELSE\n             \
+          \       TO_JSON(TO_VARIANT(f.key::VARCHAR)) || ': ' ||\n               \
+          \     CASE\n                        WHEN f.value IS NULL THEN 'null'\n \
+          \                       WHEN IS_NULL_VALUE(f.value) THEN 'null'\n      \
+          \                  WHEN TYPEOF(f.value) = 'VARCHAR' THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n\
+          \                        WHEN TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n\
+          \                        WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.discount_amount_per_type,\
+          \ RECURSIVE => FALSE)) f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n     \
+          \ AND TYPEOF(_flt.discount_amount_per_type) = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE\
+          \ = TRUE\n    GROUP BY _flt.id\n),\nvariant_discount_amount_per_type AS\n\
+          (\n    SELECT\n        t.id AS id,\n        CASE\n\n    -- ======================================================\n\
+          \    -- SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.discount_amount_per_type IS NULL\n        THEN '<<NULL>>'\n\
+          \n\n    -- =====================================================\n    --\
+          \ JSON NULL\n    -- =====================================================\n\
+          \n    WHEN IS_NULL_VALUE(\n        t.discount_amount_per_type\n    )\n \
+          \       THEN 'null'\n\n\n    -- =====================================================\n\
+          \    -- OBJECT\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.discount_amount_per_type\n    ) = 'OBJECT'\n\
+          \n        THEN\n\n            CHR(123)\n\n            ||\n\n           \
+          \ COALESCE(COALESCE(obj.obj_body, ''), '')\n\n            ||\n\n       \
+          \     CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.discount_amount_per_type\n    ) = 'ARRAY'\n\
+          \n        THEN COALESCE(\n\n            TO_JSON(\n                t.discount_amount_per_type\n\
+          \            ),\n\n            '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.discount_amount_per_type\n            ),\n\n            '<<NULL>>'\n\
+          \n        )\n\nEND AS discount_amount_per_type\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines\
+          \ t\n    LEFT JOIN obj_agg_discount_amount_per_type obj ON obj.id = t.id\n\
+          \    WHERE t._FIVETRAN_ACTIVE = TRUE\n\n),\nobj_agg_discount_amount_by_id\
+          \ AS\n(\n    SELECT\n        _flt.id AS id,\n        LISTAGG(\n        \
+          \    CASE\n                WHEN f.key IS NULL THEN NULL\n              \
+          \  ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR)) || ': '\
+          \ ||\n                    CASE\n                        WHEN f.value IS\
+          \ NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.discount_amount_by_id,\
+          \ RECURSIVE => FALSE)) f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n     \
+          \ AND TYPEOF(_flt.discount_amount_by_id) = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE\
+          \ = TRUE\n    GROUP BY _flt.id\n),\nvariant_discount_amount_by_id AS\n(\n\
+          \    SELECT\n        t.id AS id,\n        CASE\n\n    -- ======================================================\n\
+          \    -- SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.discount_amount_by_id IS NULL\n        THEN '<<NULL>>'\n\n\n\
+          \    -- =====================================================\n    -- JSON\
+          \ NULL\n    -- =====================================================\n\n\
+          \    WHEN IS_NULL_VALUE(\n        t.discount_amount_by_id\n    )\n     \
+          \   THEN 'null'\n\n\n    -- =====================================================\n\
+          \    -- OBJECT\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.discount_amount_by_id\n    ) = 'OBJECT'\n\n\
+          \        THEN\n\n            CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.discount_amount_by_id\n    ) = 'ARRAY'\n\n\
+          \        THEN COALESCE(\n\n            TO_JSON(\n                t.discount_amount_by_id\n\
+          \            ),\n\n            '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.discount_amount_by_id\n            ),\n\n            '<<NULL>>'\n\n\
+          \        )\n\nEND AS discount_amount_by_id\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines\
+          \ t\n    LEFT JOIN obj_agg_discount_amount_by_id obj ON obj.id = t.id\n\
+          \    WHERE t._FIVETRAN_ACTIVE = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>')\
+          \ AS id,\n    COALESCE(TRIM(t.kind),'<<NULL>>') AS kind,\n    COALESCE(TO_VARCHAR(t.amount),'<<NULL>>')\
+          \ AS amount,\n    COALESCE(TO_VARCHAR(t.discount_amount),'<<NULL>>') AS\
+          \ discount_amount,\n    COALESCE(TO_VARCHAR(t.original_subtotal),'<<NULL>>')\
+          \ AS original_subtotal,\n    COALESCE(TRIM(t.note),'<<NULL>>') AS note,\n\
+          \    COALESCE(TO_CHAR(t.discounted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS discounted_on,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n  \
+          \  COALESCE(TO_VARCHAR(t.owner_id),'<<NULL>>') AS owner_id,\n    COALESCE(TRIM(t.owner_type),'<<NULL>>')\
+          \ AS owner_type,\n    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS\
+          \ facility_id,\n    COALESCE(TO_VARCHAR(t.discounted_by_id),'<<NULL>>')\
+          \ AS discounted_by_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TO_VARCHAR(t.source),'<<NULL>>') AS source,\n\
+          \    v_discount_amount_per_type.discount_amount_per_type AS discount_amount_per_type,\n\
+          \    v_discount_amount_by_id.discount_amount_by_id AS discount_amount_by_id\n\
+          FROM variant_discount_amount_by_id v_discount_amount_by_id LEFT JOIN variant_discount_amount_per_type\
+          \ v_discount_amount_per_type LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines\
+          \ t ON v_discount_amount_per_type.id = t.id ON v_discount_amount_by_id.id\
+          \ = t.id\nWHERE t._FIVETRAN_ACTIVE = TRUE"

@@ -1,0 +1,24 @@
+tables:
+  tenant_account_kinds:
+    validations:
+      data_validation:
+        source_table_name: tenant_account_kinds
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(name),'<<NULL>>') AS name,\n    COALESCE(CAST(company_id\
+          \ AS TEXT),'<<NULL>>') AS company_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    COALESCE(TRIM(category),'<<NULL>>')\
+          \ AS category\nFROM public.tenant_account_kinds;"
+        target_table_name: tenant_account_kinds
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.name),'<<NULL>>') AS name,\n    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>')\
+          \ AS company_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TRIM(t.category),'<<NULL>>')\
+          \ AS category\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenant_account_kinds\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

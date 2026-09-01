@@ -1,0 +1,43 @@
+tables:
+  CallsAndLetters:
+    validations:
+      data_validation:
+        source_table_name: CallsAndLetters
+        source: mssql
+        sourcecolumn: CallsAndLettersID
+        sourcequery: "SELECT\n    COALESCE(CAST(CallsAndLettersID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS CallsAndLettersID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(LedgerID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ LedgerID,\n    COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ EmployeeID,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dOccurred AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dOccurred,\n    COALESCE(TRIM(sDesc),'<<NULL>>') AS sDesc,\n    CASE\
+          \ WHEN bMoveIn IS NULL THEN '<<NULL>>' WHEN bMoveIn = 1 THEN 'TRUE' WHEN\
+          \ bMoveIn = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveIn,\n    CASE WHEN\
+          \ bLetter IS NULL THEN '<<NULL>>' WHEN bLetter = 1 THEN 'TRUE' WHEN bLetter\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bLetter,\n    COALESCE(CAST(iType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iType,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dArchived,\n    COALESCE(CAST(CorpUserID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS CorpUserID\nFROM dbo.CallsAndLetters;"
+        target_table_name: CallsAndLetters
+        target: snowflake
+        targetcolumn: CallsAndLettersID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.CallsAndLettersID),'<<NULL>>')\
+          \ AS CallsAndLettersID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS\
+          \ SiteID,\n    COALESCE(TO_VARCHAR(t.LedgerID),'<<NULL>>') AS LedgerID,\n\
+          \    COALESCE(TO_VARCHAR(t.EmployeeID),'<<NULL>>') AS EmployeeID,\n    COALESCE(TO_CHAR(t.dOccurred,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dOccurred,\n    COALESCE(TRIM(t.sDesc),'<<NULL>>')\
+          \ AS sDesc,\n    CASE WHEN t.bMoveIn IS NULL THEN '<<NULL>>' WHEN t.bMoveIn\
+          \ = TRUE THEN 'TRUE' WHEN t.bMoveIn = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bMoveIn,\n    CASE WHEN t.bLetter IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bLetter = TRUE THEN 'TRUE' WHEN t.bLetter = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bLetter,\n    COALESCE(TO_VARCHAR(t.iType),'<<NULL>>')\
+          \ AS iType,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK,\n\
+          \    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dArchived,\n    COALESCE(TO_VARCHAR(t.CorpUserID),'<<NULL>>') AS CorpUserID\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.CallsAndLetters t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

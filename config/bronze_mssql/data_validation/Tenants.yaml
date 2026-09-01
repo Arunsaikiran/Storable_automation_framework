@@ -1,0 +1,249 @@
+tables:
+  Tenants:
+    validations:
+      data_validation:
+        source_table_name: Tenants
+        source: mssql
+        sourcecolumn: TenantID
+        sourcequery: "SELECT\n    COALESCE(CAST(TenantID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS TenantID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ SiteID,\n    COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ EmployeeID,\n    COALESCE(TRIM(sAccessCode),'<<NULL>>') AS sAccessCode,\n\
+          \    COALESCE(TRIM(sWebPassword),'<<NULL>>') AS sWebPassword,\n    COALESCE(TRIM(sMrMrs),'<<NULL>>')\
+          \ AS sMrMrs,\n    COALESCE(TRIM(sFName),'<<NULL>>') AS sFName,\n    COALESCE(TRIM(sMI),'<<NULL>>')\
+          \ AS sMI,\n    COALESCE(TRIM(sLName),'<<NULL>>') AS sLName,\n    COALESCE(TRIM(sCompany),'<<NULL>>')\
+          \ AS sCompany,\n    COALESCE(TRIM(sAddr1),'<<NULL>>') AS sAddr1,\n    COALESCE(TRIM(sAddr2),'<<NULL>>')\
+          \ AS sAddr2,\n    COALESCE(TRIM(sCity),'<<NULL>>') AS sCity,\n    COALESCE(TRIM(sRegion),'<<NULL>>')\
+          \ AS sRegion,\n    COALESCE(TRIM(sPostalCode),'<<NULL>>') AS sPostalCode,\n\
+          \    COALESCE(TRIM(sCountry),'<<NULL>>') AS sCountry,\n    COALESCE(TRIM(sPhone),'<<NULL>>')\
+          \ AS sPhone,\n    COALESCE(TRIM(sMrMrsAlt),'<<NULL>>') AS sMrMrsAlt,\n \
+          \   COALESCE(TRIM(sFNameAlt),'<<NULL>>') AS sFNameAlt,\n    COALESCE(TRIM(sMIAlt),'<<NULL>>')\
+          \ AS sMIAlt,\n    COALESCE(TRIM(sLNameAlt),'<<NULL>>') AS sLNameAlt,\n \
+          \   COALESCE(TRIM(sAddr1Alt),'<<NULL>>') AS sAddr1Alt,\n    COALESCE(TRIM(sAddr2Alt),'<<NULL>>')\
+          \ AS sAddr2Alt,\n    COALESCE(TRIM(sCityAlt),'<<NULL>>') AS sCityAlt,\n\
+          \    COALESCE(TRIM(sRegionAlt),'<<NULL>>') AS sRegionAlt,\n    COALESCE(TRIM(sPostalCodeAlt),'<<NULL>>')\
+          \ AS sPostalCodeAlt,\n    COALESCE(TRIM(sCountryAlt),'<<NULL>>') AS sCountryAlt,\n\
+          \    COALESCE(TRIM(sPhoneAlt),'<<NULL>>') AS sPhoneAlt,\n    COALESCE(TRIM(sEmployer),'<<NULL>>')\
+          \ AS sEmployer,\n    COALESCE(TRIM(sMrMrsBus),'<<NULL>>') AS sMrMrsBus,\n\
+          \    COALESCE(TRIM(sFNameBus),'<<NULL>>') AS sFNameBus,\n    COALESCE(TRIM(sMIBus),'<<NULL>>')\
+          \ AS sMIBus,\n    COALESCE(TRIM(sLNameBus),'<<NULL>>') AS sLNameBus,\n \
+          \   COALESCE(TRIM(sCompanyBus),'<<NULL>>') AS sCompanyBus,\n    COALESCE(TRIM(sAddr1Bus),'<<NULL>>')\
+          \ AS sAddr1Bus,\n    COALESCE(TRIM(sAddr2Bus),'<<NULL>>') AS sAddr2Bus,\n\
+          \    COALESCE(TRIM(sCityBus),'<<NULL>>') AS sCityBus,\n    COALESCE(TRIM(sRegionBus),'<<NULL>>')\
+          \ AS sRegionBus,\n    COALESCE(TRIM(sPostalCodeBus),'<<NULL>>') AS sPostalCodeBus,\n\
+          \    COALESCE(TRIM(sCountryBus),'<<NULL>>') AS sCountryBus,\n    COALESCE(TRIM(sPhoneBus),'<<NULL>>')\
+          \ AS sPhoneBus,\n    COALESCE(TRIM(sFax),'<<NULL>>') AS sFax,\n    COALESCE(TRIM(sEmail),'<<NULL>>')\
+          \ AS sEmail,\n    COALESCE(TRIM(sEmailAlt),'<<NULL>>') AS sEmailAlt,\n \
+          \   COALESCE(TRIM(sEmailBus),'<<NULL>>') AS sEmailBus,\n    COALESCE(TRIM(sPager),'<<NULL>>')\
+          \ AS sPager,\n    COALESCE(TRIM(sMobile),'<<NULL>>') AS sMobile,\n    CASE\
+          \ WHEN bCommercial IS NULL THEN '<<NULL>>' WHEN bCommercial = 1 THEN 'TRUE'\
+          \ WHEN bCommercial = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCommercial,\n\
+          \    CASE WHEN bTaxExempt IS NULL THEN '<<NULL>>' WHEN bTaxExempt = 1 THEN\
+          \ 'TRUE' WHEN bTaxExempt = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bTaxExempt,\n\
+          \    CASE WHEN bSpecial IS NULL THEN '<<NULL>>' WHEN bSpecial = 1 THEN 'TRUE'\
+          \ WHEN bSpecial = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bSpecial,\n    CASE\
+          \ WHEN bNeverLockOut IS NULL THEN '<<NULL>>' WHEN bNeverLockOut = 1 THEN\
+          \ 'TRUE' WHEN bNeverLockOut = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bNeverLockOut,\n\
+          \    CASE WHEN bCompanyIsTenant IS NULL THEN '<<NULL>>' WHEN bCompanyIsTenant\
+          \ = 1 THEN 'TRUE' WHEN bCompanyIsTenant = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCompanyIsTenant,\n    CASE WHEN bOnWaitingList IS NULL THEN '<<NULL>>'\
+          \ WHEN bOnWaitingList = 1 THEN 'TRUE' WHEN bOnWaitingList = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bOnWaitingList,\n    CASE WHEN bNoChecks IS NULL\
+          \ THEN '<<NULL>>' WHEN bNoChecks = 1 THEN 'TRUE' WHEN bNoChecks = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bNoChecks,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDOB\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDOB,\n    COALESCE(TRIM(sIconList),'<<NULL>>')\
+          \ AS sIconList,\n    COALESCE(TRIM(sTaxExemptCode),'<<NULL>>') AS sTaxExemptCode,\n\
+          \    COALESCE(TRIM(sTenNote),'<<NULL>>') AS sTenNote,\n    COALESCE(CAST(iPrimaryPic\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iPrimaryPic,\n    COALESCE(TRIM(sPicFileN1),'<<NULL>>')\
+          \ AS sPicFileN1,\n    COALESCE(TRIM(sPicFileN2),'<<NULL>>') AS sPicFileN2,\n\
+          \    COALESCE(TRIM(sPicFileN3),'<<NULL>>') AS sPicFileN3,\n    COALESCE(TRIM(sPicFileN4),'<<NULL>>')\
+          \ AS sPicFileN4,\n    COALESCE(TRIM(sPicFileN5),'<<NULL>>') AS sPicFileN5,\n\
+          \    COALESCE(TRIM(sPicFileN6),'<<NULL>>') AS sPicFileN6,\n    COALESCE(TRIM(sPicFileN7),'<<NULL>>')\
+          \ AS sPicFileN7,\n    COALESCE(TRIM(sPicFileN8),'<<NULL>>') AS sPicFileN8,\n\
+          \    COALESCE(TRIM(sPicFileN9),'<<NULL>>') AS sPicFileN9,\n    COALESCE(TRIM(sLicense),'<<NULL>>')\
+          \ AS sLicense,\n    COALESCE(TRIM(sLicRegion),'<<NULL>>') AS sLicRegion,\n\
+          \    COALESCE(TRIM(sSSN),'<<NULL>>') AS sSSN,\n    COALESCE(CAST(MarketingID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MarketingID,\n    COALESCE(CAST(iGender\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iGender,\n    COALESCE(CAST(MktgDistanceID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MktgDistanceID,\n    COALESCE(CAST(MktgWhatID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MktgWhatID,\n    COALESCE(CAST(MktgReasonID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MktgReasonID,\n    COALESCE(CAST(MktgWhyID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MktgWhyID,\n    COALESCE(CAST(MktgTypeID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MktgTypeID,\n    CASE WHEN bPermanent\
+          \ IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n    CASE WHEN bWalkInPOS\
+          \ IS NULL THEN '<<NULL>>' WHEN bWalkInPOS = 1 THEN 'TRUE' WHEN bWalkInPOS\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bWalkInPOS,\n    COALESCE(TRIM(sWebSecurityQ),'<<NULL>>')\
+          \ AS sWebSecurityQ,\n    COALESCE(TRIM(sWebSecurityQA),'<<NULL>>') AS sWebSecurityQA,\n\
+          \    COALESCE(CAST(CAST(dcLongitude AS DECIMAL(38,10)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcLongitude,\n    COALESCE(CAST(CAST(dcLatitude AS DECIMAL(38,10))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcLatitude,\n    CASE WHEN bSpecialAlert\
+          \ IS NULL THEN '<<NULL>>' WHEN bSpecialAlert = 1 THEN 'TRUE' WHEN bSpecialAlert\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bSpecialAlert,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dArchived,\n    COALESCE(CAST(iHowManyOtherStorageCosDidYouContact\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iHowManyOtherStorageCosDidYouContact,\n\
+          \    COALESCE(CAST(iUsedSelfStorageInThePast AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iUsedSelfStorageInThePast,\n    CASE WHEN bPermanentGateLockout IS\
+          \ NULL THEN '<<NULL>>' WHEN bPermanentGateLockout = 1 THEN 'TRUE' WHEN bPermanentGateLockout\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanentGateLockout,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dExit_SurveyTaken\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dExit_SurveyTaken,\n    COALESCE(TRIM(sExit_Comment),'<<NULL>>')\
+          \ AS sExit_Comment,\n    CASE WHEN bExit_OnEmailOfferList IS NULL THEN '<<NULL>>'\
+          \ WHEN bExit_OnEmailOfferList = 1 THEN 'TRUE' WHEN bExit_OnEmailOfferList\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bExit_OnEmailOfferList,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dExit_WhenNeedAgain\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dExit_WhenNeedAgain,\n    COALESCE(CAST(MktgExitRentAgainID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MktgExitRentAgainID,\n    COALESCE(CAST(MktgExitReasonID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MktgExitReasonID,\n    COALESCE(CAST(MktgExitSatisfactionID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MktgExitSatisfactionID,\n    COALESCE(TRIM(sRelationshipAlt),'<<NULL>>')\
+          \ AS sRelationshipAlt,\n    COALESCE(CAST(iExitSat_Cleanliness AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iExitSat_Cleanliness,\n    COALESCE(CAST(iExitSat_Safety AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iExitSat_Safety,\n    COALESCE(CAST(iExitSat_Services AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iExitSat_Services,\n    COALESCE(CAST(iExitSat_Staff AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iExitSat_Staff,\n    COALESCE(CAST(iExitSat_Price AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iExitSat_Price,\n    COALESCE(CAST(iMktg_DidYouVisitWebSite AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iMktg_DidYouVisitWebSite,\n    COALESCE(CAST(bi_Tenant_GlobalNum AS\
+          \ VARCHAR(100)),'<<NULL>>') AS bi_Tenant_GlobalNum,\n    COALESCE(CAST(iBlackListRating\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iBlackListRating,\n    CASE WHEN bSMSOptIn\
+          \ IS NULL THEN '<<NULL>>' WHEN bSMSOptIn = 1 THEN 'TRUE' WHEN bSMSOptIn\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bSMSOptIn,\n    COALESCE(TRIM(sCountryCodeMobile),'<<NULL>>')\
+          \ AS sCountryCodeMobile,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCreated,\n    COALESCE(TRIM(sTaxID),'<<NULL>>')\
+          \ AS sTaxID,\n    COALESCE(TRIM(sAccessCode2),'<<NULL>>') AS sAccessCode2,\n\
+          \    COALESCE(CAST(iGlobalNum_NationalMasterAccount AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iGlobalNum_NationalMasterAccount,\n    COALESCE(CAST(iGlobalNum_NationalFranchiseAccount\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iGlobalNum_NationalFranchiseAccount,\n\
+          \    COALESCE(CAST(iAccessCode2Type AS VARCHAR(100)),'<<NULL>>') AS iAccessCode2Type,\n\
+          \    COALESCE(CAST(iTenEvents_OptOut AS VARCHAR(100)),'<<NULL>>') AS iTenEvents_OptOut,\n\
+          \    COALESCE(TRIM(sMrMrsAdd),'<<NULL>>') AS sMrMrsAdd,\n    COALESCE(TRIM(sFNameAdd),'<<NULL>>')\
+          \ AS sFNameAdd,\n    COALESCE(TRIM(sMIAdd),'<<NULL>>') AS sMIAdd,\n    COALESCE(TRIM(sLNameAdd),'<<NULL>>')\
+          \ AS sLNameAdd,\n    COALESCE(TRIM(sAddr1Add),'<<NULL>>') AS sAddr1Add,\n\
+          \    COALESCE(TRIM(sAddr2Add),'<<NULL>>') AS sAddr2Add,\n    COALESCE(TRIM(sCityAdd),'<<NULL>>')\
+          \ AS sCityAdd,\n    COALESCE(TRIM(sRegionAdd),'<<NULL>>') AS sRegionAdd,\n\
+          \    COALESCE(TRIM(sPostalCodeAdd),'<<NULL>>') AS sPostalCodeAdd,\n    COALESCE(TRIM(sCountryAdd),'<<NULL>>')\
+          \ AS sCountryAdd,\n    COALESCE(TRIM(sPhoneAdd),'<<NULL>>') AS sPhoneAdd,\n\
+          \    COALESCE(TRIM(sEmailAdd),'<<NULL>>') AS sEmailAdd\nFROM dbo.Tenants where TenantID not in (41445);"
+        target_table_name: Tenants
+        target: snowflake
+        targetcolumn: TenantID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.TenantID),'<<NULL>>') AS TenantID,\n\
+          \    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n    COALESCE(TO_VARCHAR(t.EmployeeID),'<<NULL>>')\
+          \ AS EmployeeID,\n    COALESCE(TRIM(t.sAccessCode),'<<NULL>>') AS sAccessCode,\n\
+          \    COALESCE(TRIM(t.sWebPassword),'<<NULL>>') AS sWebPassword,\n    COALESCE(TRIM(t.sMrMrs),'<<NULL>>')\
+          \ AS sMrMrs,\n    COALESCE(TRIM(t.sFName),'<<NULL>>') AS sFName,\n    COALESCE(TRIM(t.sMI),'<<NULL>>')\
+          \ AS sMI,\n    COALESCE(TRIM(t.sLName),'<<NULL>>') AS sLName,\n    COALESCE(TRIM(t.sCompany),'<<NULL>>')\
+          \ AS sCompany,\n    COALESCE(TRIM(t.sAddr1),'<<NULL>>') AS sAddr1,\n   \
+          \ COALESCE(TRIM(t.sAddr2),'<<NULL>>') AS sAddr2,\n    COALESCE(TRIM(t.sCity),'<<NULL>>')\
+          \ AS sCity,\n    COALESCE(TRIM(t.sRegion),'<<NULL>>') AS sRegion,\n    COALESCE(TRIM(t.sPostalCode),'<<NULL>>')\
+          \ AS sPostalCode,\n    COALESCE(TRIM(t.sCountry),'<<NULL>>') AS sCountry,\n\
+          \    COALESCE(TRIM(t.sPhone),'<<NULL>>') AS sPhone,\n    COALESCE(TRIM(t.sMrMrsAlt),'<<NULL>>')\
+          \ AS sMrMrsAlt,\n    COALESCE(TRIM(t.sFNameAlt),'<<NULL>>') AS sFNameAlt,\n\
+          \    COALESCE(TRIM(t.sMIAlt),'<<NULL>>') AS sMIAlt,\n    COALESCE(TRIM(t.sLNameAlt),'<<NULL>>')\
+          \ AS sLNameAlt,\n    COALESCE(TRIM(t.sAddr1Alt),'<<NULL>>') AS sAddr1Alt,\n\
+          \    COALESCE(TRIM(t.sAddr2Alt),'<<NULL>>') AS sAddr2Alt,\n    COALESCE(TRIM(t.sCityAlt),'<<NULL>>')\
+          \ AS sCityAlt,\n    COALESCE(TRIM(t.sRegionAlt),'<<NULL>>') AS sRegionAlt,\n\
+          \    COALESCE(TRIM(t.sPostalCodeAlt),'<<NULL>>') AS sPostalCodeAlt,\n  \
+          \  COALESCE(TRIM(t.sCountryAlt),'<<NULL>>') AS sCountryAlt,\n    COALESCE(TRIM(t.sPhoneAlt),'<<NULL>>')\
+          \ AS sPhoneAlt,\n    COALESCE(TRIM(t.sEmployer),'<<NULL>>') AS sEmployer,\n\
+          \    COALESCE(TRIM(t.sMrMrsBus),'<<NULL>>') AS sMrMrsBus,\n    COALESCE(TRIM(t.sFNameBus),'<<NULL>>')\
+          \ AS sFNameBus,\n    COALESCE(TRIM(t.sMIBus),'<<NULL>>') AS sMIBus,\n  \
+          \  COALESCE(TRIM(t.sLNameBus),'<<NULL>>') AS sLNameBus,\n    COALESCE(TRIM(t.sCompanyBus),'<<NULL>>')\
+          \ AS sCompanyBus,\n    COALESCE(TRIM(t.sAddr1Bus),'<<NULL>>') AS sAddr1Bus,\n\
+          \    COALESCE(TRIM(t.sAddr2Bus),'<<NULL>>') AS sAddr2Bus,\n    COALESCE(TRIM(t.sCityBus),'<<NULL>>')\
+          \ AS sCityBus,\n    COALESCE(TRIM(t.sRegionBus),'<<NULL>>') AS sRegionBus,\n\
+          \    COALESCE(TRIM(t.sPostalCodeBus),'<<NULL>>') AS sPostalCodeBus,\n  \
+          \  COALESCE(TRIM(t.sCountryBus),'<<NULL>>') AS sCountryBus,\n    COALESCE(TRIM(t.sPhoneBus),'<<NULL>>')\
+          \ AS sPhoneBus,\n    COALESCE(TRIM(t.sFax),'<<NULL>>') AS sFax,\n    COALESCE(TRIM(t.sEmail),'<<NULL>>')\
+          \ AS sEmail,\n    COALESCE(TRIM(t.sEmailAlt),'<<NULL>>') AS sEmailAlt,\n\
+          \    COALESCE(TRIM(t.sEmailBus),'<<NULL>>') AS sEmailBus,\n    COALESCE(TRIM(t.sPager),'<<NULL>>')\
+          \ AS sPager,\n    COALESCE(TRIM(t.sMobile),'<<NULL>>') AS sMobile,\n   \
+          \ CASE WHEN t.bCommercial IS NULL THEN '<<NULL>>' WHEN t.bCommercial = TRUE\
+          \ THEN 'TRUE' WHEN t.bCommercial = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bCommercial,\n    CASE WHEN t.bTaxExempt IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bTaxExempt = TRUE THEN 'TRUE' WHEN t.bTaxExempt = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bTaxExempt,\n    CASE WHEN t.bSpecial IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bSpecial = TRUE THEN 'TRUE' WHEN t.bSpecial = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS bSpecial,\n    CASE WHEN t.bNeverLockOut\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bNeverLockOut = TRUE THEN 'TRUE' WHEN t.bNeverLockOut\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bNeverLockOut,\n    CASE WHEN\
+          \ t.bCompanyIsTenant IS NULL THEN '<<NULL>>' WHEN t.bCompanyIsTenant = TRUE\
+          \ THEN 'TRUE' WHEN t.bCompanyIsTenant = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCompanyIsTenant,\n    CASE WHEN t.bOnWaitingList IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bOnWaitingList = TRUE THEN 'TRUE' WHEN t.bOnWaitingList\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bOnWaitingList,\n    CASE\
+          \ WHEN t.bNoChecks IS NULL THEN '<<NULL>>' WHEN t.bNoChecks = TRUE THEN\
+          \ 'TRUE' WHEN t.bNoChecks = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bNoChecks,\n\
+          \    COALESCE(TO_CHAR(t.dDOB,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS\
+          \ dDOB,\n    COALESCE(TRIM(t.sIconList),'<<NULL>>') AS sIconList,\n    COALESCE(TRIM(t.sTaxExemptCode),'<<NULL>>')\
+          \ AS sTaxExemptCode,\n    COALESCE(TRIM(t.sTenNote),'<<NULL>>') AS sTenNote,\n\
+          \    COALESCE(TO_VARCHAR(t.iPrimaryPic),'<<NULL>>') AS iPrimaryPic,\n  \
+          \  COALESCE(TRIM(t.sPicFileN1),'<<NULL>>') AS sPicFileN1,\n    COALESCE(TRIM(t.sPicFileN2),'<<NULL>>')\
+          \ AS sPicFileN2,\n    COALESCE(TRIM(t.sPicFileN3),'<<NULL>>') AS sPicFileN3,\n\
+          \    COALESCE(TRIM(t.sPicFileN4),'<<NULL>>') AS sPicFileN4,\n    COALESCE(TRIM(t.sPicFileN5),'<<NULL>>')\
+          \ AS sPicFileN5,\n    COALESCE(TRIM(t.sPicFileN6),'<<NULL>>') AS sPicFileN6,\n\
+          \    COALESCE(TRIM(t.sPicFileN7),'<<NULL>>') AS sPicFileN7,\n    COALESCE(TRIM(t.sPicFileN8),'<<NULL>>')\
+          \ AS sPicFileN8,\n    COALESCE(TRIM(t.sPicFileN9),'<<NULL>>') AS sPicFileN9,\n\
+          \    COALESCE(TRIM(t.sLicense),'<<NULL>>') AS sLicense,\n    COALESCE(TRIM(t.sLicRegion),'<<NULL>>')\
+          \ AS sLicRegion,\n    COALESCE(TRIM(t.sSSN),'<<NULL>>') AS sSSN,\n    COALESCE(TO_VARCHAR(t.MarketingID),'<<NULL>>')\
+          \ AS MarketingID,\n    COALESCE(TO_VARCHAR(t.iGender),'<<NULL>>') AS iGender,\n\
+          \    COALESCE(TO_VARCHAR(t.MktgDistanceID),'<<NULL>>') AS MktgDistanceID,\n\
+          \    COALESCE(TO_VARCHAR(t.MktgWhatID),'<<NULL>>') AS MktgWhatID,\n    COALESCE(TO_VARCHAR(t.MktgReasonID),'<<NULL>>')\
+          \ AS MktgReasonID,\n    COALESCE(TO_VARCHAR(t.MktgWhyID),'<<NULL>>') AS\
+          \ MktgWhyID,\n    COALESCE(TO_VARCHAR(t.MktgTypeID),'<<NULL>>') AS MktgTypeID,\n\
+          \    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN t.bPermanent =\
+          \ TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPermanent,\n    CASE WHEN t.bWalkInPOS IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bWalkInPOS = TRUE THEN 'TRUE' WHEN t.bWalkInPOS = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bWalkInPOS,\n    COALESCE(TRIM(t.sWebSecurityQ),'<<NULL>>')\
+          \ AS sWebSecurityQ,\n    COALESCE(TRIM(t.sWebSecurityQA),'<<NULL>>') AS\
+          \ sWebSecurityQA,\n    COALESCE(TO_VARCHAR(t.dcLongitude),'<<NULL>>') AS\
+          \ dcLongitude,\n    COALESCE(TO_VARCHAR(t.dcLatitude),'<<NULL>>') AS dcLatitude,\n\
+          \    CASE WHEN t.bSpecialAlert IS NULL THEN '<<NULL>>' WHEN t.bSpecialAlert\
+          \ = TRUE THEN 'TRUE' WHEN t.bSpecialAlert = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bSpecialAlert,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK,\n\
+          \    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dArchived,\n    COALESCE(TO_VARCHAR(t.iHowManyOtherStorageCosDidYouContact),'<<NULL>>')\
+          \ AS iHowManyOtherStorageCosDidYouContact,\n    COALESCE(TO_VARCHAR(t.iUsedSelfStorageInThePast),'<<NULL>>')\
+          \ AS iUsedSelfStorageInThePast,\n    CASE WHEN t.bPermanentGateLockout IS\
+          \ NULL THEN '<<NULL>>' WHEN t.bPermanentGateLockout = TRUE THEN 'TRUE' WHEN\
+          \ t.bPermanentGateLockout = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanentGateLockout,\n\
+          \    COALESCE(TO_CHAR(t.dExit_SurveyTaken,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dExit_SurveyTaken,\n    COALESCE(TRIM(t.sExit_Comment),'<<NULL>>')\
+          \ AS sExit_Comment,\n    CASE WHEN t.bExit_OnEmailOfferList IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bExit_OnEmailOfferList = TRUE THEN 'TRUE' WHEN t.bExit_OnEmailOfferList\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bExit_OnEmailOfferList,\n\
+          \    COALESCE(TO_CHAR(t.dExit_WhenNeedAgain,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dExit_WhenNeedAgain,\n    COALESCE(TO_VARCHAR(t.MktgExitRentAgainID),'<<NULL>>')\
+          \ AS MktgExitRentAgainID,\n    COALESCE(TO_VARCHAR(t.MktgExitReasonID),'<<NULL>>')\
+          \ AS MktgExitReasonID,\n    COALESCE(TO_VARCHAR(t.MktgExitSatisfactionID),'<<NULL>>')\
+          \ AS MktgExitSatisfactionID,\n    COALESCE(TRIM(t.sRelationshipAlt),'<<NULL>>')\
+          \ AS sRelationshipAlt,\n    COALESCE(TO_VARCHAR(t.iExitSat_Cleanliness),'<<NULL>>')\
+          \ AS iExitSat_Cleanliness,\n    COALESCE(TO_VARCHAR(t.iExitSat_Safety),'<<NULL>>')\
+          \ AS iExitSat_Safety,\n    COALESCE(TO_VARCHAR(t.iExitSat_Services),'<<NULL>>')\
+          \ AS iExitSat_Services,\n    COALESCE(TO_VARCHAR(t.iExitSat_Staff),'<<NULL>>')\
+          \ AS iExitSat_Staff,\n    COALESCE(TO_VARCHAR(t.iExitSat_Price),'<<NULL>>')\
+          \ AS iExitSat_Price,\n    COALESCE(TO_VARCHAR(t.iMktg_DidYouVisitWebSite),'<<NULL>>')\
+          \ AS iMktg_DidYouVisitWebSite,\n    COALESCE(TO_VARCHAR(t.bi_Tenant_GlobalNum),'<<NULL>>')\
+          \ AS bi_Tenant_GlobalNum,\n    COALESCE(TO_VARCHAR(t.iBlackListRating),'<<NULL>>')\
+          \ AS iBlackListRating,\n    CASE WHEN t.bSMSOptIn IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bSMSOptIn = TRUE THEN 'TRUE' WHEN t.bSMSOptIn = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bSMSOptIn,\n    COALESCE(TRIM(t.sCountryCodeMobile),'<<NULL>>')\
+          \ AS sCountryCodeMobile,\n    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCreated,\n    COALESCE(TRIM(t.sTaxID),'<<NULL>>') AS sTaxID,\n   \
+          \ COALESCE(TRIM(t.sAccessCode2),'<<NULL>>') AS sAccessCode2,\n    COALESCE(TO_VARCHAR(t.iGlobalNum_NationalMasterAccount),'<<NULL>>')\
+          \ AS iGlobalNum_NationalMasterAccount,\n    COALESCE(TO_VARCHAR(t.iGlobalNum_NationalFranchiseAccount),'<<NULL>>')\
+          \ AS iGlobalNum_NationalFranchiseAccount,\n    COALESCE(TO_VARCHAR(t.iAccessCode2Type),'<<NULL>>')\
+          \ AS iAccessCode2Type,\n    COALESCE(TO_VARCHAR(t.iTenEvents_OptOut),'<<NULL>>')\
+          \ AS iTenEvents_OptOut,\n    COALESCE(TRIM(t.sMrMrsAdd),'<<NULL>>') AS sMrMrsAdd,\n\
+          \    COALESCE(TRIM(t.sFNameAdd),'<<NULL>>') AS sFNameAdd,\n    COALESCE(TRIM(t.sMIAdd),'<<NULL>>')\
+          \ AS sMIAdd,\n    COALESCE(TRIM(t.sLNameAdd),'<<NULL>>') AS sLNameAdd,\n\
+          \    COALESCE(TRIM(t.sAddr1Add),'<<NULL>>') AS sAddr1Add,\n    COALESCE(TRIM(t.sAddr2Add),'<<NULL>>')\
+          \ AS sAddr2Add,\n    COALESCE(TRIM(t.sCityAdd),'<<NULL>>') AS sCityAdd,\n\
+          \    COALESCE(TRIM(t.sRegionAdd),'<<NULL>>') AS sRegionAdd,\n    COALESCE(TRIM(t.sPostalCodeAdd),'<<NULL>>')\
+          \ AS sPostalCodeAdd,\n    COALESCE(TRIM(t.sCountryAdd),'<<NULL>>') AS sCountryAdd,\n\
+          \    COALESCE(TRIM(t.sPhoneAdd),'<<NULL>>') AS sPhoneAdd,\n    COALESCE(TRIM(t.sEmailAdd),'<<NULL>>')\
+          \ AS sEmailAdd\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Tenants t\n\
+          WHERE t._FIVETRAN_ACTIVE = TRUE and TenantID not in (41445)"

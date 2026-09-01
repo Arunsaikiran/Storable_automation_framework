@@ -1,0 +1,672 @@
+# ============================================================
+# Migration Validator — Bronze Count Validation
+# Contains   : row count checks for all Bronze tables.
+#
+# GENERATED FILE — do not hand-edit.
+# Rendered from the canonical validation plans in output/plans/.
+# Re-running generation upserts each table in place; it never appends.
+#
+# No generation timestamp is recorded here on purpose: this file is
+# shared by every table, so a timestamp would make each run produce a
+# diff even when nothing changed. Per-table provenance (when, which
+# model) lives in the plan JSON.
+# ============================================================
+
+tables:
+
+  events:
+    validations:
+      count_validation:
+        source_table_name: events
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.events;
+
+        target_table_name: events
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.events;
+
+
+  general_ledger_line_items:
+    validations:
+      count_validation:
+        source_table_name: general_ledger_line_items
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.general_ledger_line_items;
+
+        target_table_name: general_ledger_line_items
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.general_ledger_line_items;
+
+
+  leads:
+    validations:
+      count_validation:
+        source_table_name: leads
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.leads;
+
+        target_table_name: leads
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads;
+
+
+  units:
+    validations:
+      count_validation:
+        source_table_name: units
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.units;
+
+        target_table_name: units
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.units;
+
+
+  facilities:
+    validations:
+      count_validation:
+        source_table_name: facilities
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.facilities;
+
+        target_table_name: facilities
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities;
+
+
+  tenants:
+    validations:
+      count_validation:
+        source_table_name: tenants
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.tenants;
+
+        target_table_name: tenants
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants;
+
+
+  discount_plans:
+    validations:
+      count_validation:
+        source_table_name: discount_plans
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.discount_plans;
+
+        target_table_name: discount_plans
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plans;
+
+
+  users:
+    validations:
+      count_validation:
+        source_table_name: users
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.users;
+
+        target_table_name: users
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.users;
+
+
+  transactions:
+    validations:
+      count_validation:
+        source_table_name: transactions
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.transactions;
+
+        target_table_name: transactions
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.transactions;
+
+
+  line_items:
+    validations:
+      count_validation:
+        source_table_name: line_items
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.line_items;
+
+        target_table_name: line_items
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.line_items;
+
+
+  ledgers:
+    validations:
+      count_validation:
+        source_table_name: ledgers
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.ledgers;
+
+        target_table_name: ledgers
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledgers;
+
+
+  unit_groups:
+    validations:
+      count_validation:
+        source_table_name: unit_groups
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.unit_groups;
+
+        target_table_name: unit_groups
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_groups;
+
+
+  contacts:
+    validations:
+      count_validation:
+        source_table_name: contacts
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.contacts;
+
+        target_table_name: contacts
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.contacts;
+
+
+  change_logged_events:
+    validations:
+      count_validation:
+        source_table_name: change_logged_events
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.change_logged_events;
+
+        target_table_name: change_logged_events
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.change_logged_events;
+
+
+  invoiceable_items:
+    validations:
+      count_validation:
+        source_table_name: invoiceable_items
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.invoiceable_items;
+
+        target_table_name: invoiceable_items
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_items;
+
+
+  account_balances:
+    validations:
+      count_validation:
+        source_table_name: account_balances
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.account_balances;
+
+        target_table_name: account_balances
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balances;
+
+
+  credit_items:
+    validations:
+      count_validation:
+        source_table_name: credit_items
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.credit_items;
+
+        target_table_name: credit_items
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.credit_items;
+
+
+  insurance_activities:
+    validations:
+      count_validation:
+        source_table_name: insurance_activities
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.insurance_activities;
+
+        target_table_name: insurance_activities
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.insurance_activities;
+
+
+  discount_plan_ledger_instances:
+    validations:
+      count_validation:
+        source_table_name: discount_plan_ledger_instances
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.discount_plan_ledger_instances;
+
+        target_table_name: discount_plan_ledger_instances
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances;
+
+
+  addresses:
+    validations:
+      count_validation:
+        source_table_name: addresses
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.addresses;
+
+        target_table_name: addresses
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.addresses;
+
+
+  payment_methods:
+    validations:
+      count_validation:
+        source_table_name: payment_methods
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.payment_methods;
+
+        target_table_name: payment_methods
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods;
+
+
+  companies:
+    validations:
+      count_validation:
+        source_table_name: companies
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.companies;
+
+        target_table_name: companies
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.companies;
+
+
+  discount_lines:
+    validations:
+      count_validation:
+        source_table_name: discount_lines
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.discount_lines;
+
+        target_table_name: discount_lines
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines;
+
+
+  phone_numbers:
+    validations:
+      count_validation:
+        source_table_name: phone_numbers
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.phone_numbers;
+
+        target_table_name: phone_numbers
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.phone_numbers;
+
+
+  deposits:
+    validations:
+      count_validation:
+        source_table_name: deposits
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.deposits;
+
+        target_table_name: deposits
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.deposits;
+
+
+  account_codes:
+    validations:
+      count_validation:
+        source_table_name: account_codes
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.account_codes;
+
+        target_table_name: account_codes
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_codes;
+
+
+  ledger_items:
+    validations:
+      count_validation:
+        source_table_name: ledger_items
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.ledger_items;
+
+        target_table_name: ledger_items
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_items;
+
+
+  delinquency_stage_actions:
+    validations:
+      count_validation:
+        source_table_name: delinquency_stage_actions
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.delinquency_stage_actions;
+
+        target_table_name: delinquency_stage_actions
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stage_actions;
+
+
+  delinquency_stages:
+    validations:
+      count_validation:
+        source_table_name: delinquency_stages
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.delinquency_stages;
+
+        target_table_name: delinquency_stages
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stages;
+
+
+  account_balance_items:
+    validations:
+      count_validation:
+        source_table_name: account_balance_items
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.account_balance_items;
+
+        target_table_name: account_balance_items
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_items;
+
+
+  invoiceable_amounts:
+    validations:
+      count_validation:
+        source_table_name: invoiceable_amounts
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.invoiceable_amounts;
+
+        target_table_name: invoiceable_amounts
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_amounts;
+
+
+  notes:
+    validations:
+      count_validation:
+        source_table_name: notes
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.notes;
+
+        target_table_name: notes
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.notes;
+
+
+  reasons:
+    validations:
+      count_validation:
+        source_table_name: reasons
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.reasons;
+
+        target_table_name: reasons
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.reasons;
+
+
+  unit_amenities:
+    validations:
+      count_validation:
+        source_table_name: unit_amenities
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.unit_amenities;
+
+        target_table_name: unit_amenities
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities;
+
+
+  unit_types:
+    validations:
+      count_validation:
+        source_table_name: unit_types
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.unit_types;
+
+        target_table_name: unit_types
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_types;
+
+
+  sources:
+    validations:
+      count_validation:
+        source_table_name: sources
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.sources;
+
+        target_table_name: sources
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.sources;
+
+
+  tiers:
+    validations:
+      count_validation:
+        source_table_name: tiers
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.tiers;
+
+        target_table_name: tiers
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tiers;
+
+
+  account_balance_taxes:
+    validations:
+      count_validation:
+        source_table_name: account_balance_taxes
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.account_balance_taxes;
+
+        target_table_name: account_balance_taxes
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_taxes;
+
+
+  ledger_delinquencies:
+    validations:
+      count_validation:
+        source_table_name: ledger_delinquencies
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.ledger_delinquencies;
+
+        target_table_name: ledger_delinquencies
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_delinquencies;
+
+
+  settings:
+    validations:
+      count_validation:
+        source_table_name: settings
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.settings;
+
+        target_table_name: settings
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings;
+
+
+  account_code_sets:
+    validations:
+      count_validation:
+        source_table_name: account_code_sets
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.account_code_sets;
+
+        target_table_name: account_code_sets
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_code_sets;
+
+
+  discount_plan_ledger_instances_line_items:
+    validations:
+      count_validation:
+        source_table_name: discount_plan_ledger_instances_line_items
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.discount_plan_ledger_instances_line_items;
+
+        target_table_name: discount_plan_ledger_instances_line_items
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances_line_items;
+
+
+  unit_amenities_units:
+    validations:
+      count_validation:
+        source_table_name: unit_amenities_units
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.unit_amenities_units;
+
+        target_table_name: unit_amenities_units
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities_units;
+
+
+  facility_groups:
+    validations:
+      count_validation:
+        source_table_name: facility_groups
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.facility_groups;
+
+        target_table_name: facility_groups
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facility_groups;
+
+
+  tenant_account_kinds:
+    validations:
+      count_validation:
+        source_table_name: tenant_account_kinds
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.tenant_account_kinds;
+
+        target_table_name: tenant_account_kinds
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenant_account_kinds;
+
+
+  time_zone_maps:
+    validations:
+      count_validation:
+        source_table_name: time_zone_maps
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.time_zone_maps;
+
+        target_table_name: time_zone_maps
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.time_zone_maps;
+
+
+  facilities_facility_groups:
+    validations:
+      count_validation:
+        source_table_name: facilities_facility_groups
+        source: postgresql
+        sourcequery: |
+          SELECT COUNT(*) as source_row_count FROM public.facilities_facility_groups;
+
+        target_table_name: facilities_facility_groups
+        target: snowflake
+        targetquery: |
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities_facility_groups;

@@ -1,0 +1,68 @@
+tables:
+  PDueEvents:
+    validations:
+      data_validation:
+        source_table_name: PDueEvents
+        source: mssql
+        sourcecolumn: PDueEventID
+        sourcequery: "SELECT\n    COALESCE(CAST(PDueEventID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS PDueEventID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(ChargeDescID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ChargeDescID,\n    COALESCE(CAST(FormID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS FormID,\n    COALESCE(CAST(iFormAddrOption AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iFormAddrOption,\n    COALESCE(CAST(EventName_TermID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS EventName_TermID,\n    COALESCE(TRIM(sDefEventName),'<<NULL>>') AS\
+          \ sDefEventName,\n    COALESCE(TRIM(sEventName),'<<NULL>>') AS sEventName,\n\
+          \    COALESCE(TRIM(sCategory),'<<NULL>>') AS sCategory,\n    COALESCE(TRIM(sComment),'<<NULL>>')\
+          \ AS sComment,\n    COALESCE(CAST(iDayPastDue AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iDayPastDue,\n    CASE WHEN bShowOnReminders IS NULL THEN '<<NULL>>'\
+          \ WHEN bShowOnReminders = 1 THEN 'TRUE' WHEN bShowOnReminders = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bShowOnReminders,\n    CASE WHEN bRecurring IS\
+          \ NULL THEN '<<NULL>>' WHEN bRecurring = 1 THEN 'TRUE' WHEN bRecurring =\
+          \ 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRecurring,\n    CASE WHEN bKeepTenantsOnList\
+          \ IS NULL THEN '<<NULL>>' WHEN bKeepTenantsOnList = 1 THEN 'TRUE' WHEN bKeepTenantsOnList\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bKeepTenantsOnList,\n    COALESCE(CAST(iApplyToPeriod\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iApplyToPeriod,\n    COALESCE(CAST(iApplyToLeaseType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iApplyToLeaseType,\n    COALESCE(CAST(iLabelOption\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iLabelOption,\n    COALESCE(CAST(iLetterDeliveryType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iLetterDeliveryType,\n    CASE WHEN bPermanent\
+          \ IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDisabled\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDisabled,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    COALESCE(CAST(iRemoveDiscount\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iRemoveDiscount,\n    COALESCE(CAST(iType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iType\nFROM dbo.PDueEvents;"
+        target_table_name: PDueEvents
+        target: snowflake
+        targetcolumn: PDueEventID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.PDueEventID),'<<NULL>>') AS\
+          \ PDueEventID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.ChargeDescID),'<<NULL>>') AS ChargeDescID,\n\
+          \    COALESCE(TO_VARCHAR(t.FormID),'<<NULL>>') AS FormID,\n    COALESCE(TO_VARCHAR(t.iFormAddrOption),'<<NULL>>')\
+          \ AS iFormAddrOption,\n    COALESCE(TO_VARCHAR(t.EventName_TermID),'<<NULL>>')\
+          \ AS EventName_TermID,\n    COALESCE(TRIM(t.sDefEventName),'<<NULL>>') AS\
+          \ sDefEventName,\n    COALESCE(TRIM(t.sEventName),'<<NULL>>') AS sEventName,\n\
+          \    COALESCE(TRIM(t.sCategory),'<<NULL>>') AS sCategory,\n    COALESCE(TRIM(t.sComment),'<<NULL>>')\
+          \ AS sComment,\n    COALESCE(TO_VARCHAR(t.iDayPastDue),'<<NULL>>') AS iDayPastDue,\n\
+          \    CASE WHEN t.bShowOnReminders IS NULL THEN '<<NULL>>' WHEN t.bShowOnReminders\
+          \ = TRUE THEN 'TRUE' WHEN t.bShowOnReminders = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bShowOnReminders,\n    CASE WHEN t.bRecurring IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bRecurring = TRUE THEN 'TRUE' WHEN t.bRecurring = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bRecurring,\n    CASE WHEN t.bKeepTenantsOnList\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bKeepTenantsOnList = TRUE THEN 'TRUE' WHEN\
+          \ t.bKeepTenantsOnList = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bKeepTenantsOnList,\n\
+          \    COALESCE(TO_VARCHAR(t.iApplyToPeriod),'<<NULL>>') AS iApplyToPeriod,\n\
+          \    COALESCE(TO_VARCHAR(t.iApplyToLeaseType),'<<NULL>>') AS iApplyToLeaseType,\n\
+          \    COALESCE(TO_VARCHAR(t.iLabelOption),'<<NULL>>') AS iLabelOption,\n\
+          \    COALESCE(TO_VARCHAR(t.iLetterDeliveryType),'<<NULL>>') AS iLetterDeliveryType,\n\
+          \    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN t.bPermanent =\
+          \ TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDisabled,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDisabled,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK,\n\
+          \    COALESCE(TO_VARCHAR(t.iRemoveDiscount),'<<NULL>>') AS iRemoveDiscount,\n\
+          \    COALESCE(TO_VARCHAR(t.iType),'<<NULL>>') AS iType\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.PDueEvents\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

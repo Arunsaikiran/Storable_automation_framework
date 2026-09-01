@@ -1,0 +1,58 @@
+tables:
+  insurance_activities:
+    validations:
+      data_validation:
+        source_table_name: insurance_activities
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(facility_id AS TEXT),'<<NULL>>') AS facility_id,\n   \
+          \ COALESCE(CAST(ledger_id AS TEXT),'<<NULL>>') AS ledger_id,\n    COALESCE(CAST(ledger_item_id\
+          \ AS TEXT),'<<NULL>>') AS ledger_item_id,\n    COALESCE(TRIM(action_type),'<<NULL>>')\
+          \ AS action_type,\n    COALESCE(TRIM(policy_number),'<<NULL>>') AS policy_number,\n\
+          \    COALESCE(CAST(CAST(coverage_amount AS NUMERIC(38,2)) AS TEXT),'<<NULL>>')\
+          \ AS coverage_amount,\n    COALESCE(CAST(CAST(coverage_percentage AS NUMERIC(38,1))\
+          \ AS TEXT),'<<NULL>>') AS coverage_percentage,\n    COALESCE(CAST(CAST(premium\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS premium,\n    COALESCE(TO_CHAR(coverage_effective,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS coverage_effective,\n    COALESCE(TO_CHAR(cancellation_effective,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS cancellation_effective,\n    COALESCE(TO_CHAR(paid_thru,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS paid_thru,\n    COALESCE(CAST(source_id\
+          \ AS TEXT),'<<NULL>>') AS source_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(CAST(CAST(amount\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS amount,\n    COALESCE(CAST(CAST(retained_fee\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS retained_fee,\n    COALESCE(CAST(CAST(refund_due\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS refund_due,\n    COALESCE(CAST(CAST(refund_paid\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS refund_paid,\n    CASE WHEN\
+          \ deleted IS NULL THEN '<<NULL>>' WHEN deleted IS TRUE THEN 'TRUE' WHEN\
+          \ deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    COALESCE(CAST(transaction_id AS TEXT),'<<NULL>>')\
+          \ AS transaction_id,\n    COALESCE(TO_CHAR(transaction_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS transaction_date,\n    COALESCE(TRIM(origination),'<<NULL>>') AS origination\n\
+          FROM public.insurance_activities;"
+        target_table_name: insurance_activities
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS facility_id,\n   \
+          \ COALESCE(TO_VARCHAR(t.ledger_id),'<<NULL>>') AS ledger_id,\n    COALESCE(TO_VARCHAR(t.ledger_item_id),'<<NULL>>')\
+          \ AS ledger_item_id,\n    COALESCE(TRIM(t.action_type),'<<NULL>>') AS action_type,\n\
+          \    COALESCE(TRIM(t.policy_number),'<<NULL>>') AS policy_number,\n    COALESCE(TO_VARCHAR(t.coverage_amount),'<<NULL>>')\
+          \ AS coverage_amount,\n    COALESCE(TO_VARCHAR(t.coverage_percentage),'<<NULL>>')\
+          \ AS coverage_percentage,\n    COALESCE(TO_VARCHAR(t.premium),'<<NULL>>')\
+          \ AS premium,\n    COALESCE(TO_CHAR(t.coverage_effective,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS coverage_effective,\n    COALESCE(TO_CHAR(t.cancellation_effective,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS cancellation_effective,\n    COALESCE(TO_CHAR(t.paid_thru,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS paid_thru,\n    COALESCE(TO_VARCHAR(t.source_id),'<<NULL>>')\
+          \ AS source_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TO_VARCHAR(t.amount),'<<NULL>>') AS amount,\n\
+          \    COALESCE(TO_VARCHAR(t.retained_fee),'<<NULL>>') AS retained_fee,\n\
+          \    COALESCE(TO_VARCHAR(t.refund_due),'<<NULL>>') AS refund_due,\n    COALESCE(TO_VARCHAR(t.refund_paid),'<<NULL>>')\
+          \ AS refund_paid,\n    CASE WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN\
+          \ t.deleted = TRUE THEN 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS deleted,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n\
+          \    COALESCE(TO_VARCHAR(t.transaction_id),'<<NULL>>') AS transaction_id,\n\
+          \    COALESCE(TO_CHAR(t.transaction_date,'YYYY-MM-DD'),'<<NULL>>') AS transaction_date,\n\
+          \    COALESCE(TRIM(t.origination),'<<NULL>>') AS origination\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.insurance_activities\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

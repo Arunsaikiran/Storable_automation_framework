@@ -1,0 +1,17 @@
+tables:
+  Test_01_Distinct:
+    validations:
+      data_validation:
+        source_table_name: sefms_management_summary_final_report_iceberg
+        source: redshift
+        sourcecolumn: types
+        sourcequery: "SELECT DISTINCT COALESCE(types, '_NULL_VALUE_') AS types
+                      FROM stodl_reporting_prod.sefms_management_summary_final_report_iceberg
+                      WHERE report_section = 'revenue_report';"
+        target_table_name: FACT_REVENUE_DAILY
+        target: snowflake
+        targetcolumn: types
+        targetquery: "SELECT DISTINCT COALESCE(types, '_NULL_VALUE_') AS types
+                      FROM DEV_GOLD.CORE.FACT_REVENUE_DAILY
+                      WHERE report_section = 'revenue_report'
+                        AND platform_source = 'EDGE';"

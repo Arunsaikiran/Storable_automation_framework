@@ -1,0 +1,179 @@
+tables:
+  Units:
+    validations:
+      data_validation:
+        source_table_name: Units
+        source: mssql
+        sourcecolumn: UnitID
+        sourcequery: "SELECT\n    COALESCE(CAST(UnitID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS UnitID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS EmployeeID,\n\
+          \    COALESCE(CAST(UnitTypeID AS VARCHAR(100)),'<<NULL>>') AS UnitTypeID,\n\
+          \    COALESCE(CAST(UnitZoneID AS VARCHAR(100)),'<<NULL>>') AS UnitZoneID,\n\
+          \    COALESCE(CAST(MapRAID_Row AS VARCHAR(100)),'<<NULL>>') AS MapRAID_Row,\n\
+          \    COALESCE(CAST(MapRAID_Aisle AS VARCHAR(100)),'<<NULL>>') AS MapRAID_Aisle,\n\
+          \    COALESCE(TRIM(sTrackingCode),'<<NULL>>') AS sTrackingCode,\n    COALESCE(TRIM(sRFID),'<<NULL>>')\
+          \ AS sRFID,\n    COALESCE(TRIM(sGlobalUnitName),'<<NULL>>') AS sGlobalUnitName,\n\
+          \    COALESCE(TRIM(TransferredTo_sGlobalSiteNum),'<<NULL>>') AS TransferredTo_sGlobalSiteNum,\n\
+          \    COALESCE(TRIM(TransferredFrom_sGlobalSiteNum),'<<NULL>>') AS TransferredFrom_sGlobalSiteNum,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dTransferred AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dTransferred,\n    COALESCE(CAST(TransferredBy_EmployeeID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS TransferredBy_EmployeeID,\n    COALESCE(TRIM(sUnitName),'<<NULL>>')\
+          \ AS sUnitName,\n    COALESCE(CAST(iWalkThruOrder AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iWalkThruOrder,\n    COALESCE(CAST(iFloor AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iFloor,\n    COALESCE(CAST(CAST(dcWidth AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcWidth,\n    COALESCE(CAST(CAST(dcLength AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcLength,\n    COALESCE(CAST(CAST(dcMapTop AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcMapTop,\n    COALESCE(CAST(CAST(dcMapLeft AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcMapLeft,\n    COALESCE(CAST(CAST(dcMapTheta AS DECIMAL(38,4)) AS\
+          \ VARCHAR(100)),'<<NULL>>') AS dcMapTheta,\n    CASE WHEN bMapReversWL IS\
+          \ NULL THEN '<<NULL>>' WHEN bMapReversWL = 1 THEN 'TRUE' WHEN bMapReversWL\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMapReversWL,\n    COALESCE(CAST(CAST(dcPushRate\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPushRate,\n    COALESCE(CAST(CAST(dcStdRate\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcStdRate,\n    COALESCE(CAST(CAST(dcStdWeeklyRate\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcStdWeeklyRate,\n \
+          \   COALESCE(CAST(CAST(dcStdSecDep AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcStdSecDep,\n    COALESCE(CAST(CAST(dcStdLateFee AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcStdLateFee,\n    CASE WHEN bPower IS\
+          \ NULL THEN '<<NULL>>' WHEN bPower = 1 THEN 'TRUE' WHEN bPower = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bPower,\n    CASE WHEN bClimate IS NULL\
+          \ THEN '<<NULL>>' WHEN bClimate = 1 THEN 'TRUE' WHEN bClimate = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bClimate,\n    CASE WHEN bInside IS NULL THEN '<<NULL>>'\
+          \ WHEN bInside = 1 THEN 'TRUE' WHEN bInside = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bInside,\n    CASE WHEN bAlarm IS NULL THEN '<<NULL>>' WHEN bAlarm\
+          \ = 1 THEN 'TRUE' WHEN bAlarm = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bAlarm,\n\
+          \    CASE WHEN bRentable IS NULL THEN '<<NULL>>' WHEN bRentable = 1 THEN\
+          \ 'TRUE' WHEN bRentable = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRentable,\n\
+          \    CASE WHEN bRented IS NULL THEN '<<NULL>>' WHEN bRented = 1 THEN 'TRUE'\
+          \ WHEN bRented = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bRented,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCreated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(TRIM(sUnitNote),'<<NULL>>')\
+          \ AS sUnitNote,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUnitNote AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dUnitNote,\n    COALESCE(TRIM(sOSSType),'<<NULL>>') AS sOSSType,\n\
+          \    CASE WHEN bCorporate IS NULL THEN '<<NULL>>' WHEN bCorporate = 1 THEN\
+          \ 'TRUE' WHEN bCorporate = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCorporate,\n\
+          \    CASE WHEN bMobile IS NULL THEN '<<NULL>>' WHEN bMobile = 1 THEN 'TRUE'\
+          \ WHEN bMobile = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMobile,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dBuilt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dBuilt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dFirstInService\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dFirstInService,\n    COALESCE(CAST(iMobileStatus\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iMobileStatus,\n    CASE WHEN bDamaged\
+          \ IS NULL THEN '<<NULL>>' WHEN bDamaged = 1 THEN 'TRUE' WHEN bDamaged =\
+          \ 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bDamaged,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDamaged\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDamaged,\n    CASE WHEN bCollapsible\
+          \ IS NULL THEN '<<NULL>>' WHEN bCollapsible = 1 THEN 'TRUE' WHEN bCollapsible\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bCollapsible,\n    COALESCE(CAST(EmployeeID_BuiltBy\
+          \ AS VARCHAR(100)),'<<NULL>>') AS EmployeeID_BuiltBy,\n    CASE WHEN bPermanent\
+          \ IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    COALESCE(CAST(MarketID_Whse\
+          \ AS VARCHAR(100)),'<<NULL>>') AS MarketID_Whse,\n    COALESCE(TRIM(sUnitDesc),'<<NULL>>')\
+          \ AS sUnitDesc,\n    COALESCE(CAST(iEntryLoc AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iEntryLoc,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dArchived,\n    CASE WHEN bExcludeFromSqftReports IS NULL THEN '<<NULL>>'\
+          \ WHEN bExcludeFromSqftReports = 1 THEN 'TRUE' WHEN bExcludeFromSqftReports\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bExcludeFromSqftReports,\n   \
+          \ CASE WHEN bExcludeFromWebsite IS NULL THEN '<<NULL>>' WHEN bExcludeFromWebsite\
+          \ = 1 THEN 'TRUE' WHEN bExcludeFromWebsite = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bExcludeFromWebsite,\n    CASE WHEN bNotReadyToRent IS NULL THEN\
+          \ '<<NULL>>' WHEN bNotReadyToRent = 1 THEN 'TRUE' WHEN bNotReadyToRent =\
+          \ 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bNotReadyToRent,\n    COALESCE(CAST(CAST(dcSchedRateMonthly\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcSchedRateMonthly,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dSchedRateMonthStrt AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dSchedRateMonthStrt,\n    COALESCE(CAST(CAST(dcSchedRateWeekly AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcSchedRateWeekly,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dSchedRateWeeklyStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dSchedRateWeeklyStrt,\n    COALESCE(CAST(iADA\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iADA,\n    COALESCE(CAST(iDoorType AS\
+          \ VARCHAR(100)),'<<NULL>>') AS iDoorType,\n    COALESCE(CAST(iVehicleStorageAllowed\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iVehicleStorageAllowed,\n    COALESCE(CAST(iDaysVacant\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iDaysVacant,\n    COALESCE(CAST(CAST(dcWebRate\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcWebRate,\n    COALESCE(CAST(CAST(dcWebPushRate\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcWebPushRate,\n   \
+          \ COALESCE(CAST(LockID AS VARCHAR(100)),'<<NULL>>') AS LockID,\n    COALESCE(CAST(CAST(dcMaxRentalRate\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcMaxRentalRate\nFROM\
+          \ dbo.Units;"
+        target_table_name: Units
+        target: snowflake
+        targetcolumn: UnitID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.UnitID),'<<NULL>>') AS UnitID,\n\
+          \    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n    COALESCE(TO_VARCHAR(t.EmployeeID),'<<NULL>>')\
+          \ AS EmployeeID,\n    COALESCE(TO_VARCHAR(t.UnitTypeID),'<<NULL>>') AS UnitTypeID,\n\
+          \    COALESCE(TO_VARCHAR(t.UnitZoneID),'<<NULL>>') AS UnitZoneID,\n    COALESCE(TO_VARCHAR(t.MapRAID_Row),'<<NULL>>')\
+          \ AS MapRAID_Row,\n    COALESCE(TO_VARCHAR(t.MapRAID_Aisle),'<<NULL>>')\
+          \ AS MapRAID_Aisle,\n    COALESCE(TRIM(t.sTrackingCode),'<<NULL>>') AS sTrackingCode,\n\
+          \    COALESCE(TRIM(t.sRFID),'<<NULL>>') AS sRFID,\n    COALESCE(TRIM(t.sGlobalUnitName),'<<NULL>>')\
+          \ AS sGlobalUnitName,\n    COALESCE(TRIM(t.TransferredTo_sGlobalSiteNum),'<<NULL>>')\
+          \ AS TransferredTo_sGlobalSiteNum,\n    COALESCE(TRIM(t.TransferredFrom_sGlobalSiteNum),'<<NULL>>')\
+          \ AS TransferredFrom_sGlobalSiteNum,\n    COALESCE(TO_CHAR(t.dTransferred,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dTransferred,\n    COALESCE(TO_VARCHAR(t.TransferredBy_EmployeeID),'<<NULL>>')\
+          \ AS TransferredBy_EmployeeID,\n    COALESCE(TRIM(t.sUnitName),'<<NULL>>')\
+          \ AS sUnitName,\n    COALESCE(TO_VARCHAR(t.iWalkThruOrder),'<<NULL>>') AS\
+          \ iWalkThruOrder,\n    COALESCE(TO_VARCHAR(t.iFloor),'<<NULL>>') AS iFloor,\n\
+          \    COALESCE(TO_VARCHAR(t.dcWidth),'<<NULL>>') AS dcWidth,\n    COALESCE(TO_VARCHAR(t.dcLength),'<<NULL>>')\
+          \ AS dcLength,\n    COALESCE(TO_VARCHAR(t.dcMapTop),'<<NULL>>') AS dcMapTop,\n\
+          \    COALESCE(TO_VARCHAR(t.dcMapLeft),'<<NULL>>') AS dcMapLeft,\n    COALESCE(TO_VARCHAR(t.dcMapTheta),'<<NULL>>')\
+          \ AS dcMapTheta,\n    CASE WHEN t.bMapReversWL IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bMapReversWL = TRUE THEN 'TRUE' WHEN t.bMapReversWL = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bMapReversWL,\n    COALESCE(TO_VARCHAR(t.dcPushRate),'<<NULL>>')\
+          \ AS dcPushRate,\n    COALESCE(TO_VARCHAR(t.dcStdRate),'<<NULL>>') AS dcStdRate,\n\
+          \    COALESCE(TO_VARCHAR(t.dcStdWeeklyRate),'<<NULL>>') AS dcStdWeeklyRate,\n\
+          \    COALESCE(TO_VARCHAR(t.dcStdSecDep),'<<NULL>>') AS dcStdSecDep,\n  \
+          \  COALESCE(TO_VARCHAR(t.dcStdLateFee),'<<NULL>>') AS dcStdLateFee,\n  \
+          \  CASE WHEN t.bPower IS NULL THEN '<<NULL>>' WHEN t.bPower = TRUE THEN\
+          \ 'TRUE' WHEN t.bPower = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bPower,\n\
+          \    CASE WHEN t.bClimate IS NULL THEN '<<NULL>>' WHEN t.bClimate = TRUE\
+          \ THEN 'TRUE' WHEN t.bClimate = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bClimate,\n    CASE WHEN t.bInside IS NULL THEN '<<NULL>>' WHEN t.bInside\
+          \ = TRUE THEN 'TRUE' WHEN t.bInside = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bInside,\n    CASE WHEN t.bAlarm IS NULL THEN '<<NULL>>' WHEN t.bAlarm\
+          \ = TRUE THEN 'TRUE' WHEN t.bAlarm = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bAlarm,\n    CASE WHEN t.bRentable IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bRentable = TRUE THEN 'TRUE' WHEN t.bRentable = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bRentable,\n    CASE WHEN t.bRented IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bRented = TRUE THEN 'TRUE' WHEN t.bRented = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bRented,\n    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dCreated,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TRIM(t.sUnitNote),'<<NULL>>')\
+          \ AS sUnitNote,\n    COALESCE(TO_CHAR(t.dUnitNote,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUnitNote,\n    COALESCE(TRIM(t.sOSSType),'<<NULL>>') AS sOSSType,\n\
+          \    CASE WHEN t.bCorporate IS NULL THEN '<<NULL>>' WHEN t.bCorporate =\
+          \ TRUE THEN 'TRUE' WHEN t.bCorporate = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCorporate,\n    CASE WHEN t.bMobile IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bMobile = TRUE THEN 'TRUE' WHEN t.bMobile = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bMobile,\n    COALESCE(TO_CHAR(t.dBuilt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dBuilt,\n    COALESCE(TO_CHAR(t.dFirstInService,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dFirstInService,\n    COALESCE(TO_VARCHAR(t.iMobileStatus),'<<NULL>>')\
+          \ AS iMobileStatus,\n    CASE WHEN t.bDamaged IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bDamaged = TRUE THEN 'TRUE' WHEN t.bDamaged = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bDamaged,\n    COALESCE(TO_CHAR(t.dDamaged,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDamaged,\n    CASE WHEN t.bCollapsible\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bCollapsible = TRUE THEN 'TRUE' WHEN t.bCollapsible\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bCollapsible,\n    COALESCE(TO_VARCHAR(t.EmployeeID_BuiltBy),'<<NULL>>')\
+          \ AS EmployeeID_BuiltBy,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bPermanent = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK,\n    COALESCE(TO_VARCHAR(t.MarketID_Whse),'<<NULL>>') AS MarketID_Whse,\n\
+          \    COALESCE(TRIM(t.sUnitDesc),'<<NULL>>') AS sUnitDesc,\n    COALESCE(TO_VARCHAR(t.iEntryLoc),'<<NULL>>')\
+          \ AS iEntryLoc,\n    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dArchived,\n    CASE WHEN t.bExcludeFromSqftReports IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bExcludeFromSqftReports = TRUE THEN 'TRUE' WHEN t.bExcludeFromSqftReports\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bExcludeFromSqftReports,\n\
+          \    CASE WHEN t.bExcludeFromWebsite IS NULL THEN '<<NULL>>' WHEN t.bExcludeFromWebsite\
+          \ = TRUE THEN 'TRUE' WHEN t.bExcludeFromWebsite = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bExcludeFromWebsite,\n    CASE WHEN t.bNotReadyToRent\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bNotReadyToRent = TRUE THEN 'TRUE' WHEN\
+          \ t.bNotReadyToRent = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bNotReadyToRent,\n\
+          \    COALESCE(TO_VARCHAR(t.dcSchedRateMonthly),'<<NULL>>') AS dcSchedRateMonthly,\n\
+          \    COALESCE(TO_CHAR(t.dSchedRateMonthStrt,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dSchedRateMonthStrt,\n    COALESCE(TO_VARCHAR(t.dcSchedRateWeekly),'<<NULL>>')\
+          \ AS dcSchedRateWeekly,\n    COALESCE(TO_CHAR(t.dSchedRateWeeklyStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dSchedRateWeeklyStrt,\n    COALESCE(TO_VARCHAR(t.iADA),'<<NULL>>')\
+          \ AS iADA,\n    COALESCE(TO_VARCHAR(t.iDoorType),'<<NULL>>') AS iDoorType,\n\
+          \    COALESCE(TO_VARCHAR(t.iVehicleStorageAllowed),'<<NULL>>') AS iVehicleStorageAllowed,\n\
+          \    COALESCE(TO_VARCHAR(t.iDaysVacant),'<<NULL>>') AS iDaysVacant,\n  \
+          \  COALESCE(TO_VARCHAR(t.dcWebRate),'<<NULL>>') AS dcWebRate,\n    COALESCE(TO_VARCHAR(t.dcWebPushRate),'<<NULL>>')\
+          \ AS dcWebPushRate,\n    COALESCE(TO_VARCHAR(t.LockID),'<<NULL>>') AS LockID,\n\
+          \    COALESCE(TO_VARCHAR(t.dcMaxRentalRate),'<<NULL>>') AS dcMaxRentalRate\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Units t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

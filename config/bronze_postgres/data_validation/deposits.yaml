@@ -1,0 +1,54 @@
+tables:
+  deposits:
+    validations:
+      data_validation:
+        source_table_name: deposits
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(facility_id AS TEXT),'<<NULL>>') AS facility_id,\n   \
+          \ COALESCE(CAST(ledger_id AS TEXT),'<<NULL>>') AS ledger_id,\n    COALESCE(CAST(tenant_id\
+          \ AS TEXT),'<<NULL>>') AS tenant_id,\n    COALESCE(CAST(unit_id AS TEXT),'<<NULL>>')\
+          \ AS unit_id,\n    COALESCE(CAST(payable_balance_id AS TEXT),'<<NULL>>')\
+          \ AS payable_balance_id,\n    COALESCE(TRIM(kind),'<<NULL>>') AS kind,\n\
+          \    COALESCE(CAST(CAST(amount AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS\
+          \ amount,\n    COALESCE(CAST(CAST(collected_amount AS NUMERIC(38,2)) AS\
+          \ TEXT),'<<NULL>>') AS collected_amount,\n    COALESCE(CAST(CAST(refunded_amount\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS refunded_amount,\n    COALESCE(CAST(CAST(retained_amount\
+          \ AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS retained_amount,\n    COALESCE(TO_CHAR(collected_on,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS collected_on,\n    COALESCE(TO_CHAR(refunded_on,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS refunded_on,\n    COALESCE(TO_CHAR(retained_on,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS retained_on,\n    CASE WHEN refunded IS NULL THEN '<<NULL>>' WHEN refunded\
+          \ IS TRUE THEN 'TRUE' WHEN refunded IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS refunded,\n    CASE WHEN retained IS NULL THEN '<<NULL>>' WHEN\
+          \ retained IS TRUE THEN 'TRUE' WHEN retained IS FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS retained,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(balance_entry_id AS TEXT))),'<<NULL>>')\
+          \ AS balance_entry_id\nFROM public.deposits;"
+        target_table_name: deposits
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>') AS facility_id,\n   \
+          \ COALESCE(TO_VARCHAR(t.ledger_id),'<<NULL>>') AS ledger_id,\n    COALESCE(TO_VARCHAR(t.tenant_id),'<<NULL>>')\
+          \ AS tenant_id,\n    COALESCE(TO_VARCHAR(t.unit_id),'<<NULL>>') AS unit_id,\n\
+          \    COALESCE(TO_VARCHAR(t.payable_balance_id),'<<NULL>>') AS payable_balance_id,\n\
+          \    COALESCE(TRIM(t.kind),'<<NULL>>') AS kind,\n    COALESCE(TO_VARCHAR(t.amount),'<<NULL>>')\
+          \ AS amount,\n    COALESCE(TO_VARCHAR(t.collected_amount),'<<NULL>>') AS\
+          \ collected_amount,\n    COALESCE(TO_VARCHAR(t.refunded_amount),'<<NULL>>')\
+          \ AS refunded_amount,\n    COALESCE(TO_VARCHAR(t.retained_amount),'<<NULL>>')\
+          \ AS retained_amount,\n    COALESCE(TO_CHAR(t.collected_on,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS collected_on,\n    COALESCE(TO_CHAR(t.refunded_on,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS refunded_on,\n    COALESCE(TO_CHAR(t.retained_on,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS retained_on,\n    CASE WHEN t.refunded IS NULL THEN '<<NULL>>' WHEN\
+          \ t.refunded = TRUE THEN 'TRUE' WHEN t.refunded = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS refunded,\n    CASE WHEN t.retained IS NULL THEN '<<NULL>>'\
+          \ WHEN t.retained = TRUE THEN 'TRUE' WHEN t.retained = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS retained,\n    COALESCE(TRIM(t.uuid),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.balance_entry_id),'<<NULL>>') AS balance_entry_id\n\
+          FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.deposits t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

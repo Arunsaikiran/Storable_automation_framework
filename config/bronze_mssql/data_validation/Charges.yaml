@@ -1,0 +1,78 @@
+tables:
+  Charges:
+    validations:
+      data_validation:
+        source_table_name: Charges
+        source: mssql
+        sourcecolumn: ChargeID
+        sourcequery: "SELECT\n    COALESCE(CAST(ChargeID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ChargeID,\n    COALESCE(CAST(ChargeDescID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ChargeDescID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(LedgerID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ LedgerID,\n    COALESCE(CAST(InsurLedgerID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS InsurLedgerID,\n    COALESCE(CAST(FiscalID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS FiscalID,\n    COALESCE(CAST(ConcessionID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ConcessionID,\n    COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS EmployeeID,\n    COALESCE(CAST(ACHID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ ACHID,\n    COALESCE(CAST(Disc_MemoID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ Disc_MemoID,\n    COALESCE(CAST(CAST(dcAmt AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcAmt,\n    COALESCE(CAST(CAST(dcTax1 AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcTax1,\n    COALESCE(CAST(CAST(dcTax2 AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcTax2,\n    COALESCE(CAST(CAST(dcQty AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcQty,\n    COALESCE(CAST(CAST(dcStdPrice AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcStdPrice,\n    COALESCE(CAST(CAST(dcPrice AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcPrice,\n    COALESCE(CAST(CAST(dcCost AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcCost,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dChgStrt AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dChgStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dChgEnd AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dChgEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dCreated,\n    CASE WHEN bMoveIn IS NULL THEN '<<NULL>>' WHEN bMoveIn\
+          \ = 1 THEN 'TRUE' WHEN bMoveIn = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveIn,\n\
+          \    CASE WHEN bMoveOut IS NULL THEN '<<NULL>>' WHEN bMoveOut = 1 THEN 'TRUE'\
+          \ WHEN bMoveOut = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOut,\n    CASE\
+          \ WHEN bNSF IS NULL THEN '<<NULL>>' WHEN bNSF = 1 THEN 'TRUE' WHEN bNSF\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bNSF,\n    COALESCE(CAST(ReceiptID_NSF\
+          \ AS VARCHAR(100)),'<<NULL>>') AS ReceiptID_NSF,\n    COALESCE(CAST(QTChargeID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS QTChargeID,\n    COALESCE(CAST(iPromoGlobalNum\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iPromoGlobalNum,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    COALESCE(CAST(CAST(dcPriceTax1\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPriceTax1,\n    COALESCE(CAST(CAST(dcPriceTax2\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPriceTax2,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dArchived,\n    COALESCE(CAST(iNSFFlag\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iNSFFlag\nFROM dbo.Charges;"
+        target_table_name: Charges
+        target: snowflake
+        targetcolumn: ChargeID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.ChargeID),'<<NULL>>') AS ChargeID,\n\
+          \    COALESCE(TO_VARCHAR(t.ChargeDescID),'<<NULL>>') AS ChargeDescID,\n\
+          \    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n    COALESCE(TO_VARCHAR(t.LedgerID),'<<NULL>>')\
+          \ AS LedgerID,\n    COALESCE(TO_VARCHAR(t.InsurLedgerID),'<<NULL>>') AS\
+          \ InsurLedgerID,\n    COALESCE(TO_VARCHAR(t.FiscalID),'<<NULL>>') AS FiscalID,\n\
+          \    COALESCE(TO_VARCHAR(t.ConcessionID),'<<NULL>>') AS ConcessionID,\n\
+          \    COALESCE(TO_VARCHAR(t.EmployeeID),'<<NULL>>') AS EmployeeID,\n    COALESCE(TO_VARCHAR(t.ACHID),'<<NULL>>')\
+          \ AS ACHID,\n    COALESCE(TO_VARCHAR(t.Disc_MemoID),'<<NULL>>') AS Disc_MemoID,\n\
+          \    COALESCE(TO_VARCHAR(t.dcAmt),'<<NULL>>') AS dcAmt,\n    COALESCE(TO_VARCHAR(t.dcTax1),'<<NULL>>')\
+          \ AS dcTax1,\n    COALESCE(TO_VARCHAR(t.dcTax2),'<<NULL>>') AS dcTax2,\n\
+          \    COALESCE(TO_VARCHAR(t.dcQty),'<<NULL>>') AS dcQty,\n    COALESCE(TO_VARCHAR(t.dcStdPrice),'<<NULL>>')\
+          \ AS dcStdPrice,\n    COALESCE(TO_VARCHAR(t.dcPrice),'<<NULL>>') AS dcPrice,\n\
+          \    COALESCE(TO_VARCHAR(t.dcCost),'<<NULL>>') AS dcCost,\n    COALESCE(TO_CHAR(t.dChgStrt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dChgStrt,\n    COALESCE(TO_CHAR(t.dChgEnd,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dChgEnd,\n    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dCreated,\n    CASE WHEN t.bMoveIn IS\
+          \ NULL THEN '<<NULL>>' WHEN t.bMoveIn = TRUE THEN 'TRUE' WHEN t.bMoveIn\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveIn,\n    CASE WHEN t.bMoveOut\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bMoveOut = TRUE THEN 'TRUE' WHEN t.bMoveOut\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bMoveOut,\n    CASE WHEN t.bNSF\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bNSF = TRUE THEN 'TRUE' WHEN t.bNSF = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS bNSF,\n    COALESCE(TO_VARCHAR(t.ReceiptID_NSF),'<<NULL>>')\
+          \ AS ReceiptID_NSF,\n    COALESCE(TO_VARCHAR(t.QTChargeID),'<<NULL>>') AS\
+          \ QTChargeID,\n    COALESCE(TO_VARCHAR(t.iPromoGlobalNum),'<<NULL>>') AS\
+          \ iPromoGlobalNum,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK,\n\
+          \    COALESCE(TO_VARCHAR(t.dcPriceTax1),'<<NULL>>') AS dcPriceTax1,\n  \
+          \  COALESCE(TO_VARCHAR(t.dcPriceTax2),'<<NULL>>') AS dcPriceTax2,\n    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dArchived,\n    COALESCE(TO_VARCHAR(t.iNSFFlag),'<<NULL>>')\
+          \ AS iNSFFlag\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Charges t\n\
+          WHERE t._FIVETRAN_ACTIVE = TRUE"

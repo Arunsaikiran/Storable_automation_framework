@@ -1,0 +1,71 @@
+tables:
+  unit_types:
+    validations:
+      data_validation:
+        source_table_name: unit_types
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(name),'<<NULL>>') AS name,\n    CASE WHEN deleted IS NULL\
+          \ THEN '<<NULL>>' WHEN deleted IS TRUE THEN 'TRUE' WHEN deleted IS FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(CAST(deleted_by_id\
+          \ AS TEXT),'<<NULL>>') AS deleted_by_id,\n    COALESCE(CAST(account_code_id\
+          \ AS TEXT),'<<NULL>>') AS account_code_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    COALESCE(CAST(company_id AS TEXT),'<<NULL>>')\
+          \ AS company_id,\n    COALESCE(TRIM(internal_account_code),'<<NULL>>') AS\
+          \ internal_account_code,\n    COALESCE(ARRAY_TO_JSON(ii_excluded)::TEXT,'<<NULL>>')\
+          \ AS ii_excluded\nFROM public.unit_types;"
+        target_table_name: unit_types
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_ii_excluded AS\n(\n    SELECT\n        _flt.id\
+          \ AS id,\n        LISTAGG(\n            CASE\n                WHEN f.key\
+          \ IS NULL THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
+          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
+          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_types\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.ii_excluded, RECURSIVE\
+          \ => FALSE)) f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.ii_excluded)\
+          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
+          ),\nvariant_ii_excluded AS\n(\n    SELECT\n        t.id AS id,\n       \
+          \ CASE\n\n    -- ======================================================\n\
+          \    -- SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.ii_excluded IS NULL\n        THEN '<<NULL>>'\n\n\n    -- =====================================================\n\
+          \    -- JSON NULL\n    -- =====================================================\n\
+          \n    WHEN IS_NULL_VALUE(\n        t.ii_excluded\n    )\n        THEN 'null'\n\
+          \n\n    -- =====================================================\n    --\
+          \ OBJECT\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.ii_excluded\n    ) = 'OBJECT'\n\n        THEN\n\
+          \n            CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.ii_excluded\n    ) = 'ARRAY'\n\n        THEN\
+          \ COALESCE(\n\n            TO_JSON(\n                t.ii_excluded\n   \
+          \         ),\n\n            '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.ii_excluded\n            ),\n\n            '<<NULL>>'\n\n        )\n\
+          \nEND AS ii_excluded\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_types\
+          \ t\n    LEFT JOIN obj_agg_ii_excluded obj ON obj.id = t.id\n    WHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n\
+          \    COALESCE(TRIM(t.name),'<<NULL>>') AS name,\n    CASE WHEN t.deleted\
+          \ IS NULL THEN '<<NULL>>' WHEN t.deleted = TRUE THEN 'TRUE' WHEN t.deleted\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>')\
+          \ AS deleted_by_id,\n    COALESCE(TO_VARCHAR(t.account_code_id),'<<NULL>>')\
+          \ AS account_code_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>')\
+          \ AS company_id,\n    COALESCE(TRIM(t.internal_account_code),'<<NULL>>')\
+          \ AS internal_account_code,\n    v_ii_excluded.ii_excluded AS ii_excluded\n\
+          FROM variant_ii_excluded v_ii_excluded LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_types\
+          \ t ON v_ii_excluded.id = t.id\nWHERE t._FIVETRAN_ACTIVE = TRUE"

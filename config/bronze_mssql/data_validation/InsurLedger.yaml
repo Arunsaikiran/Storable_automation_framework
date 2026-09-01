@@ -1,0 +1,77 @@
+tables:
+  InsurLedger:
+    validations:
+      data_validation:
+        source_table_name: InsurLedger
+        source: mssql
+        sourcecolumn: InsurLedgerID
+        sourcequery: "SELECT\n    COALESCE(CAST(InsurLedgerID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS InsurLedgerID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(LedgerID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ LedgerID,\n    COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ EmployeeID,\n    COALESCE(CAST(InsurProviderID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS InsurProviderID,\n    COALESCE(CAST(CAST(dcCoverage AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcCoverage,\n    COALESCE(CAST(CAST(dcPCTheft\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPCTheft,\n    COALESCE(TRIM(sCoverageDesc),'<<NULL>>')\
+          \ AS sCoverageDesc,\n    COALESCE(CAST(CAST(dcPremium AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcPremium,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dStart\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dStart,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCancelled\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCancelled,\n    COALESCE(TRIM(sPolicyNum),'<<NULL>>')\
+          \ AS sPolicyNum,\n    CASE WHEN bCancelled IS NULL THEN '<<NULL>>' WHEN\
+          \ bCancelled = 1 THEN 'TRUE' WHEN bCancelled = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCancelled,\n    CASE WHEN bTerminatedByMoveout IS NULL THEN '<<NULL>>'\
+          \ WHEN bTerminatedByMoveout = 1 THEN 'TRUE' WHEN bTerminatedByMoveout =\
+          \ 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bTerminatedByMoveout,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    COALESCE(CAST(CAST(dcSchedPremium\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcSchedPremium,\n  \
+          \  COALESCE(CONVERT(VARCHAR(23),CAST(dSchedPremiumStrt AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dSchedPremiumStrt,\n    COALESCE(CAST(iInitiatonType AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iInitiatonType,\n    COALESCE(CAST(iTerminationType AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iTerminationType,\n    COALESCE(CAST(iInitiationSource AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iInitiationSource,\n    COALESCE(CAST(iTerminationSource AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iTerminationSource,\n    CASE WHEN bAutoEnrollTermsAccepted IS NULL\
+          \ THEN '<<NULL>>' WHEN bAutoEnrollTermsAccepted = 1 THEN 'TRUE' WHEN bAutoEnrollTermsAccepted\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bAutoEnrollTermsAccepted,\n  \
+          \  COALESCE(CAST(CAST(dcSchedCoverage AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcSchedCoverage,\n    COALESCE(TRIM(sSchedCoverageDesc),'<<NULL>>')\
+          \ AS sSchedCoverageDesc,\n    COALESCE(TRIM(sEnrollmentSource),'<<NULL>>')\
+          \ AS sEnrollmentSource,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dGracePeriodEndDate\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dGracePeriodEndDate\nFROM dbo.InsurLedger;"
+        target_table_name: InsurLedger
+        target: snowflake
+        targetcolumn: InsurLedgerID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.InsurLedgerID),'<<NULL>>')\
+          \ AS InsurLedgerID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.LedgerID),'<<NULL>>') AS LedgerID,\n    COALESCE(TO_VARCHAR(t.EmployeeID),'<<NULL>>')\
+          \ AS EmployeeID,\n    COALESCE(TO_VARCHAR(t.InsurProviderID),'<<NULL>>')\
+          \ AS InsurProviderID,\n    COALESCE(TO_VARCHAR(t.dcCoverage),'<<NULL>>')\
+          \ AS dcCoverage,\n    COALESCE(TO_VARCHAR(t.dcPCTheft),'<<NULL>>') AS dcPCTheft,\n\
+          \    COALESCE(TRIM(t.sCoverageDesc),'<<NULL>>') AS sCoverageDesc,\n    COALESCE(TO_VARCHAR(t.dcPremium),'<<NULL>>')\
+          \ AS dcPremium,\n    COALESCE(TO_CHAR(t.dStart,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dStart,\n    COALESCE(TO_CHAR(t.dCancelled,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCancelled,\n    COALESCE(TRIM(t.sPolicyNum),'<<NULL>>') AS sPolicyNum,\n\
+          \    CASE WHEN t.bCancelled IS NULL THEN '<<NULL>>' WHEN t.bCancelled =\
+          \ TRUE THEN 'TRUE' WHEN t.bCancelled = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bCancelled,\n    CASE WHEN t.bTerminatedByMoveout IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bTerminatedByMoveout = TRUE THEN 'TRUE' WHEN t.bTerminatedByMoveout\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bTerminatedByMoveout,\n  \
+          \  COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK,\n\
+          \    COALESCE(TO_VARCHAR(t.dcSchedPremium),'<<NULL>>') AS dcSchedPremium,\n\
+          \    COALESCE(TO_CHAR(t.dSchedPremiumStrt,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dSchedPremiumStrt,\n    COALESCE(TO_VARCHAR(t.iInitiatonType),'<<NULL>>')\
+          \ AS iInitiatonType,\n    COALESCE(TO_VARCHAR(t.iTerminationType),'<<NULL>>')\
+          \ AS iTerminationType,\n    COALESCE(TO_VARCHAR(t.iInitiationSource),'<<NULL>>')\
+          \ AS iInitiationSource,\n    COALESCE(TO_VARCHAR(t.iTerminationSource),'<<NULL>>')\
+          \ AS iTerminationSource,\n    CASE WHEN t.bAutoEnrollTermsAccepted IS NULL\
+          \ THEN '<<NULL>>' WHEN t.bAutoEnrollTermsAccepted = TRUE THEN 'TRUE' WHEN\
+          \ t.bAutoEnrollTermsAccepted = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS\
+          \ bAutoEnrollTermsAccepted,\n    COALESCE(TO_VARCHAR(t.dcSchedCoverage),'<<NULL>>')\
+          \ AS dcSchedCoverage,\n    COALESCE(TRIM(t.sSchedCoverageDesc),'<<NULL>>')\
+          \ AS sSchedCoverageDesc,\n    COALESCE(TRIM(t.sEnrollmentSource),'<<NULL>>')\
+          \ AS sEnrollmentSource,\n    COALESCE(TO_CHAR(t.dGracePeriodEndDate,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dGracePeriodEndDate\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.InsurLedger\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

@@ -1,0 +1,72 @@
+tables:
+  InsurProviders:
+    validations:
+      data_validation:
+        source_table_name: InsurProviders
+        source: mssql
+        sourcecolumn: InsurProviderID
+        sourcequery: "SELECT\n    COALESCE(CAST(InsurProviderID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS InsurProviderID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(TRIM(sProvidor),'<<NULL>>') AS sProvidor,\n \
+          \   COALESCE(TRIM(sAddress),'<<NULL>>') AS sAddress,\n    COALESCE(TRIM(sAddress2),'<<NULL>>')\
+          \ AS sAddress2,\n    COALESCE(TRIM(sCity),'<<NULL>>') AS sCity,\n    COALESCE(TRIM(sRegion),'<<NULL>>')\
+          \ AS sRegion,\n    COALESCE(TRIM(sPostalCode),'<<NULL>>') AS sPostalCode,\n\
+          \    COALESCE(TRIM(sCountry),'<<NULL>>') AS sCountry,\n    COALESCE(TRIM(sPhone),'<<NULL>>')\
+          \ AS sPhone,\n    COALESCE(CAST(iWarningDays AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iWarningDays,\n    COALESCE(CAST(iCancelDays AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iCancelDays,\n    COALESCE(TRIM(sVendorCode),'<<NULL>>') AS sVendorCode,\n\
+          \    COALESCE(TRIM(sCategory),'<<NULL>>') AS sCategory,\n    CASE WHEN bProrateMoveOut\
+          \ IS NULL THEN '<<NULL>>' WHEN bProrateMoveOut = 1 THEN 'TRUE' WHEN bProrateMoveOut\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bProrateMoveOut,\n    COALESCE(CAST(CAST(dcRetainedFee\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRetainedFee,\n   \
+          \ COALESCE(CAST(CAST(dcPercentRetainedFee AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcPercentRetainedFee,\n    COALESCE(TRIM(sAltProviderName),'<<NULL>>')\
+          \ AS sAltProviderName,\n    CASE WHEN bRefundableAtSite IS NULL THEN '<<NULL>>'\
+          \ WHEN bRefundableAtSite = 1 THEN 'TRUE' WHEN bRefundableAtSite = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bRefundableAtSite,\n    CASE WHEN bPermanent\
+          \ IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDisabled\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDisabled,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK,\n    COALESCE(TRIM(sEmail1_Insur),'<<NULL>>')\
+          \ AS sEmail1_Insur,\n    COALESCE(TRIM(sWebsiteUrl_Insur),'<<NULL>>') AS\
+          \ sWebsiteUrl_Insur,\n    COALESCE(CAST(iReqPolicyOrProof AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iReqPolicyOrProof,\n    COALESCE(CAST(iReqProofExpiry AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iReqProofExpiry,\n    COALESCE(TRIM(sBrochureUrl),'<<NULL>>') AS sBrochureUrl,\n\
+          \    COALESCE(TRIM(sCertificateUrl),'<<NULL>>') AS sCertificateUrl\nFROM\
+          \ dbo.InsurProviders;"
+        target_table_name: InsurProviders
+        target: snowflake
+        targetcolumn: InsurProviderID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.InsurProviderID),'<<NULL>>')\
+          \ AS InsurProviderID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS\
+          \ SiteID,\n    COALESCE(TRIM(t.sProvidor),'<<NULL>>') AS sProvidor,\n  \
+          \  COALESCE(TRIM(t.sAddress),'<<NULL>>') AS sAddress,\n    COALESCE(TRIM(t.sAddress2),'<<NULL>>')\
+          \ AS sAddress2,\n    COALESCE(TRIM(t.sCity),'<<NULL>>') AS sCity,\n    COALESCE(TRIM(t.sRegion),'<<NULL>>')\
+          \ AS sRegion,\n    COALESCE(TRIM(t.sPostalCode),'<<NULL>>') AS sPostalCode,\n\
+          \    COALESCE(TRIM(t.sCountry),'<<NULL>>') AS sCountry,\n    COALESCE(TRIM(t.sPhone),'<<NULL>>')\
+          \ AS sPhone,\n    COALESCE(TO_VARCHAR(t.iWarningDays),'<<NULL>>') AS iWarningDays,\n\
+          \    COALESCE(TO_VARCHAR(t.iCancelDays),'<<NULL>>') AS iCancelDays,\n  \
+          \  COALESCE(TRIM(t.sVendorCode),'<<NULL>>') AS sVendorCode,\n    COALESCE(TRIM(t.sCategory),'<<NULL>>')\
+          \ AS sCategory,\n    CASE WHEN t.bProrateMoveOut IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bProrateMoveOut = TRUE THEN 'TRUE' WHEN t.bProrateMoveOut = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS bProrateMoveOut,\n    COALESCE(TO_VARCHAR(t.dcRetainedFee),'<<NULL>>')\
+          \ AS dcRetainedFee,\n    COALESCE(TO_VARCHAR(t.dcPercentRetainedFee),'<<NULL>>')\
+          \ AS dcPercentRetainedFee,\n    COALESCE(TRIM(t.sAltProviderName),'<<NULL>>')\
+          \ AS sAltProviderName,\n    CASE WHEN t.bRefundableAtSite IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bRefundableAtSite = TRUE THEN 'TRUE' WHEN t.bRefundableAtSite =\
+          \ FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bRefundableAtSite,\n    CASE\
+          \ WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN t.bPermanent = TRUE THEN\
+          \ 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n\
+          \    COALESCE(TO_CHAR(t.dDisabled,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDisabled,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK,\n\
+          \    COALESCE(TRIM(t.sEmail1_Insur),'<<NULL>>') AS sEmail1_Insur,\n    COALESCE(TRIM(t.sWebsiteUrl_Insur),'<<NULL>>')\
+          \ AS sWebsiteUrl_Insur,\n    COALESCE(TO_VARCHAR(t.iReqPolicyOrProof),'<<NULL>>')\
+          \ AS iReqPolicyOrProof,\n    COALESCE(TO_VARCHAR(t.iReqProofExpiry),'<<NULL>>')\
+          \ AS iReqProofExpiry,\n    COALESCE(TRIM(t.sBrochureUrl),'<<NULL>>') AS\
+          \ sBrochureUrl,\n    COALESCE(TRIM(t.sCertificateUrl),'<<NULL>>') AS sCertificateUrl\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.InsurProviders t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

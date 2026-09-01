@@ -1,0 +1,95 @@
+tables:
+  Reports:
+    validations:
+      data_validation:
+        source_table_name: Reports
+        source: mssql
+        sourcecolumn: ReportID
+        sourcequery: "SELECT\n    COALESCE(CAST(ReportID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ReportID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ SiteID,\n    COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ EmployeeID,\n    COALESCE(CAST(iPeriod AS VARCHAR(100)),'<<NULL>>') AS\
+          \ iPeriod,\n    COALESCE(CAST(iPeriodRestrictedTo AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iPeriodRestrictedTo,\n    COALESCE(CAST(Report_TermID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS Report_TermID,\n    COALESCE(TRIM(sCategory),'<<NULL>>') AS sCategory,\n\
+          \    CASE WHEN bStartOfDay IS NULL THEN '<<NULL>>' WHEN bStartOfDay = 1\
+          \ THEN 'TRUE' WHEN bStartOfDay = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bStartOfDay,\n\
+          \    CASE WHEN bEndOfDay IS NULL THEN '<<NULL>>' WHEN bEndOfDay = 1 THEN\
+          \ 'TRUE' WHEN bEndOfDay = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bEndOfDay,\n\
+          \    CASE WHEN bEndOfMonth IS NULL THEN '<<NULL>>' WHEN bEndOfMonth = 1\
+          \ THEN 'TRUE' WHEN bEndOfMonth = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bEndOfMonth,\n\
+          \    CASE WHEN bDefaultBatch IS NULL THEN '<<NULL>>' WHEN bDefaultBatch\
+          \ = 1 THEN 'TRUE' WHEN bDefaultBatch = 0 THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bDefaultBatch,\n    CASE WHEN bBatchEmail IS NULL THEN '<<NULL>>' WHEN\
+          \ bBatchEmail = 1 THEN 'TRUE' WHEN bBatchEmail = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bBatchEmail,\n    CASE WHEN bBatchPrint IS NULL THEN '<<NULL>>'\
+          \ WHEN bBatchPrint = 1 THEN 'TRUE' WHEN bBatchPrint = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bBatchPrint,\n    CASE WHEN bInUse IS NULL THEN '<<NULL>>'\
+          \ WHEN bInUse = 1 THEN 'TRUE' WHEN bInUse = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bInUse,\n    CASE WHEN bAvailableForBatch IS NULL THEN '<<NULL>>'\
+          \ WHEN bAvailableForBatch = 1 THEN 'TRUE' WHEN bAvailableForBatch = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bAvailableForBatch,\n    COALESCE(CAST(iCopies\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iCopies,\n    COALESCE(TRIM(sEmail_Site_Desc_1),'<<NULL>>')\
+          \ AS sEmail_Site_Desc_1,\n    COALESCE(TRIM(sEmail_Site_Desc_2),'<<NULL>>')\
+          \ AS sEmail_Site_Desc_2,\n    COALESCE(TRIM(sEmail_Site_Desc_3),'<<NULL>>')\
+          \ AS sEmail_Site_Desc_3,\n    COALESCE(TRIM(sEmail_Site_To_1),'<<NULL>>')\
+          \ AS sEmail_Site_To_1,\n    COALESCE(TRIM(sEmail_Site_To_2),'<<NULL>>')\
+          \ AS sEmail_Site_To_2,\n    COALESCE(TRIM(sEmail_Site_To_3),'<<NULL>>')\
+          \ AS sEmail_Site_To_3,\n    COALESCE(TRIM(sEmail_Corp_Desc_1),'<<NULL>>')\
+          \ AS sEmail_Corp_Desc_1,\n    COALESCE(TRIM(sEmail_Corp_Desc_2),'<<NULL>>')\
+          \ AS sEmail_Corp_Desc_2,\n    COALESCE(TRIM(sEmail_Corp_Desc_3),'<<NULL>>')\
+          \ AS sEmail_Corp_Desc_3,\n    COALESCE(TRIM(sEmail_Corp_To_1),'<<NULL>>')\
+          \ AS sEmail_Corp_To_1,\n    COALESCE(TRIM(sEmail_Corp_To_2),'<<NULL>>')\
+          \ AS sEmail_Corp_To_2,\n    COALESCE(TRIM(sEmail_Corp_To_3),'<<NULL>>')\
+          \ AS sEmail_Corp_To_3,\n    CASE WHEN bPermanent IS NULL THEN '<<NULL>>'\
+          \ WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK\nFROM dbo.Reports;"
+        target_table_name: Reports
+        target: snowflake
+        targetcolumn: ReportID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.ReportID),'<<NULL>>') AS ReportID,\n\
+          \    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n    COALESCE(TO_VARCHAR(t.EmployeeID),'<<NULL>>')\
+          \ AS EmployeeID,\n    COALESCE(TO_VARCHAR(t.iPeriod),'<<NULL>>') AS iPeriod,\n\
+          \    COALESCE(TO_VARCHAR(t.iPeriodRestrictedTo),'<<NULL>>') AS iPeriodRestrictedTo,\n\
+          \    COALESCE(TO_VARCHAR(t.Report_TermID),'<<NULL>>') AS Report_TermID,\n\
+          \    COALESCE(TRIM(t.sCategory),'<<NULL>>') AS sCategory,\n    CASE WHEN\
+          \ t.bStartOfDay IS NULL THEN '<<NULL>>' WHEN t.bStartOfDay = TRUE THEN 'TRUE'\
+          \ WHEN t.bStartOfDay = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bStartOfDay,\n\
+          \    CASE WHEN t.bEndOfDay IS NULL THEN '<<NULL>>' WHEN t.bEndOfDay = TRUE\
+          \ THEN 'TRUE' WHEN t.bEndOfDay = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bEndOfDay,\n    CASE WHEN t.bEndOfMonth IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bEndOfMonth = TRUE THEN 'TRUE' WHEN t.bEndOfMonth = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bEndOfMonth,\n    CASE WHEN t.bDefaultBatch IS\
+          \ NULL THEN '<<NULL>>' WHEN t.bDefaultBatch = TRUE THEN 'TRUE' WHEN t.bDefaultBatch\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bDefaultBatch,\n    CASE WHEN\
+          \ t.bBatchEmail IS NULL THEN '<<NULL>>' WHEN t.bBatchEmail = TRUE THEN 'TRUE'\
+          \ WHEN t.bBatchEmail = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bBatchEmail,\n\
+          \    CASE WHEN t.bBatchPrint IS NULL THEN '<<NULL>>' WHEN t.bBatchPrint\
+          \ = TRUE THEN 'TRUE' WHEN t.bBatchPrint = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bBatchPrint,\n    CASE WHEN t.bInUse IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bInUse = TRUE THEN 'TRUE' WHEN t.bInUse = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bInUse,\n    CASE WHEN t.bAvailableForBatch IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bAvailableForBatch = TRUE THEN 'TRUE' WHEN t.bAvailableForBatch\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bAvailableForBatch,\n    COALESCE(TO_VARCHAR(t.iCopies),'<<NULL>>')\
+          \ AS iCopies,\n    COALESCE(TRIM(t.sEmail_Site_Desc_1),'<<NULL>>') AS sEmail_Site_Desc_1,\n\
+          \    COALESCE(TRIM(t.sEmail_Site_Desc_2),'<<NULL>>') AS sEmail_Site_Desc_2,\n\
+          \    COALESCE(TRIM(t.sEmail_Site_Desc_3),'<<NULL>>') AS sEmail_Site_Desc_3,\n\
+          \    COALESCE(TRIM(t.sEmail_Site_To_1),'<<NULL>>') AS sEmail_Site_To_1,\n\
+          \    COALESCE(TRIM(t.sEmail_Site_To_2),'<<NULL>>') AS sEmail_Site_To_2,\n\
+          \    COALESCE(TRIM(t.sEmail_Site_To_3),'<<NULL>>') AS sEmail_Site_To_3,\n\
+          \    COALESCE(TRIM(t.sEmail_Corp_Desc_1),'<<NULL>>') AS sEmail_Corp_Desc_1,\n\
+          \    COALESCE(TRIM(t.sEmail_Corp_Desc_2),'<<NULL>>') AS sEmail_Corp_Desc_2,\n\
+          \    COALESCE(TRIM(t.sEmail_Corp_Desc_3),'<<NULL>>') AS sEmail_Corp_Desc_3,\n\
+          \    COALESCE(TRIM(t.sEmail_Corp_To_1),'<<NULL>>') AS sEmail_Corp_To_1,\n\
+          \    COALESCE(TRIM(t.sEmail_Corp_To_2),'<<NULL>>') AS sEmail_Corp_To_2,\n\
+          \    COALESCE(TRIM(t.sEmail_Corp_To_3),'<<NULL>>') AS sEmail_Corp_To_3,\n\
+          \    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN t.bPermanent =\
+          \ TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Reports t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

@@ -1,0 +1,46 @@
+tables:
+  account_balance_items:
+    validations:
+      data_validation:
+        source_table_name: account_balance_items
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(CAST(CAST(amount AS NUMERIC(38,2)) AS TEXT),'<<NULL>>') AS\
+          \ amount,\n    COALESCE(CAST(payer_id AS TEXT),'<<NULL>>') AS payer_id,\n\
+          \    COALESCE(CAST(payee_id AS TEXT),'<<NULL>>') AS payee_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    CASE WHEN general_ledger_exempt IS\
+          \ NULL THEN '<<NULL>>' WHEN general_ledger_exempt IS TRUE THEN 'TRUE' WHEN\
+          \ general_ledger_exempt IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS general_ledger_exempt,\n\
+          \    CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN deleted IS TRUE THEN\
+          \ 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n\
+          \    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(CAST(payer_account_balance_tax_id AS TEXT),'<<NULL>>')\
+          \ AS payer_account_balance_tax_id,\n    COALESCE(CAST(payee_account_balance_tax_id\
+          \ AS TEXT),'<<NULL>>') AS payee_account_balance_tax_id,\n    COALESCE(TRIM(internal_account_code),'<<NULL>>')\
+          \ AS internal_account_code,\n    COALESCE(TRIM(internal_payer_account_code),'<<NULL>>')\
+          \ AS internal_payer_account_code\nFROM public.account_balance_items;"
+        target_table_name: account_balance_items
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TO_VARCHAR(t.amount),'<<NULL>>') AS amount,\n    COALESCE(TO_VARCHAR(t.payer_id),'<<NULL>>')\
+          \ AS payer_id,\n    COALESCE(TO_VARCHAR(t.payee_id),'<<NULL>>') AS payee_id,\n\
+          \    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    CASE\
+          \ WHEN t.general_ledger_exempt IS NULL THEN '<<NULL>>' WHEN t.general_ledger_exempt\
+          \ = TRUE THEN 'TRUE' WHEN t.general_ledger_exempt = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS general_ledger_exempt,\n    CASE WHEN t.deleted IS NULL\
+          \ THEN '<<NULL>>' WHEN t.deleted = TRUE THEN 'TRUE' WHEN t.deleted = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>')\
+          \ AS deleted_by_id,\n    COALESCE(TO_VARCHAR(t.payer_account_balance_tax_id),'<<NULL>>')\
+          \ AS payer_account_balance_tax_id,\n    COALESCE(TO_VARCHAR(t.payee_account_balance_tax_id),'<<NULL>>')\
+          \ AS payee_account_balance_tax_id,\n    COALESCE(TRIM(t.internal_account_code),'<<NULL>>')\
+          \ AS internal_account_code,\n    COALESCE(TRIM(t.internal_payer_account_code),'<<NULL>>')\
+          \ AS internal_payer_account_code\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_items\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

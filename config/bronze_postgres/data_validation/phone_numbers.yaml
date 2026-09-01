@@ -1,0 +1,46 @@
+tables:
+  phone_numbers:
+    validations:
+      data_validation:
+        source_table_name: phone_numbers
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(source),'<<NULL>>') AS source,\n    COALESCE(TRIM(number),'<<NULL>>')\
+          \ AS number,\n    COALESCE(TRIM(caller_id),'<<NULL>>') AS caller_id,\n \
+          \   COALESCE(CAST(owner_id AS TEXT),'<<NULL>>') AS owner_id,\n    COALESCE(TRIM(owner_type),'<<NULL>>')\
+          \ AS owner_type,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(extension),'<<NULL>>') AS extension,\n\
+          \    COALESCE(TRIM(label),'<<NULL>>') AS label,\n    COALESCE(UPPER(TRIM(CAST(uuid\
+          \ AS TEXT))),'<<NULL>>') AS uuid,\n    CASE WHEN invalid_data IS NULL THEN\
+          \ '<<NULL>>' WHEN invalid_data IS TRUE THEN 'TRUE' WHEN invalid_data IS\
+          \ FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS invalid_data,\n    CASE WHEN\
+          \ sms_opt_in IS NULL THEN '<<NULL>>' WHEN sms_opt_in IS TRUE THEN 'TRUE'\
+          \ WHEN sms_opt_in IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS sms_opt_in,\n\
+          \    CASE WHEN sms_unsubscribed IS NULL THEN '<<NULL>>' WHEN sms_unsubscribed\
+          \ IS TRUE THEN 'TRUE' WHEN sms_unsubscribed IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS sms_unsubscribed,\n    COALESCE(TRIM(country_code),'<<NULL>>')\
+          \ AS country_code,\n    COALESCE(CAST(company_id AS TEXT),'<<NULL>>') AS\
+          \ company_id\nFROM public.phone_numbers;"
+        target_table_name: phone_numbers
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.source),'<<NULL>>') AS source,\n    COALESCE(TRIM(t.number),'<<NULL>>')\
+          \ AS number,\n    COALESCE(TRIM(t.caller_id),'<<NULL>>') AS caller_id,\n\
+          \    COALESCE(TO_VARCHAR(t.owner_id),'<<NULL>>') AS owner_id,\n    COALESCE(TRIM(t.owner_type),'<<NULL>>')\
+          \ AS owner_type,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.extension),'<<NULL>>') AS extension,\n\
+          \    COALESCE(TRIM(t.label),'<<NULL>>') AS label,\n    COALESCE(TRIM(t.uuid),'<<NULL>>')\
+          \ AS uuid,\n    CASE WHEN t.invalid_data IS NULL THEN '<<NULL>>' WHEN t.invalid_data\
+          \ = TRUE THEN 'TRUE' WHEN t.invalid_data = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS invalid_data,\n    CASE WHEN t.sms_opt_in IS NULL THEN '<<NULL>>'\
+          \ WHEN t.sms_opt_in = TRUE THEN 'TRUE' WHEN t.sms_opt_in = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS sms_opt_in,\n    CASE WHEN t.sms_unsubscribed IS\
+          \ NULL THEN '<<NULL>>' WHEN t.sms_unsubscribed = TRUE THEN 'TRUE' WHEN t.sms_unsubscribed\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS sms_unsubscribed,\n    COALESCE(TRIM(t.country_code),'<<NULL>>')\
+          \ AS country_code,\n    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>') AS\
+          \ company_id\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.phone_numbers t\n\
+          WHERE t._FIVETRAN_ACTIVE = TRUE"

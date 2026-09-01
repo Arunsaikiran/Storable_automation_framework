@@ -1,0 +1,103 @@
+tables:
+  Promotions:
+    validations:
+      data_validation:
+        source_table_name: Promotions
+        source: mssql
+        sourcecolumn: PromotionID
+        sourcequery: "SELECT\n    COALESCE(CAST(PromotionID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS PromotionID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(iPromoGlobalNum AS VARCHAR(100)),'<<NULL>>')\
+          \ AS iPromoGlobalNum,\n    CASE WHEN bWebEditable IS NULL THEN '<<NULL>>'\
+          \ WHEN bWebEditable = 1 THEN 'TRUE' WHEN bWebEditable = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bWebEditable,\n    COALESCE(TRIM(sCorpCode),'<<NULL>>')\
+          \ AS sCorpCode,\n    CASE WHEN bSiteIsEligible IS NULL THEN '<<NULL>>' WHEN\
+          \ bSiteIsEligible = 1 THEN 'TRUE' WHEN bSiteIsEligible = 0 THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bSiteIsEligible,\n    COALESCE(CAST(PromoAccountID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS PromoAccountID,\n    COALESCE(CAST(PromoChannelID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS PromoChannelID,\n    COALESCE(CAST(PromoFormatsID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS PromoFormatsID,\n    COALESCE(CAST(PromoCampaignID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS PromoCampaignID,\n    COALESCE(CAST(PromoTypeID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS PromoTypeID,\n    COALESCE(CAST(PromoOfferID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS PromoOfferID,\n    COALESCE(TRIM(sGlobalSiteNum),'<<NULL>>')\
+          \ AS sGlobalSiteNum,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dMaterialsDrop\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dMaterialsDrop,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dPromoStrt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dPromoStrt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dPromoEnd\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dPromoEnd,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCreated,\n    COALESCE(TRIM(sPromotionCode),'<<NULL>>')\
+          \ AS sPromotionCode,\n    COALESCE(TRIM(sPromoDescription),'<<NULL>>') AS\
+          \ sPromoDescription,\n    COALESCE(TRIM(sPromoComment),'<<NULL>>') AS sPromoComment,\n\
+          \    COALESCE(TRIM(sWebDesc),'<<NULL>>') AS sWebDesc,\n    COALESCE(CAST(CAST(dcMarketingDollars\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcMarketingDollars,\n\
+          \    CASE WHEN bGeneric IS NULL THEN '<<NULL>>' WHEN bGeneric = 1 THEN 'TRUE'\
+          \ WHEN bGeneric = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bGeneric,\n    CASE\
+          \ WHEN bWebOnly IS NULL THEN '<<NULL>>' WHEN bWebOnly = 1 THEN 'TRUE' WHEN\
+          \ bWebOnly = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bWebOnly,\n    CASE WHEN\
+          \ bWebExcluded IS NULL THEN '<<NULL>>' WHEN bWebExcluded = 1 THEN 'TRUE'\
+          \ WHEN bWebExcluded = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bWebExcluded,\n\
+          \    CASE WHEN bSuffixRequired IS NULL THEN '<<NULL>>' WHEN bSuffixRequired\
+          \ = 1 THEN 'TRUE' WHEN bSuffixRequired = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bSuffixRequired,\n    COALESCE(TRIM(sSuffix),'<<NULL>>') AS sSuffix,\n\
+          \    COALESCE(CAST(iManagedBy_CorpUserID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ iManagedBy_CorpUserID,\n    CASE WHEN bPermanent IS NULL THEN '<<NULL>>'\
+          \ WHEN bPermanent = 1 THEN 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bPermanent,\n    CASE WHEN bApproved IS NULL THEN '<<NULL>>'\
+          \ WHEN bApproved = 1 THEN 'TRUE' WHEN bApproved = 0 THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bApproved,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dApproved AS\
+          \ DATETIME2(3)),121),'<<NULL>>') AS dApproved,\n    CASE WHEN bForAllSites\
+          \ IS NULL THEN '<<NULL>>' WHEN bForAllSites = 1 THEN 'TRUE' WHEN bForAllSites\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bForAllSites,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDisabled\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDisabled,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK\nFROM dbo.Promotions;"
+        target_table_name: Promotions
+        target: snowflake
+        targetcolumn: PromotionID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.PromotionID),'<<NULL>>') AS\
+          \ PromotionID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.iPromoGlobalNum),'<<NULL>>') AS iPromoGlobalNum,\n\
+          \    CASE WHEN t.bWebEditable IS NULL THEN '<<NULL>>' WHEN t.bWebEditable\
+          \ = TRUE THEN 'TRUE' WHEN t.bWebEditable = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bWebEditable,\n    COALESCE(TRIM(t.sCorpCode),'<<NULL>>') AS sCorpCode,\n\
+          \    CASE WHEN t.bSiteIsEligible IS NULL THEN '<<NULL>>' WHEN t.bSiteIsEligible\
+          \ = TRUE THEN 'TRUE' WHEN t.bSiteIsEligible = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bSiteIsEligible,\n    COALESCE(TO_VARCHAR(t.PromoAccountID),'<<NULL>>')\
+          \ AS PromoAccountID,\n    COALESCE(TO_VARCHAR(t.PromoChannelID),'<<NULL>>')\
+          \ AS PromoChannelID,\n    COALESCE(TO_VARCHAR(t.PromoFormatsID),'<<NULL>>')\
+          \ AS PromoFormatsID,\n    COALESCE(TO_VARCHAR(t.PromoCampaignID),'<<NULL>>')\
+          \ AS PromoCampaignID,\n    COALESCE(TO_VARCHAR(t.PromoTypeID),'<<NULL>>')\
+          \ AS PromoTypeID,\n    COALESCE(TO_VARCHAR(t.PromoOfferID),'<<NULL>>') AS\
+          \ PromoOfferID,\n    COALESCE(TRIM(t.sGlobalSiteNum),'<<NULL>>') AS sGlobalSiteNum,\n\
+          \    COALESCE(TO_CHAR(t.dMaterialsDrop,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dMaterialsDrop,\n    COALESCE(TO_CHAR(t.dPromoStrt,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dPromoStrt,\n    COALESCE(TO_CHAR(t.dPromoEnd,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dPromoEnd,\n    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCreated,\n    COALESCE(TRIM(t.sPromotionCode),'<<NULL>>') AS sPromotionCode,\n\
+          \    COALESCE(TRIM(t.sPromoDescription),'<<NULL>>') AS sPromoDescription,\n\
+          \    COALESCE(TRIM(t.sPromoComment),'<<NULL>>') AS sPromoComment,\n    COALESCE(TRIM(t.sWebDesc),'<<NULL>>')\
+          \ AS sWebDesc,\n    COALESCE(TO_VARCHAR(t.dcMarketingDollars),'<<NULL>>')\
+          \ AS dcMarketingDollars,\n    CASE WHEN t.bGeneric IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bGeneric = TRUE THEN 'TRUE' WHEN t.bGeneric = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bGeneric,\n    CASE WHEN t.bWebOnly IS NULL THEN\
+          \ '<<NULL>>' WHEN t.bWebOnly = TRUE THEN 'TRUE' WHEN t.bWebOnly = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS bWebOnly,\n    CASE WHEN t.bWebExcluded\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bWebExcluded = TRUE THEN 'TRUE' WHEN t.bWebExcluded\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bWebExcluded,\n    CASE WHEN\
+          \ t.bSuffixRequired IS NULL THEN '<<NULL>>' WHEN t.bSuffixRequired = TRUE\
+          \ THEN 'TRUE' WHEN t.bSuffixRequired = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bSuffixRequired,\n    COALESCE(TRIM(t.sSuffix),'<<NULL>>') AS sSuffix,\n\
+          \    COALESCE(TO_VARCHAR(t.iManagedBy_CorpUserID),'<<NULL>>') AS iManagedBy_CorpUserID,\n\
+          \    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN t.bPermanent =\
+          \ TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPermanent,\n    CASE WHEN t.bApproved IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bApproved = TRUE THEN 'TRUE' WHEN t.bApproved = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bApproved,\n    COALESCE(TO_CHAR(t.dApproved,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dApproved,\n    CASE WHEN t.bForAllSites\
+          \ IS NULL THEN '<<NULL>>' WHEN t.bForAllSites = TRUE THEN 'TRUE' WHEN t.bForAllSites\
+          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS bForAllSites,\n    COALESCE(TO_CHAR(t.dDisabled,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDisabled,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Promotions t\n\
+          WHERE t._FIVETRAN_ACTIVE = TRUE"

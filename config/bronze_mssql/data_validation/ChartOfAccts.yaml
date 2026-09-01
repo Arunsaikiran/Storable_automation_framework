@@ -1,0 +1,43 @@
+tables:
+  ChartOfAccts:
+    validations:
+      data_validation:
+        source_table_name: ChartOfAccts
+        source: mssql
+        sourcecolumn: ChartOfAcctID
+        sourcequery: "SELECT\n    COALESCE(CAST(ChartOfAcctID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS ChartOfAcctID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS SiteID,\n    COALESCE(CAST(AcctTypeID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS AcctTypeID,\n    COALESCE(TRIM(sDefAcctCode),'<<NULL>>') AS sDefAcctCode,\n\
+          \    COALESCE(TRIM(sAcctCode),'<<NULL>>') AS sAcctCode,\n    COALESCE(CAST(AcctName_TermID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS AcctName_TermID,\n    COALESCE(TRIM(sDefAcctName),'<<NULL>>')\
+          \ AS sDefAcctName,\n    COALESCE(TRIM(sAcctName),'<<NULL>>') AS sAcctName,\n\
+          \    COALESCE(CAST(SubAcctName_TermID AS VARCHAR(100)),'<<NULL>>') AS SubAcctName_TermID,\n\
+          \    COALESCE(TRIM(sDefSubAcctName),'<<NULL>>') AS sDefSubAcctName,\n  \
+          \  COALESCE(TRIM(sSubAcctName),'<<NULL>>') AS sSubAcctName,\n    CASE WHEN\
+          \ bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE' WHEN\
+          \ bPermanent = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDisabled\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDisabled,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dUpdated,\n    COALESCE(CAST(OldPK\
+          \ AS VARCHAR(100)),'<<NULL>>') AS OldPK\nFROM dbo.ChartOfAccts;"
+        target_table_name: ChartOfAccts
+        target: snowflake
+        targetcolumn: ChartOfAcctID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.ChartOfAcctID),'<<NULL>>')\
+          \ AS ChartOfAcctID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.AcctTypeID),'<<NULL>>') AS AcctTypeID,\n    COALESCE(TRIM(t.sDefAcctCode),'<<NULL>>')\
+          \ AS sDefAcctCode,\n    COALESCE(TRIM(t.sAcctCode),'<<NULL>>') AS sAcctCode,\n\
+          \    COALESCE(TO_VARCHAR(t.AcctName_TermID),'<<NULL>>') AS AcctName_TermID,\n\
+          \    COALESCE(TRIM(t.sDefAcctName),'<<NULL>>') AS sDefAcctName,\n    COALESCE(TRIM(t.sAcctName),'<<NULL>>')\
+          \ AS sAcctName,\n    COALESCE(TO_VARCHAR(t.SubAcctName_TermID),'<<NULL>>')\
+          \ AS SubAcctName_TermID,\n    COALESCE(TRIM(t.sDefSubAcctName),'<<NULL>>')\
+          \ AS sDefSubAcctName,\n    COALESCE(TRIM(t.sSubAcctName),'<<NULL>>') AS\
+          \ sSubAcctName,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bPermanent = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDisabled,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDisabled,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>')\
+          \ AS OldPK\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.ChartOfAccts t\n\
+          WHERE t._FIVETRAN_ACTIVE = TRUE"

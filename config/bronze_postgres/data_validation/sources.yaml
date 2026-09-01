@@ -1,0 +1,39 @@
+tables:
+  sources:
+    validations:
+      data_validation:
+        source_table_name: sources
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(name),'<<NULL>>') AS name,\n    COALESCE(TRIM(category),'<<NULL>>')\
+          \ AS category,\n    CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN deleted\
+          \ IS TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    CASE WHEN user_selectable IS NULL THEN '<<NULL>>' WHEN user_selectable\
+          \ IS TRUE THEN 'TRUE' WHEN user_selectable IS FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS user_selectable,\n    COALESCE(CAST(client_application_id AS TEXT),'<<NULL>>')\
+          \ AS client_application_id,\n    COALESCE(CAST(company_id AS TEXT),'<<NULL>>')\
+          \ AS company_id\nFROM public.sources;"
+        target_table_name: sources
+        target: snowflake
+        targetcolumn: id
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(t.name),'<<NULL>>') AS name,\n    COALESCE(TRIM(t.category),'<<NULL>>')\
+          \ AS category,\n    CASE WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN t.deleted\
+          \ = TRUE THEN 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    CASE\
+          \ WHEN t.user_selectable IS NULL THEN '<<NULL>>' WHEN t.user_selectable\
+          \ = TRUE THEN 'TRUE' WHEN t.user_selectable = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS user_selectable,\n    COALESCE(TO_VARCHAR(t.client_application_id),'<<NULL>>')\
+          \ AS client_application_id,\n    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>')\
+          \ AS company_id\nFROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.sources t\nWHERE\
+          \ t._FIVETRAN_ACTIVE = TRUE"

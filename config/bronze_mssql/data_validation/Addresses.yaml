@@ -1,0 +1,53 @@
+tables:
+  Addresses:
+    validations:
+      data_validation:
+        source_table_name: Addresses
+        source: mssql
+        sourcecolumn: AddressID
+        sourcequery: "SELECT\n    COALESCE(CAST(AddressID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS AddressID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ SiteID,\n    COALESCE(TRIM(sMrMrs),'<<NULL>>') AS sMrMrs,\n    COALESCE(TRIM(sFName),'<<NULL>>')\
+          \ AS sFName,\n    COALESCE(TRIM(sMI),'<<NULL>>') AS sMI,\n    COALESCE(TRIM(sLName),'<<NULL>>')\
+          \ AS sLName,\n    COALESCE(TRIM(sCompany),'<<NULL>>') AS sCompany,\n   \
+          \ COALESCE(TRIM(sAddr1),'<<NULL>>') AS sAddr1,\n    COALESCE(TRIM(sAddr2),'<<NULL>>')\
+          \ AS sAddr2,\n    COALESCE(TRIM(sCity),'<<NULL>>') AS sCity,\n    COALESCE(TRIM(sRegion),'<<NULL>>')\
+          \ AS sRegion,\n    COALESCE(TRIM(sPostalCode),'<<NULL>>') AS sPostalCode,\n\
+          \    COALESCE(TRIM(sCountry),'<<NULL>>') AS sCountry,\n    COALESCE(TRIM(sPhone1),'<<NULL>>')\
+          \ AS sPhone1,\n    COALESCE(TRIM(sPhone2),'<<NULL>>') AS sPhone2,\n    COALESCE(TRIM(sPhone3),'<<NULL>>')\
+          \ AS sPhone3,\n    COALESCE(TRIM(sPhone4),'<<NULL>>') AS sPhone4,\n    COALESCE(TRIM(sPhone5),'<<NULL>>')\
+          \ AS sPhone5,\n    COALESCE(TRIM(sPhone6),'<<NULL>>') AS sPhone6,\n    COALESCE(CAST(CAST(dcLongitude\
+          \ AS DECIMAL(38,10)) AS VARCHAR(100)),'<<NULL>>') AS dcLongitude,\n    COALESCE(CAST(CAST(dcLatitude\
+          \ AS DECIMAL(38,10)) AS VARCHAR(100)),'<<NULL>>') AS dcLatitude,\n    CASE\
+          \ WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN 'TRUE'\
+          \ WHEN bPermanent = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dArchived,\n    COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS\
+          \ OldPK\nFROM dbo.Addresses;"
+        target_table_name: Addresses
+        target: snowflake
+        targetcolumn: AddressID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.AddressID),'<<NULL>>') AS\
+          \ AddressID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TRIM(t.sMrMrs),'<<NULL>>') AS sMrMrs,\n    COALESCE(TRIM(t.sFName),'<<NULL>>')\
+          \ AS sFName,\n    COALESCE(TRIM(t.sMI),'<<NULL>>') AS sMI,\n    COALESCE(TRIM(t.sLName),'<<NULL>>')\
+          \ AS sLName,\n    COALESCE(TRIM(t.sCompany),'<<NULL>>') AS sCompany,\n \
+          \   COALESCE(TRIM(t.sAddr1),'<<NULL>>') AS sAddr1,\n    COALESCE(TRIM(t.sAddr2),'<<NULL>>')\
+          \ AS sAddr2,\n    COALESCE(TRIM(t.sCity),'<<NULL>>') AS sCity,\n    COALESCE(TRIM(t.sRegion),'<<NULL>>')\
+          \ AS sRegion,\n    COALESCE(TRIM(t.sPostalCode),'<<NULL>>') AS sPostalCode,\n\
+          \    COALESCE(TRIM(t.sCountry),'<<NULL>>') AS sCountry,\n    COALESCE(TRIM(t.sPhone1),'<<NULL>>')\
+          \ AS sPhone1,\n    COALESCE(TRIM(t.sPhone2),'<<NULL>>') AS sPhone2,\n  \
+          \  COALESCE(TRIM(t.sPhone3),'<<NULL>>') AS sPhone3,\n    COALESCE(TRIM(t.sPhone4),'<<NULL>>')\
+          \ AS sPhone4,\n    COALESCE(TRIM(t.sPhone5),'<<NULL>>') AS sPhone5,\n  \
+          \  COALESCE(TRIM(t.sPhone6),'<<NULL>>') AS sPhone6,\n    COALESCE(TO_VARCHAR(t.dcLongitude),'<<NULL>>')\
+          \ AS dcLongitude,\n    COALESCE(TO_VARCHAR(t.dcLatitude),'<<NULL>>') AS\
+          \ dcLatitude,\n    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN t.bPermanent\
+          \ = TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dArchived,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Addresses t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

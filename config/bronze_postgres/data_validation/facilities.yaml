@@ -1,0 +1,148 @@
+tables:
+  facilities:
+    validations:
+      data_validation:
+        source_table_name: facilities
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(name),'<<NULL>>') AS name,\n    COALESCE(TRIM(phone),'<<NULL>>')\
+          \ AS phone,\n    COALESCE(TRIM(time_zone),'<<NULL>>') AS time_zone,\n  \
+          \  COALESCE(CAST(company_id AS TEXT),'<<NULL>>') AS company_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(TRIM(phnkey_id_token),'<<NULL>>')\
+          \ AS phnkey_id_token,\n    COALESCE(TRIM(phnkey_api_key),'<<NULL>>') AS\
+          \ phnkey_api_key,\n    COALESCE(TRIM(phnkey_auth_token),'<<NULL>>') AS phnkey_auth_token,\n\
+          \    COALESCE(TRIM(payment_provider_name),'<<NULL>>') AS payment_provider_name,\n\
+          \    CASE WHEN payment_provider_data IS NULL THEN '<<NULL>>' ELSE COALESCE('{'\
+          \ || (SELECT STRING_AGG(TO_JSON(h.key::TEXT) || ': ' || TO_JSON(h.value::TEXT),\
+          \ ', ' ORDER BY h.key) FROM EACH(payment_provider_data) h) || '}', '{}')\
+          \ END AS payment_provider_data,\n    COALESCE(TRIM(tenant_portal_key),'<<NULL>>')\
+          \ AS tenant_portal_key,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    CASE WHEN deleted IS NULL THEN '<<NULL>>' WHEN deleted IS\
+          \ TRUE THEN 'TRUE' WHEN deleted IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(CAST(deleted_by_id AS TEXT),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(accounting_method),'<<NULL>>') AS accounting_method,\n\
+          \    COALESCE(TO_CHAR(last_exported_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS last_exported_on,\n    COALESCE(TRIM(public_url),'<<NULL>>') AS public_url,\n\
+          \    CASE WHEN access_hours_same_as_office_hours IS NULL THEN '<<NULL>>'\
+          \ WHEN access_hours_same_as_office_hours IS TRUE THEN 'TRUE' WHEN access_hours_same_as_office_hours\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS access_hours_same_as_office_hours,\n\
+          \    COALESCE(TRIM(logo),'<<NULL>>') AS logo,\n    COALESCE(TRIM(email),'<<NULL>>')\
+          \ AS email,\n    COALESCE(TRIM(fax),'<<NULL>>') AS fax,\n    COALESCE(TRIM(store_number),'<<NULL>>')\
+          \ AS store_number,\n    COALESCE(TRIM(custom_portal_url),'<<NULL>>') AS\
+          \ custom_portal_url,\n    COALESCE(TRIM(brand_name),'<<NULL>>') AS brand_name,\n\
+          \    COALESCE(TRIM(landmarks),'<<NULL>>') AS landmarks,\n    COALESCE(CAST(max_truck_length\
+          \ AS TEXT),'<<NULL>>') AS max_truck_length,\n    COALESCE(TRIM(direct_phone),'<<NULL>>')\
+          \ AS direct_phone,\n    COALESCE(TRIM(notice),'<<NULL>>') AS notice,\n \
+          \   COALESCE(TRIM(sms_phone),'<<NULL>>') AS sms_phone,\n    COALESCE(TRIM(pay_online_url),'<<NULL>>')\
+          \ AS pay_online_url,\n    COALESCE(TRIM(click_to_call_phone),'<<NULL>>')\
+          \ AS click_to_call_phone,\n    COALESCE(TRIM(rental_center_subdomain),'<<NULL>>')\
+          \ AS rental_center_subdomain,\n    COALESCE(CAST(account_code_set_id AS\
+          \ TEXT),'<<NULL>>') AS account_code_set_id,\n    COALESCE(TO_CHAR(last_close_of_day_happened_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_close_of_day_happened_at,\n    COALESCE(CAST(facility_analytics_generation_frequency\
+          \ AS TEXT),'<<NULL>>') AS facility_analytics_generation_frequency,\n   \
+          \ COALESCE(CAST(required_field_set_id AS TEXT),'<<NULL>>') AS required_field_set_id,\n\
+          \    COALESCE(TO_CHAR(next_analytics_generation_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS next_analytics_generation_at,\n    COALESCE(CAST(secured_action_set_id\
+          \ AS TEXT),'<<NULL>>') AS secured_action_set_id,\n    COALESCE(CAST(insurance_policy_id\
+          \ AS TEXT),'<<NULL>>') AS insurance_policy_id,\n    COALESCE(TO_CHAR(hard_delete_start_time,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS hard_delete_start_time,\n    COALESCE(TRIM(hard_delete_jid),'<<NULL>>')\
+          \ AS hard_delete_jid,\n    COALESCE(TRIM(legal_entity),'<<NULL>>') AS legal_entity,\n\
+          \    COALESCE(TO_CHAR(abacus_conversion_date,'YYYY-MM-DD'),'<<NULL>>') AS\
+          \ abacus_conversion_date,\n    COALESCE(TRIM(software_provider),'<<NULL>>')\
+          \ AS software_provider,\n    COALESCE(TRIM(abacus_chart_of_account_type),'<<NULL>>')\
+          \ AS abacus_chart_of_account_type,\n    COALESCE(TRIM(currency),'<<NULL>>')\
+          \ AS currency,\n    COALESCE(TRIM(salesforce_asset_id),'<<NULL>>') AS salesforce_asset_id\n\
+          FROM public.facilities;"
+        target_table_name: facilities
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_payment_provider_data AS\n(\n    SELECT\n    \
+          \    _flt.id AS id,\n        LISTAGG(\n            CASE\n              \
+          \  WHEN f.key IS NULL THEN NULL\n                ELSE\n                \
+          \    TO_JSON(TO_VARIANT(f.key::VARCHAR)) || ': ' ||\n                  \
+          \  CASE\n                        WHEN f.value IS NULL THEN 'null'\n    \
+          \                    WHEN IS_NULL_VALUE(f.value) THEN 'null'\n         \
+          \               WHEN TYPEOF(f.value) = 'VARCHAR' THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n\
+          \                        WHEN TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n\
+          \                        WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.payment_provider_data,\
+          \ RECURSIVE => FALSE)) f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n     \
+          \ AND TYPEOF(_flt.payment_provider_data) = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE\
+          \ = TRUE\n    GROUP BY _flt.id\n),\nvariant_payment_provider_data AS\n(\n\
+          \    SELECT\n        t.id AS id,\n        CASE\n\n    -- ======================================================\n\
+          \    -- SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.payment_provider_data IS NULL\n        THEN '<<NULL>>'\n\n\n\
+          \    -- =====================================================\n    -- JSON\
+          \ NULL\n    -- =====================================================\n\n\
+          \    WHEN IS_NULL_VALUE(\n        t.payment_provider_data\n    )\n     \
+          \   THEN 'null'\n\n\n    -- =====================================================\n\
+          \    -- OBJECT\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.payment_provider_data\n    ) = 'OBJECT'\n\n\
+          \        THEN\n\n            CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.payment_provider_data\n    ) = 'ARRAY'\n\n\
+          \        THEN COALESCE(\n\n            TO_JSON(\n                t.payment_provider_data\n\
+          \            ),\n\n            '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.payment_provider_data\n            ),\n\n            '<<NULL>>'\n\n\
+          \        )\n\nEND AS payment_provider_data\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities\
+          \ t\n    LEFT JOIN obj_agg_payment_provider_data obj ON obj.id = t.id\n\
+          \    WHERE t._FIVETRAN_ACTIVE = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>')\
+          \ AS id,\n    COALESCE(TRIM(t.name),'<<NULL>>') AS name,\n    COALESCE(TRIM(t.phone),'<<NULL>>')\
+          \ AS phone,\n    COALESCE(TRIM(t.time_zone),'<<NULL>>') AS time_zone,\n\
+          \    COALESCE(TO_VARCHAR(t.company_id),'<<NULL>>') AS company_id,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(TRIM(t.phnkey_id_token),'<<NULL>>')\
+          \ AS phnkey_id_token,\n    COALESCE(TRIM(t.phnkey_api_key),'<<NULL>>') AS\
+          \ phnkey_api_key,\n    COALESCE(TRIM(t.phnkey_auth_token),'<<NULL>>') AS\
+          \ phnkey_auth_token,\n    COALESCE(TRIM(t.payment_provider_name),'<<NULL>>')\
+          \ AS payment_provider_name,\n    v_payment_provider_data.payment_provider_data\
+          \ AS payment_provider_data,\n    COALESCE(TRIM(t.tenant_portal_key),'<<NULL>>')\
+          \ AS tenant_portal_key,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n\
+          \    CASE WHEN t.deleted IS NULL THEN '<<NULL>>' WHEN t.deleted = TRUE THEN\
+          \ 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n\
+          \    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>') AS\
+          \ deleted_by_id,\n    COALESCE(TRIM(t.accounting_method),'<<NULL>>') AS\
+          \ accounting_method,\n    COALESCE(TO_CHAR(t.last_exported_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_exported_on,\n    COALESCE(TRIM(t.public_url),'<<NULL>>')\
+          \ AS public_url,\n    CASE WHEN t.access_hours_same_as_office_hours IS NULL\
+          \ THEN '<<NULL>>' WHEN t.access_hours_same_as_office_hours = TRUE THEN 'TRUE'\
+          \ WHEN t.access_hours_same_as_office_hours = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS access_hours_same_as_office_hours,\n    COALESCE(TRIM(t.logo),'<<NULL>>')\
+          \ AS logo,\n    COALESCE(TRIM(t.email),'<<NULL>>') AS email,\n    COALESCE(TRIM(t.fax),'<<NULL>>')\
+          \ AS fax,\n    COALESCE(TRIM(t.store_number),'<<NULL>>') AS store_number,\n\
+          \    COALESCE(TRIM(t.custom_portal_url),'<<NULL>>') AS custom_portal_url,\n\
+          \    COALESCE(TRIM(t.brand_name),'<<NULL>>') AS brand_name,\n    COALESCE(TRIM(t.landmarks),'<<NULL>>')\
+          \ AS landmarks,\n    COALESCE(TO_VARCHAR(t.max_truck_length),'<<NULL>>')\
+          \ AS max_truck_length,\n    COALESCE(TRIM(t.direct_phone),'<<NULL>>') AS\
+          \ direct_phone,\n    COALESCE(TRIM(t.notice),'<<NULL>>') AS notice,\n  \
+          \  COALESCE(TRIM(t.sms_phone),'<<NULL>>') AS sms_phone,\n    COALESCE(TRIM(t.pay_online_url),'<<NULL>>')\
+          \ AS pay_online_url,\n    COALESCE(TRIM(t.click_to_call_phone),'<<NULL>>')\
+          \ AS click_to_call_phone,\n    COALESCE(TRIM(t.rental_center_subdomain),'<<NULL>>')\
+          \ AS rental_center_subdomain,\n    COALESCE(TO_VARCHAR(t.account_code_set_id),'<<NULL>>')\
+          \ AS account_code_set_id,\n    COALESCE(TO_CHAR(t.last_close_of_day_happened_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS last_close_of_day_happened_at,\n    COALESCE(TO_VARCHAR(t.facility_analytics_generation_frequency),'<<NULL>>')\
+          \ AS facility_analytics_generation_frequency,\n    COALESCE(TO_VARCHAR(t.required_field_set_id),'<<NULL>>')\
+          \ AS required_field_set_id,\n    COALESCE(TO_CHAR(t.next_analytics_generation_at,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS next_analytics_generation_at,\n    COALESCE(TO_VARCHAR(t.secured_action_set_id),'<<NULL>>')\
+          \ AS secured_action_set_id,\n    COALESCE(TO_VARCHAR(t.insurance_policy_id),'<<NULL>>')\
+          \ AS insurance_policy_id,\n    COALESCE(TO_CHAR(t.hard_delete_start_time,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS hard_delete_start_time,\n    COALESCE(TRIM(t.hard_delete_jid),'<<NULL>>')\
+          \ AS hard_delete_jid,\n    COALESCE(TRIM(t.legal_entity),'<<NULL>>') AS\
+          \ legal_entity,\n    COALESCE(TO_CHAR(t.abacus_conversion_date,'YYYY-MM-DD'),'<<NULL>>')\
+          \ AS abacus_conversion_date,\n    COALESCE(TRIM(t.software_provider),'<<NULL>>')\
+          \ AS software_provider,\n    COALESCE(TRIM(t.abacus_chart_of_account_type),'<<NULL>>')\
+          \ AS abacus_chart_of_account_type,\n    COALESCE(TRIM(t.currency),'<<NULL>>')\
+          \ AS currency,\n    COALESCE(TRIM(t.salesforce_asset_id),'<<NULL>>') AS\
+          \ salesforce_asset_id\nFROM variant_payment_provider_data v_payment_provider_data\
+          \ LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities t ON v_payment_provider_data.id\
+          \ = t.id\nWHERE t._FIVETRAN_ACTIVE = TRUE"

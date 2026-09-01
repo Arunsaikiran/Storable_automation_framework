@@ -1,0 +1,167 @@
+tables:
+  Waitings:
+    validations:
+      data_validation:
+        source_table_name: Waitings
+        source: mssql
+        sourcecolumn: WaitingID
+        sourcequery: "SELECT\n    COALESCE(CAST(WaitingID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS WaitingID,\n    COALESCE(CAST(SiteID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ SiteID,\n    COALESCE(CAST(EmployeeID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ EmployeeID,\n    COALESCE(CAST(LedgerID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ LedgerID,\n    COALESCE(CAST(TenantID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ TenantID,\n    COALESCE(CAST(UnitID1 AS VARCHAR(100)),'<<NULL>>') AS UnitID1,\n\
+          \    COALESCE(CAST(UnitID2 AS VARCHAR(100)),'<<NULL>>') AS UnitID2,\n  \
+          \  COALESCE(CAST(UnitID3 AS VARCHAR(100)),'<<NULL>>') AS UnitID3,\n    COALESCE(CAST(UnitTypeID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS UnitTypeID,\n    COALESCE(CAST(CreditCardID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS CreditCardID,\n    COALESCE(CAST(AddressID_To\
+          \ AS VARCHAR(100)),'<<NULL>>') AS AddressID_To,\n    COALESCE(CAST(AddressID_From\
+          \ AS VARCHAR(100)),'<<NULL>>') AS AddressID_From,\n    COALESCE(CAST(CAST(dcArea\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcArea,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dPlaced\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dPlaced,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dNeeded\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dNeeded,\n    COALESCE(CAST(CAST(dcPaidReserveFee\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPaidReserveFee,\n\
+          \    COALESCE(CAST(iReserveFeeReceiptID AS VARCHAR(100)),'<<NULL>>') AS\
+          \ iReserveFeeReceiptID,\n    COALESCE(TRIM(sComment),'<<NULL>>') AS sComment,\n\
+          \    COALESCE(CAST(iCallType AS VARCHAR(100)),'<<NULL>>') AS iCallType,\n\
+          \    CASE WHEN bFollowup IS NULL THEN '<<NULL>>' WHEN bFollowup = 1 THEN\
+          \ 'TRUE' WHEN bFollowup = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bFollowup,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dFollowup AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dFollowup,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dExpires AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dExpires,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS\
+          \ OldPK,\n    COALESCE(TRIM(sSource),'<<NULL>>') AS sSource,\n    COALESCE(CAST(ConcessionID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS ConcessionID,\n    COALESCE(CAST(iPromoGlobalNum\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iPromoGlobalNum,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dArchived\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dArchived,\n    COALESCE(CAST(iGlobalWaitingNum\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iGlobalWaitingNum,\n    COALESCE(CAST(iWaitingStatus\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iWaitingStatus,\n    COALESCE(CAST(BillingFreqID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS BillingFreqID,\n    COALESCE(CAST(UnitTypeID_Quoted\
+          \ AS VARCHAR(100)),'<<NULL>>') AS UnitTypeID_Quoted,\n    COALESCE(CAST(iPeriodsNeeded\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iPeriodsNeeded,\n    COALESCE(CAST(iUnitsNeeded\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iUnitsNeeded,\n    COALESCE(CAST(CAST(dcRate_Quoted\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcRate_Quoted,\n   \
+          \ COALESCE(CAST(CAST(dcRate_Tax1_Quoted AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcRate_Tax1_Quoted,\n    COALESCE(CAST(CAST(dcRate_Tax2_Quoted AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcRate_Tax2_Quoted,\n    COALESCE(CAST(dcLength_Quoted\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcLength_Quoted,\n    COALESCE(CAST(dcWidth_Quoted\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcWidth_Quoted,\n    CASE WHEN bClimate_Quoted\
+          \ IS NULL THEN '<<NULL>>' WHEN bClimate_Quoted = 1 THEN 'TRUE' WHEN bClimate_Quoted\
+          \ = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bClimate_Quoted,\n    COALESCE(CAST(CorpUserID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS CorpUserID,\n    COALESCE(CAST(CorpUserID_Followup\
+          \ AS VARCHAR(100)),'<<NULL>>') AS CorpUserID_Followup,\n    COALESCE(CAST(EmployeeID_Followup\
+          \ AS VARCHAR(100)),'<<NULL>>') AS EmployeeID_Followup,\n    COALESCE(CAST(CorpUserID_ConvertedToRsv\
+          \ AS VARCHAR(100)),'<<NULL>>') AS CorpUserID_ConvertedToRsv,\n    COALESCE(CAST(EmployeeID_ConvertedToRsv\
+          \ AS VARCHAR(100)),'<<NULL>>') AS EmployeeID_ConvertedToRsv,\n    COALESCE(CAST(CorpUserID_ConvertedToMoveIn\
+          \ AS VARCHAR(100)),'<<NULL>>') AS CorpUserID_ConvertedToMoveIn,\n    COALESCE(CAST(EmployeeID_ConvertedToMoveIn\
+          \ AS VARCHAR(100)),'<<NULL>>') AS EmployeeID_ConvertedToMoveIn,\n    COALESCE(CAST(QTRentalTypeID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS QTRentalTypeID,\n    COALESCE(CAST(QTRentalStatusID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS QTRentalStatusID,\n    COALESCE(CAST(QTCancellationTypeID\
+          \ AS VARCHAR(100)),'<<NULL>>') AS QTCancellationTypeID,\n    COALESCE(TRIM(sCancellationReason),'<<NULL>>')\
+          \ AS sCancellationReason,\n    COALESCE(CAST(UnitID_Rsvd AS VARCHAR(100)),'<<NULL>>')\
+          \ AS UnitID_Rsvd,\n    COALESCE(CAST(UnitID_PriceRef AS VARCHAR(100)),'<<NULL>>')\
+          \ AS UnitID_PriceRef,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCreated AS\
+          \ DATETIME2(3)),121),'<<NULL>>') AS dCreated,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dCancelled\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dCancelled,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dFollowupLast\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dFollowupLast,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dConverted_ToRsv\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dConverted_ToRsv,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dConverted_ToMoveIn\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dConverted_ToMoveIn,\n    COALESCE(CAST(iInquiryType\
+          \ AS VARCHAR(100)),'<<NULL>>') AS iInquiryType,\n    CASE WHEN bApptmt IS\
+          \ NULL THEN '<<NULL>>' WHEN bApptmt = 1 THEN 'TRUE' WHEN bApptmt = 0 THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS bApptmt,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dApptmt\
+          \ AS DATETIME2(3)),121),'<<NULL>>') AS dApptmt,\n    COALESCE(CAST(CorpUserID_Apptmt\
+          \ AS VARCHAR(100)),'<<NULL>>') AS CorpUserID_Apptmt,\n    COALESCE(CAST(EmployeeID_Apptmt\
+          \ AS VARCHAR(100)),'<<NULL>>') AS EmployeeID_Apptmt,\n    COALESCE(TRIM(sTrackingSuffix),'<<NULL>>')\
+          \ AS sTrackingSuffix,\n    COALESCE(TRIM(sCallerID),'<<NULL>>') AS sCallerID,\n\
+          \    COALESCE(CAST(CAST(dcStdRate AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcStdRate,\n    COALESCE(CAST(CAST(dcStdRateTax1 AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcStdRateTax1,\n    COALESCE(CAST(CAST(dcStdRateTax2\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcStdRateTax2,\n   \
+          \ COALESCE(CAST(CAST(dcPushRate AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>')\
+          \ AS dcPushRate,\n    COALESCE(CAST(CAST(dcPushRateTax1 AS DECIMAL(38,4))\
+          \ AS VARCHAR(100)),'<<NULL>>') AS dcPushRateTax1,\n    COALESCE(CAST(CAST(dcPushRateTax2\
+          \ AS DECIMAL(38,4)) AS VARCHAR(100)),'<<NULL>>') AS dcPushRateTax2,\n  \
+          \  COALESCE(TRIM(sTrackingReferralURL),'<<NULL>>') AS sTrackingReferralURL,\n\
+          \    COALESCE(TRIM(sTrackingSearchTerms),'<<NULL>>') AS sTrackingSearchTerms,\n\
+          \    COALESCE(TRIM(sTrackingField1),'<<NULL>>') AS sTrackingField1,\n  \
+          \  COALESCE(TRIM(sTrackingField2),'<<NULL>>') AS sTrackingField2\nFROM dbo.Waitings;"
+        target_table_name: Waitings
+        target: snowflake
+        targetcolumn: WaitingID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.WaitingID),'<<NULL>>') AS\
+          \ WaitingID,\n    COALESCE(TO_VARCHAR(t.SiteID),'<<NULL>>') AS SiteID,\n\
+          \    COALESCE(TO_VARCHAR(t.EmployeeID),'<<NULL>>') AS EmployeeID,\n    COALESCE(TO_VARCHAR(t.LedgerID),'<<NULL>>')\
+          \ AS LedgerID,\n    COALESCE(TO_VARCHAR(t.TenantID),'<<NULL>>') AS TenantID,\n\
+          \    COALESCE(TO_VARCHAR(t.UnitID1),'<<NULL>>') AS UnitID1,\n    COALESCE(TO_VARCHAR(t.UnitID2),'<<NULL>>')\
+          \ AS UnitID2,\n    COALESCE(TO_VARCHAR(t.UnitID3),'<<NULL>>') AS UnitID3,\n\
+          \    COALESCE(TO_VARCHAR(t.UnitTypeID),'<<NULL>>') AS UnitTypeID,\n    COALESCE(TO_VARCHAR(t.CreditCardID),'<<NULL>>')\
+          \ AS CreditCardID,\n    COALESCE(TO_VARCHAR(t.AddressID_To),'<<NULL>>')\
+          \ AS AddressID_To,\n    COALESCE(TO_VARCHAR(t.AddressID_From),'<<NULL>>')\
+          \ AS AddressID_From,\n    COALESCE(TO_VARCHAR(t.dcArea),'<<NULL>>') AS dcArea,\n\
+          \    COALESCE(TO_CHAR(t.dPlaced,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dPlaced,\n    COALESCE(TO_CHAR(t.dNeeded,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dNeeded,\n    COALESCE(TO_VARCHAR(t.dcPaidReserveFee),'<<NULL>>') AS\
+          \ dcPaidReserveFee,\n    COALESCE(TO_VARCHAR(t.iReserveFeeReceiptID),'<<NULL>>')\
+          \ AS iReserveFeeReceiptID,\n    COALESCE(TRIM(t.sComment),'<<NULL>>') AS\
+          \ sComment,\n    COALESCE(TO_VARCHAR(t.iCallType),'<<NULL>>') AS iCallType,\n\
+          \    CASE WHEN t.bFollowup IS NULL THEN '<<NULL>>' WHEN t.bFollowup = TRUE\
+          \ THEN 'TRUE' WHEN t.bFollowup = FALSE THEN 'FALSE' ELSE '<<NULL>>' END\
+          \ AS bFollowup,\n    COALESCE(TO_CHAR(t.dFollowup,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dFollowup,\n    COALESCE(TO_CHAR(t.dExpires,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dExpires,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK,\n\
+          \    COALESCE(TRIM(t.sSource),'<<NULL>>') AS sSource,\n    COALESCE(TO_VARCHAR(t.ConcessionID),'<<NULL>>')\
+          \ AS ConcessionID,\n    COALESCE(TO_VARCHAR(t.iPromoGlobalNum),'<<NULL>>')\
+          \ AS iPromoGlobalNum,\n    COALESCE(TO_CHAR(t.dArchived,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dArchived,\n    COALESCE(TO_VARCHAR(t.iGlobalWaitingNum),'<<NULL>>')\
+          \ AS iGlobalWaitingNum,\n    COALESCE(TO_VARCHAR(t.iWaitingStatus),'<<NULL>>')\
+          \ AS iWaitingStatus,\n    COALESCE(TO_VARCHAR(t.BillingFreqID),'<<NULL>>')\
+          \ AS BillingFreqID,\n    COALESCE(TO_VARCHAR(t.UnitTypeID_Quoted),'<<NULL>>')\
+          \ AS UnitTypeID_Quoted,\n    COALESCE(TO_VARCHAR(t.iPeriodsNeeded),'<<NULL>>')\
+          \ AS iPeriodsNeeded,\n    COALESCE(TO_VARCHAR(t.iUnitsNeeded),'<<NULL>>')\
+          \ AS iUnitsNeeded,\n    COALESCE(TO_VARCHAR(t.dcRate_Quoted),'<<NULL>>')\
+          \ AS dcRate_Quoted,\n    COALESCE(TO_VARCHAR(t.dcRate_Tax1_Quoted),'<<NULL>>')\
+          \ AS dcRate_Tax1_Quoted,\n    COALESCE(TO_VARCHAR(t.dcRate_Tax2_Quoted),'<<NULL>>')\
+          \ AS dcRate_Tax2_Quoted,\n    COALESCE(TO_VARCHAR(t.dcLength_Quoted),'<<NULL>>')\
+          \ AS dcLength_Quoted,\n    COALESCE(TO_VARCHAR(t.dcWidth_Quoted),'<<NULL>>')\
+          \ AS dcWidth_Quoted,\n    CASE WHEN t.bClimate_Quoted IS NULL THEN '<<NULL>>'\
+          \ WHEN t.bClimate_Quoted = TRUE THEN 'TRUE' WHEN t.bClimate_Quoted = FALSE\
+          \ THEN 'FALSE' ELSE '<<NULL>>' END AS bClimate_Quoted,\n    COALESCE(TO_VARCHAR(t.CorpUserID),'<<NULL>>')\
+          \ AS CorpUserID,\n    COALESCE(TO_VARCHAR(t.CorpUserID_Followup),'<<NULL>>')\
+          \ AS CorpUserID_Followup,\n    COALESCE(TO_VARCHAR(t.EmployeeID_Followup),'<<NULL>>')\
+          \ AS EmployeeID_Followup,\n    COALESCE(TO_VARCHAR(t.CorpUserID_ConvertedToRsv),'<<NULL>>')\
+          \ AS CorpUserID_ConvertedToRsv,\n    COALESCE(TO_VARCHAR(t.EmployeeID_ConvertedToRsv),'<<NULL>>')\
+          \ AS EmployeeID_ConvertedToRsv,\n    COALESCE(TO_VARCHAR(t.CorpUserID_ConvertedToMoveIn),'<<NULL>>')\
+          \ AS CorpUserID_ConvertedToMoveIn,\n    COALESCE(TO_VARCHAR(t.EmployeeID_ConvertedToMoveIn),'<<NULL>>')\
+          \ AS EmployeeID_ConvertedToMoveIn,\n    COALESCE(TO_VARCHAR(t.QTRentalTypeID),'<<NULL>>')\
+          \ AS QTRentalTypeID,\n    COALESCE(TO_VARCHAR(t.QTRentalStatusID),'<<NULL>>')\
+          \ AS QTRentalStatusID,\n    COALESCE(TO_VARCHAR(t.QTCancellationTypeID),'<<NULL>>')\
+          \ AS QTCancellationTypeID,\n    COALESCE(TRIM(t.sCancellationReason),'<<NULL>>')\
+          \ AS sCancellationReason,\n    COALESCE(TO_VARCHAR(t.UnitID_Rsvd),'<<NULL>>')\
+          \ AS UnitID_Rsvd,\n    COALESCE(TO_VARCHAR(t.UnitID_PriceRef),'<<NULL>>')\
+          \ AS UnitID_PriceRef,\n    COALESCE(TO_CHAR(t.dCreated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCreated,\n    COALESCE(TO_CHAR(t.dCancelled,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dCancelled,\n    COALESCE(TO_CHAR(t.dFollowupLast,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dFollowupLast,\n    COALESCE(TO_CHAR(t.dConverted_ToRsv,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dConverted_ToRsv,\n    COALESCE(TO_CHAR(t.dConverted_ToMoveIn,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dConverted_ToMoveIn,\n    COALESCE(TO_VARCHAR(t.iInquiryType),'<<NULL>>')\
+          \ AS iInquiryType,\n    CASE WHEN t.bApptmt IS NULL THEN '<<NULL>>' WHEN\
+          \ t.bApptmt = TRUE THEN 'TRUE' WHEN t.bApptmt = FALSE THEN 'FALSE' ELSE\
+          \ '<<NULL>>' END AS bApptmt,\n    COALESCE(TO_CHAR(t.dApptmt,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS dApptmt,\n    COALESCE(TO_VARCHAR(t.CorpUserID_Apptmt),'<<NULL>>')\
+          \ AS CorpUserID_Apptmt,\n    COALESCE(TO_VARCHAR(t.EmployeeID_Apptmt),'<<NULL>>')\
+          \ AS EmployeeID_Apptmt,\n    COALESCE(TRIM(t.sTrackingSuffix),'<<NULL>>')\
+          \ AS sTrackingSuffix,\n    COALESCE(TRIM(t.sCallerID),'<<NULL>>') AS sCallerID,\n\
+          \    COALESCE(TO_VARCHAR(t.dcStdRate),'<<NULL>>') AS dcStdRate,\n    COALESCE(TO_VARCHAR(t.dcStdRateTax1),'<<NULL>>')\
+          \ AS dcStdRateTax1,\n    COALESCE(TO_VARCHAR(t.dcStdRateTax2),'<<NULL>>')\
+          \ AS dcStdRateTax2,\n    COALESCE(TO_VARCHAR(t.dcPushRate),'<<NULL>>') AS\
+          \ dcPushRate,\n    COALESCE(TO_VARCHAR(t.dcPushRateTax1),'<<NULL>>') AS\
+          \ dcPushRateTax1,\n    COALESCE(TO_VARCHAR(t.dcPushRateTax2),'<<NULL>>')\
+          \ AS dcPushRateTax2,\n    COALESCE(TRIM(t.sTrackingReferralURL),'<<NULL>>')\
+          \ AS sTrackingReferralURL,\n    COALESCE(TRIM(t.sTrackingSearchTerms),'<<NULL>>')\
+          \ AS sTrackingSearchTerms,\n    COALESCE(TRIM(t.sTrackingField1),'<<NULL>>')\
+          \ AS sTrackingField1,\n    COALESCE(TRIM(t.sTrackingField2),'<<NULL>>')\
+          \ AS sTrackingField2\nFROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.Waitings\
+          \ t\nWHERE t._FIVETRAN_ACTIVE = TRUE"

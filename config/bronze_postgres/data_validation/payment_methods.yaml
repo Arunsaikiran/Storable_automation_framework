@@ -1,0 +1,133 @@
+tables:
+  payment_methods:
+    validations:
+      data_validation:
+        source_table_name: payment_methods
+        source: postgres
+        sourcecolumn: id
+        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
+          \   COALESCE(TRIM(type),'<<NULL>>') AS type,\n    CASE WHEN reuseable IS\
+          \ NULL THEN '<<NULL>>' WHEN reuseable IS TRUE THEN 'TRUE' WHEN reuseable\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS reuseable,\n    CASE WHEN\
+          \ data IS NULL THEN '<<NULL>>' ELSE COALESCE('{' || (SELECT STRING_AGG(TO_JSON(h.key::TEXT)\
+          \ || ': ' || TO_JSON(h.value::TEXT), ', ' ORDER BY h.key) FROM EACH(data)\
+          \ h) || '}', '{}') END AS data,\n    CASE WHEN payment_provider_data IS\
+          \ NULL THEN '<<NULL>>' ELSE COALESCE('{' || (SELECT STRING_AGG(TO_JSON(h.key::TEXT)\
+          \ || ': ' || TO_JSON(h.value::TEXT), ', ' ORDER BY h.key) FROM EACH(payment_provider_data)\
+          \ h) || '}', '{}') END AS payment_provider_data,\n    CASE WHEN deleted\
+          \ IS NULL THEN '<<NULL>>' WHEN deleted IS TRUE THEN 'TRUE' WHEN deleted\
+          \ IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(CAST(deleted_by_id\
+          \ AS TEXT),'<<NULL>>') AS deleted_by_id,\n    COALESCE(CAST(facility_id\
+          \ AS TEXT),'<<NULL>>') AS facility_id,\n    COALESCE(CAST(tenant_id AS TEXT),'<<NULL>>')\
+          \ AS tenant_id,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
+          \ AS uuid,\n    COALESCE(TRIM(payment_provider_token_enc),'<<NULL>>') AS\
+          \ payment_provider_token_enc,\n    COALESCE(TRIM(payment_provider_name),'<<NULL>>')\
+          \ AS payment_provider_name,\n    CASE WHEN turned_off IS NULL THEN '<<NULL>>'\
+          \ WHEN turned_off IS TRUE THEN 'TRUE' WHEN turned_off IS FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS turned_off,\n    COALESCE(TRIM(payment_provider_token_id_enc),'<<NULL>>')\
+          \ AS payment_provider_token_id_enc,\n    COALESCE(TRIM(stopay_token_enc),'<<NULL>>')\
+          \ AS stopay_token_enc,\n    CASE WHEN surchargeable IS NULL THEN '<<NULL>>'\
+          \ WHEN surchargeable IS TRUE THEN 'TRUE' WHEN surchargeable IS FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS surchargeable\nFROM public.payment_methods;"
+        target_table_name: payment_methods
+        target: snowflake
+        targetcolumn: id
+        targetquery: "WITH\nobj_agg_data AS\n(\n    SELECT\n        _flt.id AS id,\n\
+          \        LISTAGG(\n            CASE\n                WHEN f.key IS NULL\
+          \ THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
+          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
+          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.data, RECURSIVE => FALSE))\
+          \ f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.data)\
+          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
+          ),\nvariant_data AS\n(\n    SELECT\n        t.id AS id,\n        CASE\n\n\
+          \    -- ======================================================\n    -- SQL\
+          \ NULL\n    -- ======================================================\n\n\
+          \    WHEN t.data IS NULL\n        THEN '<<NULL>>'\n\n\n    -- =====================================================\n\
+          \    -- JSON NULL\n    -- =====================================================\n\
+          \n    WHEN IS_NULL_VALUE(\n        t.data\n    )\n        THEN 'null'\n\n\
+          \n    -- =====================================================\n    -- OBJECT\n\
+          \    -- =====================================================\n\n    WHEN\
+          \ TYPEOF(\n        t.data\n    ) = 'OBJECT'\n\n        THEN\n\n        \
+          \    CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.data\n    ) = 'ARRAY'\n\n        THEN COALESCE(\n\
+          \n            TO_JSON(\n                t.data\n            ),\n\n     \
+          \       '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.data\n            ),\n\n            '<<NULL>>'\n\n        )\n\nEND\
+          \ AS data\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods\
+          \ t\n    LEFT JOIN obj_agg_data obj ON obj.id = t.id\n    WHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE\n\n),\nobj_agg_payment_provider_data AS\n(\n    SELECT\n      \
+          \  _flt.id AS id,\n        LISTAGG(\n            CASE\n                WHEN\
+          \ f.key IS NULL THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
+          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
+          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
+          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
+          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
+          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
+          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
+          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
+          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
+          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods\
+          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.payment_provider_data,\
+          \ RECURSIVE => FALSE)) f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n     \
+          \ AND TYPEOF(_flt.payment_provider_data) = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE\
+          \ = TRUE\n    GROUP BY _flt.id\n),\nvariant_payment_provider_data AS\n(\n\
+          \    SELECT\n        t.id AS id,\n        CASE\n\n    -- ======================================================\n\
+          \    -- SQL NULL\n    -- ======================================================\n\
+          \n    WHEN t.payment_provider_data IS NULL\n        THEN '<<NULL>>'\n\n\n\
+          \    -- =====================================================\n    -- JSON\
+          \ NULL\n    -- =====================================================\n\n\
+          \    WHEN IS_NULL_VALUE(\n        t.payment_provider_data\n    )\n     \
+          \   THEN 'null'\n\n\n    -- =====================================================\n\
+          \    -- OBJECT\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.payment_provider_data\n    ) = 'OBJECT'\n\n\
+          \        THEN\n\n            CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
+          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
+          \    -- ARRAY\n    -- =====================================================\n\
+          \n    WHEN TYPEOF(\n        t.payment_provider_data\n    ) = 'ARRAY'\n\n\
+          \        THEN COALESCE(\n\n            TO_JSON(\n                t.payment_provider_data\n\
+          \            ),\n\n            '[]'\n\n        )\n\n\n    -- =====================================================\n\
+          \    -- SCALAR\n    -- =====================================================\n\
+          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
+          \  t.payment_provider_data\n            ),\n\n            '<<NULL>>'\n\n\
+          \        )\n\nEND AS payment_provider_data\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods\
+          \ t\n    LEFT JOIN obj_agg_payment_provider_data obj ON obj.id = t.id\n\
+          \    WHERE t._FIVETRAN_ACTIVE = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>')\
+          \ AS id,\n    COALESCE(TRIM(t.type),'<<NULL>>') AS type,\n    CASE WHEN\
+          \ t.reuseable IS NULL THEN '<<NULL>>' WHEN t.reuseable = TRUE THEN 'TRUE'\
+          \ WHEN t.reuseable = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS reuseable,\n\
+          \    v_data.data AS data,\n    v_payment_provider_data.payment_provider_data\
+          \ AS payment_provider_data,\n    CASE WHEN t.deleted IS NULL THEN '<<NULL>>'\
+          \ WHEN t.deleted = TRUE THEN 'TRUE' WHEN t.deleted = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS deleted,\n    COALESCE(TO_CHAR(t.deleted_on,'YYYY-MM-DD\
+          \ HH24:MI:SS.FF3'),'<<NULL>>') AS deleted_on,\n    COALESCE(TO_VARCHAR(t.deleted_by_id),'<<NULL>>')\
+          \ AS deleted_by_id,\n    COALESCE(TO_VARCHAR(t.facility_id),'<<NULL>>')\
+          \ AS facility_id,\n    COALESCE(TO_VARCHAR(t.tenant_id),'<<NULL>>') AS tenant_id,\n\
+          \    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,\n    COALESCE(TRIM(t.payment_provider_token_enc),'<<NULL>>')\
+          \ AS payment_provider_token_enc,\n    COALESCE(TRIM(t.payment_provider_name),'<<NULL>>')\
+          \ AS payment_provider_name,\n    CASE WHEN t.turned_off IS NULL THEN '<<NULL>>'\
+          \ WHEN t.turned_off = TRUE THEN 'TRUE' WHEN t.turned_off = FALSE THEN 'FALSE'\
+          \ ELSE '<<NULL>>' END AS turned_off,\n    COALESCE(TRIM(t.payment_provider_token_id_enc),'<<NULL>>')\
+          \ AS payment_provider_token_id_enc,\n    COALESCE(TRIM(t.stopay_token_enc),'<<NULL>>')\
+          \ AS stopay_token_enc,\n    CASE WHEN t.surchargeable IS NULL THEN '<<NULL>>'\
+          \ WHEN t.surchargeable = TRUE THEN 'TRUE' WHEN t.surchargeable = FALSE THEN\
+          \ 'FALSE' ELSE '<<NULL>>' END AS surchargeable\nFROM variant_payment_provider_data\
+          \ v_payment_provider_data LEFT JOIN variant_data v_data LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods\
+          \ t ON v_data.id = t.id ON v_payment_provider_data.id = t.id\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"

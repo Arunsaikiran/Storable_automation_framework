@@ -1,0 +1,31 @@
+tables:
+  AcctTypes:
+    validations:
+      data_validation:
+        source_table_name: AcctTypes
+        source: mssql
+        sourcecolumn: AcctTypeID
+        sourcequery: "SELECT\n    COALESCE(CAST(AcctTypeID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS AcctTypeID,\n    COALESCE(CAST(AcctType_TermID AS VARCHAR(100)),'<<NULL>>')\
+          \ AS AcctType_TermID,\n    COALESCE(TRIM(sDefAcctTypeName),'<<NULL>>') AS\
+          \ sDefAcctTypeName,\n    COALESCE(TRIM(sAcctTypeName),'<<NULL>>') AS sAcctTypeName,\n\
+          \    CASE WHEN bPermanent IS NULL THEN '<<NULL>>' WHEN bPermanent = 1 THEN\
+          \ 'TRUE' WHEN bPermanent = 0 THEN 'FALSE' ELSE '<<NULL>>' END AS bPermanent,\n\
+          \    COALESCE(CONVERT(VARCHAR(23),CAST(dDeleted AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(CONVERT(VARCHAR(23),CAST(dUpdated AS DATETIME2(3)),121),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(CAST(OldPK AS VARCHAR(100)),'<<NULL>>') AS\
+          \ OldPK\nFROM dbo.AcctTypes;"
+        target_table_name: AcctTypes
+        target: snowflake
+        targetcolumn: AcctTypeID
+        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.AcctTypeID),'<<NULL>>') AS\
+          \ AcctTypeID,\n    COALESCE(TO_VARCHAR(t.AcctType_TermID),'<<NULL>>') AS\
+          \ AcctType_TermID,\n    COALESCE(TRIM(t.sDefAcctTypeName),'<<NULL>>') AS\
+          \ sDefAcctTypeName,\n    COALESCE(TRIM(t.sAcctTypeName),'<<NULL>>') AS sAcctTypeName,\n\
+          \    CASE WHEN t.bPermanent IS NULL THEN '<<NULL>>' WHEN t.bPermanent =\
+          \ TRUE THEN 'TRUE' WHEN t.bPermanent = FALSE THEN 'FALSE' ELSE '<<NULL>>'\
+          \ END AS bPermanent,\n    COALESCE(TO_CHAR(t.dDeleted,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dDeleted,\n    COALESCE(TO_CHAR(t.dUpdated,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
+          \ AS dUpdated,\n    COALESCE(TO_VARCHAR(t.OldPK),'<<NULL>>') AS OldPK\n\
+          FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.AcctTypes t\nWHERE t._FIVETRAN_ACTIVE\
+          \ = TRUE"
