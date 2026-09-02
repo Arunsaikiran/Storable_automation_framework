@@ -148,6 +148,14 @@ def main():
                     sourcecolumn = validation_config.get("sourcecolumn",'').lower()
                     targetcolumn = validation_config.get("targetcolumn",'').lower()
 
+                    report_tile = None
+                    test_case = None
+                    summary = None
+                    if layer[0] == "reports":
+                        report_tile = validation_config.get("report_tile")
+                        test_case = validation_config.get("test_case")
+                        summary = validation_config.get("summary")
+
                     try:
                         batch_start_time = datetime.now()
                         #source
@@ -187,7 +195,6 @@ def main():
                             output_file_path = ""
                             logger.debug("Source row count: %s", source_rows)
                             logger.debug("Target row count: %s", target_rows)
-                    
                         if source_df.equals(target_df):
                             logger.info("Match/Mismatch: Match")
                             status = "PASS"
@@ -202,7 +209,7 @@ def main():
                             batch_start_time = batch_start_time.strftime("%H:%M:%S")
                             batch_end_time = batch_end_time.strftime("%H:%M:%S")
                             total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,output_file_path,batch_start_time,batch_end_time,total_batch_time_taken) 
+                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,output_file_path,batch_start_time,batch_end_time,total_batch_time_taken,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                                 
                         else:
                             logger.info("Match/Mismatch: Mismatch")
@@ -248,7 +255,7 @@ def main():
                             batch_start_time = batch_start_time.strftime("%H:%M:%S")
                             batch_end_time = batch_end_time.strftime("%H:%M:%S")
                             total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target) 
+                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                             print("+"*100)
 
 
@@ -262,7 +269,7 @@ def main():
                         )
                         system_error = True
                         status = "FAIL"
-                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message) 
+                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                         continue
 
                     except Exception:
@@ -274,7 +281,7 @@ def main():
                             exc_info=True
                         )
                         status = "FAIL"
-                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message) 
+                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                         continue
 
     end_time = datetime.now()

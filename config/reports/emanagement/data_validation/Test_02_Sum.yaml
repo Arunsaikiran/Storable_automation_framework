@@ -2,8 +2,10 @@ tables:
   Test_02_Sum:
     validations:
       data_validation:
-        source_table_name: sefms_management_summary_final_report_iceberg
         source: redshift
+        report_tile: Revenue By Type or Revenue By Types - Table
+        test_case: Test_002_Sum
+        summary: Compare total revenue for each types in the last 24 months
         sourcecolumn: facility_id,report_month,types
         sourcequery: "SELECT
                       COALESCE(CAST(facility_id AS VARCHAR(100)), '_NULL_VALUE_') AS facility_id,
@@ -31,7 +33,6 @@ tables:
 
                   GROUP BY 1, 2, 3
                   ORDER BY report_month DESC;"
-        target_table_name: FACT_REVENUE_DAILY
         target: snowflake
         targetcolumn: facility_id,report_month,types
         targetquery: "SELECT

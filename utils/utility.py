@@ -31,7 +31,6 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
 
     output_dir = os.path.join(base_dir, "output")
     if layer_type[0] == "reports":
-        print("Hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee in reports")
         logpath = os.path.join(
         output_dir,
         layer_type[0],
@@ -87,8 +86,6 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
                     os.makedirs(path, exist_ok=True)
 
     else:
-        print("Hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee outside reports")
-
         logpath = os.path.join(
             output_dir,
             layer_type[0],
@@ -141,9 +138,9 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
 
     return outputpaths,configpaths,logpath
 
-def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,status,output_path,source_rows=0,target_rows=0,output_file_path=None,batch_start_time=None,batch_end_time=None,diff_batch=None,missing_in_source=None,missing_in_target=None,error_message=None):
+def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,status,output_path,source_rows=0,target_rows=0,output_file_path=None,batch_start_time=None,batch_end_time=None,diff_batch=None,missing_in_source=None,missing_in_target=None,error_message=None,layer_type=None,report_pack=None,report_tile=None,test_case=None,summary=None):
     if validation_type != 'count_validation':
-        summary_df = pd.DataFrame([{
+        summary_dict = {
             "run_id": run_id,
             "run_at": run_at,
             "validation_performed": validation_type,
@@ -157,11 +154,39 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
             "missing_in_target": missing_in_target,
             "status": status,
             "output_file_path":output_file_path,
-            "batch_start_time": batch_start_time, 
+            "batch_start_time": batch_start_time,
             "batch_end_time": batch_end_time,
             "total_time_taken": diff_batch,
             "error_message": error_message
-        }])
+        }
+
+        if layer_type == 'reports':
+            summary_dict = {
+                "run_id": run_id,
+                "run_at": run_at,
+                "report_pack": report_pack,
+                "report_tile": report_tile,
+                "test_case": test_case,
+                "summary": summary,
+                "validation_performed": validation_type,
+                "source_type": source_type,
+                "target_type": target_type,
+                "source_count": source_rows,
+                "missing_in_source": missing_in_source,
+                "target_count": target_rows,
+                "missing_in_target": missing_in_target,
+                "status": status,
+                "output_file_path":output_file_path,
+                "batch_start_time": batch_start_time,
+                "batch_end_time": batch_end_time,
+                "total_time_taken": diff_batch,
+                "error_message": error_message
+            }
+
+            summary_df = pd.DataFrame([summary_dict])
+        else:
+            summary_df = pd.DataFrame([summary_dict])
+
     else:
 
         summary_df = pd.DataFrame([{
