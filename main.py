@@ -184,14 +184,12 @@ def main():
                         else:
                             source_rows = len(source_df)
                             target_rows = len(target_df)
-                            #if len(list(sourcecolumn)) != 0:
                             sourcecolumn = sourcecolumn.split(',')
                             source_df = source_df.set_index(sourcecolumn)
-                            #if len(list(targetcolumn)) != 0:
                             targetcolumn = targetcolumn.split(',')
                             target_df = target_df.set_index(targetcolumn)
-                            source_df = source_df.sort_values(sourcecolumn).reset_index(drop=True)
-                            target_df = target_df.sort_values(targetcolumn).reset_index(drop=True)
+                            source_df = source_df.sort_values(sourcecolumn)
+                            target_df = target_df.sort_values(targetcolumn)
                             output_file_path = ""
                             logger.debug("Source row count: %s", source_rows)
                             logger.debug("Target row count: %s", target_rows)
@@ -233,6 +231,7 @@ def main():
                                 else:
                                     missing_in_source = ", ".join(missing_in_source.astype(str))
                                 logger.info("ID's missing_in_source: %s",missing_in_source)
+                                print(missing_in_source)
 
                                 missing_in_target = source_df.index.difference(target_df.index)
                                 if isinstance(missing_in_target, pd.MultiIndex):
