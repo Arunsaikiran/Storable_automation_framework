@@ -85,6 +85,28 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
                     
                     os.makedirs(path, exist_ok=True)
 
+    elif layer_type[0] == "sanity":
+        logpath = os.path.join(
+            output_dir,
+            layer_type[0],
+            f"validation_{run_id}"
+        )
+        os.makedirs(output_dir, exist_ok=True)
+
+        path = os.path.join(
+            output_dir,
+            layer_type[0],
+            f"validation_{run_id}",
+            f"integrity_check_{run_id}"
+        )
+        os.makedirs(path, exist_ok=True)
+
+        yamlpath = os.path.join(config_path, layer_type[0], "integrity_check.yaml")
+
+        for validation in validation_dirs:
+            outputpaths[validation] = path
+            configpaths[validation] = [yamlpath]
+
     else:
         logpath = os.path.join(
             output_dir,
@@ -139,7 +161,25 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
     return outputpaths,configpaths,logpath
 
 def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,status,output_path,source_rows=0,target_rows=0,output_file_path=None,batch_start_time=None,batch_end_time=None,diff_batch=None,missing_in_source=None,missing_in_target=None,error_message=None,layer_type=None,report_pack=None,report_tile=None,test_case=None,summary=None):
-    if validation_type != 'count_validation':
+    if validation_type == 'integrity_check':
+        summary_dict = {
+            "run_id": run_id,
+            "run_at": run_at,
+            "summary": summary,
+            "validation_performed": validation_type,
+            "source_type": source_type,
+            "source_count": source_rows,
+            "status": status,
+            "output_file_path": output_file_path,
+            "batch_start_time": batch_start_time,
+            "batch_end_time": batch_end_time,
+            "total_time_taken": diff_batch,
+            "error_message": error_message
+        }
+
+        summary_df = pd.DataFrame([summary_dict])
+
+    elif validation_type != 'count_validation':
         summary_dict = {
             "run_id": run_id,
             "run_at": run_at,

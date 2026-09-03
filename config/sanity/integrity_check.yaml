@@ -1,0 +1,17 @@
+tables:
+  Table1:
+    validation:
+      integrity_check:
+        summary: Compare total revenue for each types in the last 24 months
+        source: snowflake
+        query: "SELECT COUNT(*) AS orphan_or_null_keys
+                FROM dev_gold.consume.fact_delinquency_snapshot f
+                WHERE f.report_date BETWEEN '2024-01-01' AND '2026-06-30'
+                AND (
+                    f.facility_key IS NULL
+                    OR f.tenant_key   IS NULL
+                    OR f.unit_key     IS NULL
+                    OR NOT EXISTS (SELECT 1 FROM dev_gold.consume.dim_facility d WHERE d.facility_key = f.facility_key)
+                    OR NOT EXISTS (SELECT 1 FROM dev_gold.consume.dim_tenant   t WHERE t.tenant_key   = f.tenant_key)
+                    OR NOT EXISTS (SELECT 1 FROM dev_gold.consume.dim_unit     u WHERE u.unit_key     = f.unit_key)
+                  )" 

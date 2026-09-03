@@ -27,7 +27,7 @@ def main():
     "--layer_type",
     nargs=1,
     required = True,
-    choices=["bronze_postgres","bronze_mssql", "silver", "gold", "reports"]
+    choices=["bronze_postgres","bronze_mssql", "silver", "gold", "reports", "sanity"]
     )
 
     parser.add_argument(
@@ -137,6 +137,84 @@ def main():
 
             for table_name, table_config in tables_to_process:
                 logger.info("Processing table: %s", table_name)
+
+                if layer[0] == "sanity":
+                    for validation_name, validation_config in table_config["validation"].items():
+                        logger.debug("Validation configuration: %s", validation_name)
+                        source = validation_config.get("source")
+                        query = validation_config.get("query")
+                        summary = validation_config.get("summary")
+
+                        try:
+                            batch_start_time = datetime.now()
+                            logger.info("Executing integrity check query for table %s", table_name)
+                            logger.debug("Query: %s", query)
+                            obj = get_database(source, BASE_DIR, environment)
+                            df = obj.execute_query(query)
+
+                            row_count = len(df)
+                            output_file_path = ""
+
+                            batch_end_time = datetime.now()
+                            diff_batch = batch_end_time - batch_start_time
+                            batch_start_time_str = batch_start_time.strftime("%H:%M:%S")
+                            batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
+                            total_batch_time_taken = time.strftime("%H:%M:%S", time.gmtime(diff_batch.total_seconds()))
+
+                            if row_count > 0:
+                                status = "FAIL"
+                                failure_count += 1
+                                logger.info("Current failure count: %s", failure_count)
+                                filepath = os.path.join(output_path, f"{table_name}_{validation_name}_result_{run_id}.csv")
+                                df.to_csv(filepath, index=False)
+                                output_file_path = filepath
+                                logger.warning(
+                                    "Integrity check failed for table=%s validation=%s, %s offending rows saved to %s",
+                                    table_name, validation_name, row_count, filepath
+                                )
+                            else:
+                                status = "PASS"
+                                logger.info(
+                                    "Integrity check passed for table=%s validation=%s",
+                                    table_name, validation_name
+                                )
+
+                            create_summary(
+                                run_at, run_id, validation_name, table_name, source, None, None, status,
+                                output_path, source_rows=row_count, output_file_path=output_file_path,
+                                batch_start_time=batch_start_time_str, batch_end_time=batch_end_time_str,
+                                diff_batch=total_batch_time_taken, layer_type=layer[0], summary=summary
+                            )
+
+                        except (pyodbc.Error, psycopg2.Error):
+                            error_message = f"Database/network error for table={table_name} for validation={validation_name}"
+                            logger.error(
+                                "Database/network error for table=%s validation=%s",
+                                table_name, validation_name, exc_info=True
+                            )
+                            system_error = True
+                            status = "FAIL"
+                            create_summary(
+                                run_at, run_id, validation_name, table_name, source, None, None, status,
+                                output_path, error_message=error_message, layer_type=layer[0], summary=summary
+                            )
+                            continue
+
+                        except Exception:
+                            error_message = f"Unexpected error for table={table_name} for validation={validation_name}"
+                            logger.error(
+                                "Unexpected error for table=%s validation=%s",
+                                table_name, validation_name, exc_info=True
+                            )
+                            status = "FAIL"
+                            create_summary(
+                                run_at, run_id, validation_name, table_name, source, None, None, status,
+                                output_path, error_message=error_message, layer_type=layer[0], summary=summary
+                            )
+                            continue
+
+                    continue
+
                 for validation_name, validation_config in table_config["validations"].items():
                     logger.debug("Validation configuration: %s", validation_name)
                     source = validation_config.get("source")
