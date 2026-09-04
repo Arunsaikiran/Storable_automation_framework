@@ -2,6 +2,7 @@ from db.base import Database
 import awswrangler as wr
 import boto3
 import time
+import pandas as pd
 
 
 class Athena(Database):
@@ -39,8 +40,29 @@ class Athena(Database):
             reason = status["QueryExecution"]["Status"].get("StateChangeReason", "No details")
             raise Exception(f"Query failed: {state} — {reason}")
 
-        # Read the result CSV directly from S3 — much faster than API pagination
+        # Get the EXACT result file path (not a folder/prefix)
         s3_path = status["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
-        df = wr.s3.read_csv(s3_path, boto3_session=session)
+        print(f"Reading result from: {s3_path}")  # sanity check — should end in .csv
+
+        try:
+            df = wr.s3.read_csv(s3_path, boto3_session=session)
+        except UnicodeDecodeError:
+            # Fallback: fetch raw bytes ourselves and decode leniently
+            import io
+            s3 = session.client("s3")
+            bucket, key = s3_path.replace("s3://", "").split("/", 1)
+            obj = s3.get_object(Bucket=bucket, Key=key)
+            raw_bytes = obj["Body"].read()
+
+            # Try a few common encodings before giving up
+            for enc in ["utf-8-sig", "latin-1", "cp1252"]:
+                try:
+                    text = raw_bytes.decode(enc)
+                    df = pd.read_csv(io.StringIO(text))
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                raise
 
         return df
