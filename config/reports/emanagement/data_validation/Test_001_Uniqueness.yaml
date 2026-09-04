@@ -1,0 +1,25 @@
+tables:
+  Test_001_Uniqueness:
+    validations:
+      data_validation:
+        source_table_name: sefms_total_move_ins_iceberg
+        source: athena
+        report_title: Move-Ins By Promotion and Lead Category
+        test_case: Test_001_Uniqueness
+        summary: Compare list category between legacy and snowflake
+        sourcecolumn: lead_category
+        sourcequery: |
+          SELECT DISTINCT COALESCE(TRIM(CAST(lead_category AS VARCHAR)), '_NULL_VALUE_') AS lead_category
+          FROM stodl_reporting_prod.sefms_total_move_ins_iceberg
+          WHERE activity_type IN ('Move In', 'Future Move In');
+        target_table_name: fact_move_in
+        target: snowflake
+        targetcolumn: lead_category
+        targetquery: |
+          SELECT DISTINCT COALESCE(TRIM(CAST(dls.LEAD_SOURCE_CATEGORY AS VARCHAR)), '_NULL_VALUE_') AS lead_category
+          FROM DEV_GOLD.CORE.FACT_MOVE_IN fm1
+          LEFT JOIN DEV_GOLD.DIM.DIM_LEAD_SOURCE dls
+          ON fm1.LEAD_SOURCE_KEY = dls.LEAD_SOURCE_KEY
+          AND dls.IS_CURRENT = TRUE
+          WHERE fm1.ACTIVITY_TYPE IN ('Move In', 'Future Move In')
+          AND fm1.PLATFORM_SOURCE = 'EDGE';

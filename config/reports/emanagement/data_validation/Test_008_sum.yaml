@@ -1,0 +1,48 @@
+tables:
+  Test_008_sum:
+    validations:
+      data_validation:
+        source_table_name: sefms_total_move_ins_iceberg
+        source: athena
+        report_title: Initial Revenue By Lead Category Over Time
+        test_case: Test_008_sum
+        summary: Compare total revenue for each lead category in the last 24 months
+        sourcecolumn: legacy_initial_revenue
+        sourcequery: |
+          SELECT
+          COALESCE(NULLIF(TRIM(CAST(facility_id AS VARCHAR)), ''), '_NULL_VALUE_') AS facility_id,
+          CAST(DATE_FORMAT(report_date, '%Y%m%d') AS BIGINT) AS report_date,
+          COALESCE(NULLIF(TRIM(CAST(lead_category AS VARCHAR)), ''), '_NULL_VALUE_') AS lead_category,
+          COALESCE(NULLIF(TRIM(CAST(
+          CAST(COALESCE(ROUND(SUM(rent_billed), 2), 0) AS DECIMAL(18,2))
+          AS VARCHAR)), ''), '_NULL_VALUE_') AS legacy_initial_revenue
+          FROM stodl_reporting_prod.sefms_total_move_ins_iceberg
+          WHERE activity_type IN ('Move In', 'Future Move In')
+          AND report_date >= DATE_ADD('month', -24, DATE_TRUNC('month', CURRENT_DATE))
+          AND report_date < DATE_ADD('month', 1, DATE_TRUNC('month', CURRENT_DATE))
+          GROUP BY 1, 2, 3
+          ORDER BY report_date DESC;
+        target_table_name: fact_move_in
+        target: snowflake
+        targetcolumn: initial_revenue
+        targetquery: |
+          SELECT
+          COALESCE(CAST(f.FACILITY_ID AS VARCHAR), '_NULL_VALUE_') AS facility_id,
+          d.FULL_DATE AS report_date,
+          COALESCE(NULLIF(TRIM(dls.LEAD_SOURCE_CATEGORY), ''), '_NULL_VALUE_') AS lead_category,
+          CAST(COALESCE(ROUND(SUM(fm1.RENT_BILLED), 2), 0) AS NUMBER(18,2)) AS initial_revenue
+          FROM DEV_GOLD.CORE.FACT_MOVE_IN fm1
+          LEFT JOIN DEV_GOLD.DIM.DIM_FACILITY f
+          ON fm1.FACILITY_KEY = f.FACILITY_KEY
+          AND f.IS_CURRENT = TRUE
+          LEFT JOIN DEV_GOLD.DIM.DIM_DATE d
+          ON fm1.DATE_KEY_REPORT = d.DATE_KEY
+          LEFT JOIN DEV_GOLD.DIM.DIM_LEAD_SOURCE dls
+          ON fm1.LEAD_SOURCE_KEY = dls.LEAD_SOURCE_KEY
+          AND dls.IS_CURRENT = TRUE
+          WHERE fm1.ACTIVITY_TYPE IN ('Move In', 'Future Move In')
+          AND d.FULL_DATE >= DATEADD(month, -24, DATE_TRUNC('month', CURRENT_DATE))
+          AND d.FULL_DATE < DATEADD(month, 1, DATE_TRUNC('month', CURRENT_DATE))
+          AND fm1.PLATFORM_SOURCE = 'EDGE'
+          GROUP BY 1, 2, 3
+          ORDER BY report_date DESC;

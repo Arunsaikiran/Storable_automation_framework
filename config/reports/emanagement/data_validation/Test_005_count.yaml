@@ -1,0 +1,49 @@
+tables:
+  Test_005_count:
+    validations:
+      data_validation:
+        source_table_name: sefms_total_move_ins_iceberg
+        source: athena
+        report_title: Move-Ins By Promotion and Lead Category
+        test_case: Test_005_count
+        summary: Compare total move-ins for each promotion in the last 24 months when filter by Unit Type
+        sourcecolumn: promotion
+        sourcequery: |
+          SELECT
+          COALESCE(NULLIF(TRIM(CAST(facility_id AS VARCHAR)), ''), '_NULL_VALUE_') AS facility_id,
+          CAST(DATE_FORMAT(report_date, '%Y%m%d') AS BIGINT) AS report_date,
+          COALESCE(NULLIF(TRIM(CAST(
+          CASE WHEN discount_description LIKE '%,%' THEN 'Multiple Promotions' ELSE discount_description END
+          AS VARCHAR)), ''), '_NULL_VALUE_') AS promotion,
+          COALESCE(NULLIF(TRIM(CAST(COUNT(*) AS VARCHAR)), ''), '_NULL_VALUE_') AS legacy_move_ins
+          FROM stodl_reporting_prod.sefms_total_move_ins_iceberg
+          WHERE discount_description IS NOT NULL
+          AND activity_type IN ('Move In', 'Future Move In')
+          AND report_date >= DATE_ADD('month', -24, DATE_TRUNC('month', CURRENT_DATE))
+          AND report_date < DATE_ADD('month', 1, DATE_TRUNC('month', CURRENT_DATE))
+          AND unit_type = 'Self Storage'
+          GROUP BY 1, 2, 3
+          ORDER BY report_date DESC;
+        target_table_name: fact_move_in
+        target: snowflake
+        targetcolumn: promotion
+        targetquery: |
+          SELECT
+          COALESCE(CAST(f.FACILITY_ID AS VARCHAR), '_NULL_VALUE_') AS facility_id,
+          d.FULL_DATE AS report_date,
+          COALESCE(NULLIF(TRIM(fm1.PROMOTION_DERIVED), ''), '_NULL_VALUE_') AS promotion,
+          COUNT(*) AS move_ins
+          FROM DEV_GOLD.CORE.FACT_MOVE_IN fm1
+          LEFT JOIN DEV_GOLD.DIM.DIM_FACILITY f
+          ON fm1.FACILITY_KEY = f.FACILITY_KEY
+          AND f.IS_CURRENT = TRUE
+          LEFT JOIN DEV_GOLD.DIM.DIM_DATE d
+          ON fm1.DATE_KEY_REPORT = d.DATE_KEY
+          WHERE fm1.DISCOUNT_DESCRIPTION IS NOT NULL
+          AND fm1.ACTIVITY_TYPE IN ('Move In', 'Future Move In')
+          AND d.FULL_DATE >= DATEADD(month, -24, DATE_TRUNC('month', CURRENT_DATE))
+          AND d.FULL_DATE < DATEADD(month, 1, DATE_TRUNC('month', CURRENT_DATE))
+          AND fm1.PLATFORM_SOURCE = 'EDGE'
+          AND fm1.UNIT_TYPE = 'Self Storage'
+          GROUP BY 1, 2, 3
+          ORDER BY report_date DESC;
