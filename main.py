@@ -236,12 +236,15 @@ def main():
                         logger.debug("Source query: %s", source_query)
                         obj = get_database(source,BASE_DIR,environment)
                         source_df = obj.execute_query(source_query)
+                        source_df = source_df.astype(str)
 
                         #target
                         logger.info("Executing target query for table %s", table_name)
                         logger.debug("Target query: %s", target_query)
                         obj = get_database(target,BASE_DIR,environment)
                         target_df = obj.execute_query(target_query)
+                        target_df = target_df.astype(str)
+
                         source_df.columns = source_df.columns.str.strip().str.lower()
                         target_df.columns = target_df.columns.str.strip().str.lower()
 
@@ -292,16 +295,18 @@ def main():
                             )
                             failure_count += 1
                             logger.info("Current failure count: %s", failure_count)
-                            filepath = os.path.join(output_path,f"{table_name}_{validation}_result_{run_id}.csv")
+                            filepath = os.path.join(output_path,f"{table_name}_{validation}_result_{run_id}.xlsx")
                             logger.info("Saving mismatch data to %s", filepath)
                             missing_in_source = ""
                             missing_in_target = ""
                             
                             if validation != 'count_validation':
                                 missing_in_source = target_df.index.difference(source_df.index)
+                                missing_in_source_df = missing_in_source.to_frame(index=False)
                                 missing_in_source = len(missing_in_source.to_list())
                                 logger.info("Count of ID's missing_in_source: %s",missing_in_source)
-                                missing_in_target = source_df.index.difference(target_df.index)    
+                                missing_in_target = source_df.index.difference(target_df.index)   
+                                missing_in_target_df = missing_in_target.to_frame(index=False)
                                 missing_in_target = len(missing_in_target.to_list())         
                                 logger.info("Count of ID's missing_in_target: %s",missing_in_target)
 
@@ -310,10 +315,40 @@ def main():
 
                                 logger.debug(
                                 "Comparing source and target data for table=%s",table_name)
-                                diff_df = (source_df.loc[common_idx].sort_index().compare(target_df.loc[common_idx].sort_index()                   
+                                diff_df = (source_df.loc[common_idx].sort_index().compare(target_df.loc[common_idx].sort_index()                    # type: ignore
                                 ))
-                                if len(diff_df) > 0 :
-                                    diff_df.to_csv(filepath)
+                                # if len(diff_df) > 0 :
+                                #     diff_df.to_csv(filepath)
+
+                                with pd.ExcelWriter(filepath, engine="openpyxl") as writer:
+                                    sheets_written = 0
+
+                                    if not diff_df.empty:
+                                        diff_df.to_excel(writer, sheet_name="Differences", index=True)
+                                        sheets_written += 1
+
+                                    if not missing_in_source_df.empty:
+                                        missing_in_source_df.to_excel(
+                                            writer,
+                                            sheet_name="Missing_in_Source",
+                                            index=True
+                                        )
+                                        sheets_written += 1
+
+                                    if not missing_in_target_df.empty:
+                                        missing_in_target_df.to_excel(
+                                            writer,
+                                            sheet_name="Missing_in_Target",
+                                            index=True
+                                        )
+                                        sheets_written += 1
+
+                                    if sheets_written == 0:
+                                        pd.DataFrame({"Message": ["No differences found"]}).to_excel(
+                                            writer,
+                                            sheet_name="Summary",
+                                            index=False
+                                        )
 
                             logger.info("Creating summary file")
                             batch_end_time = datetime.now()
