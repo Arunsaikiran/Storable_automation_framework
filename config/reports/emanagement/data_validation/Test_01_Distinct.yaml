@@ -2,11 +2,10 @@ tables:
   Test_01_Distinct:
     validations:
       data_validation:
-        source: redshift
+        source: athena
         report_tile: Revenue By Type or Revenue By Types - Table
         test_case: Test_001_Uniqueness
         summary: Compare types between Legacy and Snowflake
-        source: redshift
         sourcecolumn: types
         sourcequery: "SELECT DISTINCT COALESCE(types, '_NULL_VALUE_') AS types
                       FROM stodl_reporting_prod.sefms_management_summary_final_report_iceberg

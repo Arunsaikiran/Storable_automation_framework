@@ -5,58 +5,149 @@ tables:
         source_table_name: settings
         source: postgres
         sourcecolumn: id
-        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
-          \   CASE WHEN data IS NULL THEN '<<NULL>>' ELSE COALESCE('{' || (SELECT\
-          \ STRING_AGG(TO_JSON(h.key::TEXT) || ': ' || TO_JSON(h.value::TEXT), ',\
-          \ ' ORDER BY h.key) FROM EACH(data) h) || '}', '{}') END AS data,\n    COALESCE(CAST(owner_id\
-          \ AS TEXT),'<<NULL>>') AS owner_id,\n    COALESCE(TRIM(owner_type),'<<NULL>>')\
-          \ AS owner_type,\n    COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
-          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
-          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
-          \ AS uuid\nFROM public.settings;"
+        sourcequery: |-
+          SELECT
+              COALESCE(CAST(t.id AS TEXT),'<<NULL>>') AS id,
+              CASE WHEN t.data IS NULL THEN '<<NULL>>' ELSE COALESCE('{' || (SELECT STRING_AGG(TO_JSON(h.key::TEXT) || ': ' || TO_JSON(h.value::TEXT), ', ' ORDER BY h.key) FROM EACH(t.data) h) || '}', '{}') END AS data,
+              COALESCE(CAST(t.owner_id AS TEXT),'<<NULL>>') AS owner_id,
+              COALESCE(TRIM(t.owner_type),'<<NULL>>') AS owner_type,
+              COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,
+              COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,
+              COALESCE(UPPER(TRIM(CAST(t.uuid AS TEXT))),'<<NULL>>') AS uuid
+          FROM public.settings t
+          JOIN public.tenants t1 ON t.owner_id = t1.id
+              JOIN public.facilities f ON t1.facility_id = f.id
+          WHERE t.owner_type IN ('Tenant') AND f.company_id IN (137,9088,501);
         target_table_name: settings
         target: snowflake
         targetcolumn: id
-        targetquery: "WITH\nobj_agg_data AS\n(\n    SELECT\n        _flt.id AS id,\n\
-          \        LISTAGG(\n            CASE\n                WHEN f.key IS NULL\
-          \ THEN NULL\n                ELSE\n                    TO_JSON(TO_VARIANT(f.key::VARCHAR))\
-          \ || ': ' ||\n                    CASE\n                        WHEN f.value\
-          \ IS NULL THEN 'null'\n                        WHEN IS_NULL_VALUE(f.value)\
-          \ THEN 'null'\n                        WHEN TYPEOF(f.value) = 'VARCHAR'\
-          \ THEN TO_JSON(TO_VARIANT(f.value::VARCHAR))\n                        WHEN\
-          \ TYPEOF(f.value) = 'BOOLEAN' THEN LOWER(f.value::VARCHAR)\n           \
-          \             WHEN TYPEOF(f.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER')\
-          \ THEN f.value::VARCHAR\n                        ELSE TO_JSON(f.value)\n\
-          \                    END\n            END, ', ') WITHIN GROUP (ORDER BY\
-          \ f.key) AS obj_body\n    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings\
-          \ AS _flt,\n         TABLE(FLATTEN(INPUT => _flt.data, RECURSIVE => FALSE))\
-          \ f\n    WHERE _flt._FIVETRAN_ACTIVE = TRUE\n      AND TYPEOF(_flt.data)\
-          \ = 'OBJECT'\n      AND _flt._FIVETRAN_ACTIVE = TRUE\n    GROUP BY _flt.id\n\
-          ),\nvariant_data AS\n(\n    SELECT\n        t.id AS id,\n        CASE\n\n\
-          \    -- ======================================================\n    -- SQL\
-          \ NULL\n    -- ======================================================\n\n\
-          \    WHEN t.data IS NULL\n        THEN '<<NULL>>'\n\n\n    -- =====================================================\n\
-          \    -- JSON NULL\n    -- =====================================================\n\
-          \n    WHEN IS_NULL_VALUE(\n        t.data\n    )\n        THEN 'null'\n\n\
-          \n    -- =====================================================\n    -- OBJECT\n\
-          \    -- =====================================================\n\n    WHEN\
-          \ TYPEOF(\n        t.data\n    ) = 'OBJECT'\n\n        THEN\n\n        \
-          \    CHR(123)\n\n            ||\n\n            COALESCE(COALESCE(obj.obj_body,\
-          \ ''), '')\n\n            ||\n\n            CHR(125)\n\n\n    -- =====================================================\n\
-          \    -- ARRAY\n    -- =====================================================\n\
-          \n    WHEN TYPEOF(\n        t.data\n    ) = 'ARRAY'\n\n        THEN COALESCE(\n\
-          \n            TO_JSON(\n                t.data\n            ),\n\n     \
-          \       '[]'\n\n        )\n\n\n    -- =====================================================\n\
-          \    -- SCALAR\n    -- =====================================================\n\
-          \n    ELSE\n\n        COALESCE(\n\n            TO_JSON(\n              \
-          \  t.data\n            ),\n\n            '<<NULL>>'\n\n        )\n\nEND\
-          \ AS data\n    FROM\n        DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings\
-          \ t\n    LEFT JOIN obj_agg_data obj ON obj.id = t.id\n    WHERE t._FIVETRAN_ACTIVE\
-          \ = TRUE\n\n)\nSELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n\
-          \    v_data.data AS data,\n    COALESCE(TO_VARCHAR(t.owner_id),'<<NULL>>')\
-          \ AS owner_id,\n    COALESCE(TRIM(t.owner_type),'<<NULL>>') AS owner_type,\n\
-          \    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
-          \ AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
-          \ AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid\nFROM variant_data\
-          \ v_data LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings t ON v_data.id\
-          \ = t.id\nWHERE t._FIVETRAN_ACTIVE = TRUE"
+        targetquery: |-
+          WITH
+          obj_agg_data AS
+          (
+              SELECT
+                  _flt.id AS id,
+                  LISTAGG(
+                      CASE
+                          WHEN flt_kv.key IS NULL THEN NULL
+                          ELSE
+                              TO_JSON(TO_VARIANT(flt_kv.key::VARCHAR)) || ': ' ||
+                              CASE
+                                  WHEN flt_kv.value IS NULL THEN 'null'
+                                  WHEN IS_NULL_VALUE(flt_kv.value) THEN 'null'
+                                  WHEN TYPEOF(flt_kv.value) = 'VARCHAR' THEN TO_JSON(TO_VARIANT(flt_kv.value::VARCHAR))
+                                  WHEN TYPEOF(flt_kv.value) = 'BOOLEAN' THEN LOWER(flt_kv.value::VARCHAR)
+                                  WHEN TYPEOF(flt_kv.value) IN ('INTEGER','DECIMAL','DOUBLE','REAL','NUMBER') THEN flt_kv.value::VARCHAR
+                                  ELSE TO_JSON(flt_kv.value)
+                              END
+                      END, ', ') WITHIN GROUP (ORDER BY flt_kv.key) AS obj_body
+              FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings AS _flt,
+                   TABLE(FLATTEN(INPUT => _flt.data, RECURSIVE => FALSE)) flt_kv
+              JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants t1 ON _flt.owner_id = t1.id
+              JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t1.facility_id = f.id
+              WHERE _flt._FIVETRAN_ACTIVE = TRUE
+                AND TYPEOF(_flt.data) = 'OBJECT'
+                AND _flt._FIVETRAN_ACTIVE = TRUE AND _flt.owner_type IN ('Tenant') AND f.company_id IN (137,9088,501)
+              GROUP BY _flt.id
+          ),
+          variant_data AS
+          (
+              SELECT
+                  t.id AS id,
+                  CASE
+
+              -- ======================================================
+              -- SQL NULL
+              -- ======================================================
+
+              WHEN t.data IS NULL
+                  THEN '<<NULL>>'
+
+
+              -- =====================================================
+              -- JSON NULL
+              -- =====================================================
+
+              WHEN IS_NULL_VALUE(
+                  t.data
+              )
+                  THEN 'null'
+
+
+              -- =====================================================
+              -- OBJECT
+              -- =====================================================
+
+              WHEN TYPEOF(
+                  t.data
+              ) = 'OBJECT'
+
+                  THEN
+
+                      CHR(123)
+
+                      ||
+
+                      COALESCE(COALESCE(obj.obj_body, ''), '')
+
+                      ||
+
+                      CHR(125)
+
+
+              -- =====================================================
+              -- ARRAY
+              -- =====================================================
+
+              WHEN TYPEOF(
+                  t.data
+              ) = 'ARRAY'
+
+                  THEN COALESCE(
+
+                      TO_JSON(
+                          t.data
+                      ),
+
+                      '[]'
+
+                  )
+
+
+              -- =====================================================
+              -- SCALAR
+              -- =====================================================
+
+              ELSE
+
+                  COALESCE(
+
+                      TO_JSON(
+                          t.data
+                      ),
+
+                      '<<NULL>>'
+
+                  )
+
+          END AS data
+              FROM
+                  DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings t
+              LEFT JOIN obj_agg_data obj ON obj.id = t.id
+              JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants t1 ON t.owner_id = t1.id
+              JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t1.facility_id = f.id
+              WHERE t._FIVETRAN_ACTIVE = TRUE AND t.owner_type IN ('Tenant') AND f.company_id IN (137,9088,501)
+
+          )
+          SELECT
+              COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,
+              v_data.data AS data,
+              COALESCE(TO_VARCHAR(t.owner_id),'<<NULL>>') AS owner_id,
+              COALESCE(TRIM(t.owner_type),'<<NULL>>') AS owner_type,
+              COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,
+              COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,
+              COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid
+          FROM variant_data v_data LEFT JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings t ON v_data.id = t.id
+          JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants t1 ON t.owner_id = t1.id
+              JOIN DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t1.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.owner_type IN ('Tenant') AND f.company_id IN (137,9088,501)
