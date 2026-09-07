@@ -42,8 +42,6 @@ class Athena(Database):
 
         # Get the EXACT result file path (not a folder/prefix)
         s3_path = status["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
-        print(f"Reading result from: {s3_path}")  # sanity check — should end in .csv
-
         try:
             df = wr.s3.read_csv(s3_path, boto3_session=session)
         except UnicodeDecodeError:

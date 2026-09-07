@@ -83,11 +83,6 @@ def main():
         validation_dirs.append("data_validation")
 
     outputpaths,configpaths,logpath = get_config_output_paths(run_id,layer,report_pack,BASE_DIR,config_path,validation_dirs,tables)
-    print("-"*10)
-    print(outputpaths)
-    print(configpaths)
-    print(logpath)
-    print("-"*10)
     logger = add_file_handler(
         logger=logger,
         log_directory=logpath,
@@ -304,21 +299,15 @@ def main():
                             
                             if validation != 'count_validation':
                                 missing_in_source = target_df.index.difference(source_df.index)
-                                if isinstance(missing_in_source, pd.MultiIndex):
-                                    missing_in_source = ", ".join(map(str, missing_in_source.tolist()))
-                                else:
-                                    missing_in_source = ", ".join(missing_in_source.astype(str))
-                                logger.info("ID's missing_in_source: %s",missing_in_source)
-                                print(missing_in_source)
-
-                                missing_in_target = source_df.index.difference(target_df.index)
-                                if isinstance(missing_in_target, pd.MultiIndex):
-                                    missing_in_target = ", ".join(map(str, missing_in_target.tolist()))
-                                else:
-                                    missing_in_target = ", ".join(missing_in_target.astype(str))                            
-                                logger.info("ID's missing_in_target: %s",missing_in_target)
+                                missing_in_source = len(missing_in_source.to_list())
+                                logger.info("Count of ID's missing_in_source: %s",missing_in_source)
+                                missing_in_target = source_df.index.difference(target_df.index)    
+                                missing_in_target = len(missing_in_target.to_list())         
+                                logger.info("Count of ID's missing_in_target: %s",missing_in_target)
 
                                 common_idx = source_df.index.intersection(target_df.index)
+                                logger.info("Count of ID's common: %s",len(common_idx.to_list()))
+
                                 logger.debug(
                                 "Comparing source and target data for table=%s",table_name)
                                 diff_df = (source_df.loc[common_idx].sort_index().compare(target_df.loc[common_idx].sort_index()                   
@@ -332,7 +321,7 @@ def main():
                             batch_start_time = batch_start_time.strftime("%H:%M:%S")
                             batch_end_time = batch_end_time.strftime("%H:%M:%S")
                             total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
+                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath if len(sourcecolumn) > 1 or len(targetcolumn)> 1 else None ,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                             print("+"*100)
 
 
@@ -368,6 +357,7 @@ def main():
     logger.info("End Time: %s", end_time.strftime("%Y-%m-%d %H:%M:%S"))
     logger.info("Duration: %s", total_time_taken)
     logger.info("Total failures: %s", failure_count)
+    logger.info("Run ID: %s", run_id)
     sys.exit(1 if system_error else 0)
 
 if __name__ == "__main__":

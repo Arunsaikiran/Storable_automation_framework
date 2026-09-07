@@ -246,7 +246,8 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
             "total_time_taken": diff_batch,
             "error_message": error_message
         }])
-
+    
+    
     summary_file = os.path.join(output_path,f"{validation_type}_summary.csv")
 
     summary_df.to_csv(summary_file,
