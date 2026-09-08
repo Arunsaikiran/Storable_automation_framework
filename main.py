@@ -295,7 +295,7 @@ def main():
                             )
                             failure_count += 1
                             logger.info("Current failure count: %s", failure_count)
-                            filepath = os.path.join(output_path,f"{table_name}_{validation}_result_{run_id}.xlsx")
+                            filepath = os.path.join(output_path,f"{table_name}_result.xlsx") #change
                             logger.info("Saving mismatch data to %s", filepath)
                             missing_in_source = ""
                             missing_in_target = ""
@@ -319,16 +319,15 @@ def main():
                                 ))
                                 # if len(diff_df) > 0 :
                                 #     diff_df.to_csv(filepath)
-
                                 with pd.ExcelWriter(filepath, engine="openpyxl") as writer:
                                     sheets_written = 0
 
                                     if not diff_df.empty:
-                                        diff_df.to_excel(writer, sheet_name="Differences", index=True)
+                                        diff_df.iloc[:2000].to_excel(writer, sheet_name="Differences", index=True)
                                         sheets_written += 1
 
                                     if not missing_in_source_df.empty:
-                                        missing_in_source_df.to_excel(
+                                        missing_in_source_df.iloc[:2000].to_excel(
                                             writer,
                                             sheet_name="Missing_in_Source",
                                             index=True
@@ -336,7 +335,7 @@ def main():
                                         sheets_written += 1
 
                                     if not missing_in_target_df.empty:
-                                        missing_in_target_df.to_excel(
+                                        missing_in_target_df.iloc[:2000].to_excel(
                                             writer,
                                             sheet_name="Missing_in_Target",
                                             index=True
@@ -356,7 +355,7 @@ def main():
                             batch_start_time = batch_start_time.strftime("%H:%M:%S")
                             batch_end_time = batch_end_time.strftime("%H:%M:%S")
                             total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath if len(sourcecolumn) > 1 or len(targetcolumn)> 1 else None ,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
+                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                             print("+"*100)
 
 
