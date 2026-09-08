@@ -25,7 +25,7 @@ tables:
         target_table_name: events
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.events;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.events WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   general_ledger_line_items:
@@ -39,7 +39,7 @@ tables:
         target_table_name: general_ledger_line_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.general_ledger_line_items;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.general_ledger_line_items WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   leads:
@@ -53,7 +53,7 @@ tables:
         target_table_name: leads
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   units:
@@ -67,7 +67,7 @@ tables:
         target_table_name: units
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.units;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.units WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   facilities:
@@ -81,7 +81,7 @@ tables:
         target_table_name: facilities
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   tenants:
@@ -95,7 +95,7 @@ tables:
         target_table_name: tenants
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   discount_plans:
@@ -109,7 +109,7 @@ tables:
         target_table_name: discount_plans
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plans;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plans WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   users:
@@ -123,7 +123,7 @@ tables:
         target_table_name: users
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.users;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.users WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   transactions:
@@ -137,7 +137,7 @@ tables:
         target_table_name: transactions
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.transactions;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.transactions WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   line_items:
@@ -151,7 +151,7 @@ tables:
         target_table_name: line_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.line_items;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.line_items WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   ledgers:
@@ -165,7 +165,7 @@ tables:
         target_table_name: ledgers
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledgers;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledgers WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   unit_groups:
@@ -179,7 +179,7 @@ tables:
         target_table_name: unit_groups
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_groups;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_groups WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   contacts:
@@ -193,7 +193,7 @@ tables:
         target_table_name: contacts
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.contacts;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.contacts WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   change_logged_events:
@@ -207,7 +207,7 @@ tables:
         target_table_name: change_logged_events
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.change_logged_events;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.change_logged_events WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   invoiceable_items:
@@ -221,7 +221,7 @@ tables:
         target_table_name: invoiceable_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_items;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_items WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   account_balances:
@@ -235,7 +235,7 @@ tables:
         target_table_name: account_balances
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balances;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balances WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   credit_items:
@@ -249,7 +249,7 @@ tables:
         target_table_name: credit_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.credit_items;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.credit_items WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   insurance_activities:
@@ -263,7 +263,7 @@ tables:
         target_table_name: insurance_activities
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.insurance_activities;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.insurance_activities WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   discount_plan_ledger_instances:
@@ -277,7 +277,7 @@ tables:
         target_table_name: discount_plan_ledger_instances
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   addresses:
@@ -291,7 +291,7 @@ tables:
         target_table_name: addresses
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.addresses;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.addresses WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   payment_methods:
@@ -305,7 +305,7 @@ tables:
         target_table_name: payment_methods
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   companies:
@@ -319,7 +319,7 @@ tables:
         target_table_name: companies
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.companies;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.companies WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   discount_lines:
@@ -333,7 +333,7 @@ tables:
         target_table_name: discount_lines
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   phone_numbers:
@@ -347,7 +347,7 @@ tables:
         target_table_name: phone_numbers
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.phone_numbers;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.phone_numbers WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   deposits:
@@ -361,7 +361,7 @@ tables:
         target_table_name: deposits
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.deposits;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.deposits WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   account_codes:
@@ -375,7 +375,7 @@ tables:
         target_table_name: account_codes
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_codes;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_codes WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   ledger_items:
@@ -389,7 +389,7 @@ tables:
         target_table_name: ledger_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_items;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_items WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   delinquency_stage_actions:
@@ -403,7 +403,7 @@ tables:
         target_table_name: delinquency_stage_actions
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stage_actions;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stage_actions WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   delinquency_stages:
@@ -417,7 +417,7 @@ tables:
         target_table_name: delinquency_stages
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stages;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stages WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   account_balance_items:
@@ -431,7 +431,7 @@ tables:
         target_table_name: account_balance_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_items;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_items WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   invoiceable_amounts:
@@ -445,7 +445,7 @@ tables:
         target_table_name: invoiceable_amounts
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_amounts;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_amounts WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   notes:
@@ -459,7 +459,7 @@ tables:
         target_table_name: notes
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.notes;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.notes WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   reasons:
@@ -473,7 +473,7 @@ tables:
         target_table_name: reasons
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.reasons;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.reasons WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   unit_amenities:
@@ -487,7 +487,7 @@ tables:
         target_table_name: unit_amenities
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   unit_types:
@@ -501,7 +501,7 @@ tables:
         target_table_name: unit_types
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_types;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_types WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   sources:
@@ -515,7 +515,7 @@ tables:
         target_table_name: sources
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.sources;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.sources WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   tiers:
@@ -529,7 +529,7 @@ tables:
         target_table_name: tiers
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tiers;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tiers WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   account_balance_taxes:
@@ -543,7 +543,7 @@ tables:
         target_table_name: account_balance_taxes
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_taxes;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_taxes WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   ledger_delinquencies:
@@ -557,7 +557,7 @@ tables:
         target_table_name: ledger_delinquencies
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_delinquencies;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_delinquencies WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   settings:
@@ -571,7 +571,7 @@ tables:
         target_table_name: settings
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   account_code_sets:
@@ -585,7 +585,7 @@ tables:
         target_table_name: account_code_sets
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_code_sets;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_code_sets WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   discount_plan_ledger_instances_line_items:
@@ -599,7 +599,7 @@ tables:
         target_table_name: discount_plan_ledger_instances_line_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances_line_items;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances_line_items WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   unit_amenities_units:
@@ -613,7 +613,7 @@ tables:
         target_table_name: unit_amenities_units
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities_units;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities_units WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   facility_groups:
@@ -627,7 +627,7 @@ tables:
         target_table_name: facility_groups
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facility_groups;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facility_groups WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   tenant_account_kinds:
@@ -641,7 +641,7 @@ tables:
         target_table_name: tenant_account_kinds
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenant_account_kinds;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenant_account_kinds WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   time_zone_maps:
@@ -655,7 +655,7 @@ tables:
         target_table_name: time_zone_maps
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.time_zone_maps;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.time_zone_maps WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   facilities_facility_groups:
@@ -669,4 +669,4 @@ tables:
         target_table_name: facilities_facility_groups
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities_facility_groups;
+          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities_facility_groups WHERE _FIVETRAN_ACTIVE = TRUE;
