@@ -160,11 +160,13 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
 
     return outputpaths,configpaths,logpath
 
-def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,status,output_path,source_rows=0,target_rows=0,output_file_path=None,batch_start_time=None,batch_end_time=None,diff_batch=None,missing_in_source=None,missing_in_target=None,error_message=None,layer_type=None,report_pack=None,report_tile=None,test_case=None,summary=None):
+def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,status,output_path,source_rows=None,target_rows=None,output_file_path=None,batch_start_time=None,batch_end_time=None,diff_batch=None,missing_in_source=None,missing_in_target=None,mismatch_count=None,error_message=None,layer_type=None,report_pack=None,report_tile=None,test_case=None,summary=None):
     if validation_type == 'integrity_check':
         summary_dict = {
             "run_id": run_id,
             "run_at": run_at,
+            "test_case": test_case,
+            "table_name": source_table_name, 
             "summary": summary,
             "validation_performed": validation_type,
             "source_type": source_type,
@@ -192,6 +194,7 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
             "missing_in_source": missing_in_source,
             "target_count": target_rows,
             "missing_in_target": missing_in_target,
+            "mismatch_count":mismatch_count,
             "status": status,
             "output_file_path":output_file_path,
             "batch_start_time": batch_start_time,
@@ -215,6 +218,7 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
                 "missing_in_source": missing_in_source,
                 "target_count": target_rows,
                 "missing_in_target": missing_in_target,
+                "mismatch_count":mismatch_count,
                 "status": status,
                 "output_file_path":output_file_path,
                 "batch_start_time": batch_start_time,
@@ -239,7 +243,7 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
             "target_type": target_type,
             "source_count": source_rows ,
             "target_count": target_rows,
-            "count_difference": abs(int(target_rows)-(int(source_rows))),
+            "count_difference": (abs(int(target_rows) - int(source_rows)) if target_rows is not None and source_rows is not None else None),
             "status": status,
             "batch_start_time": batch_start_time,
             "batch_end_time": batch_end_time,

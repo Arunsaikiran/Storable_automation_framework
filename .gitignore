@@ -17,3 +17,6 @@ git
 #Notebook
 *.ipynb
 *.zip
+
+#Yaml files
+*.yaml

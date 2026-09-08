@@ -8,6 +8,7 @@ import psycopg2
 from db.factory import get_database
 from utils.utility import (generate_runid,get_config_output_paths,create_summary,get_logger,add_file_handler)
 from datetime import datetime
+import traceback
 import pandas as pd
 
 def main():
@@ -139,6 +140,7 @@ def main():
                         source = validation_config.get("source")
                         query = validation_config.get("query")
                         summary = validation_config.get("summary")
+                        test_case = validation_config.get("test_case")
 
                         try:
                             batch_start_time = datetime.now()
@@ -146,8 +148,8 @@ def main():
                             logger.debug("Query: %s", query)
                             obj = get_database(source, BASE_DIR, environment)
                             df = obj.execute_query(query)
-
-                            row_count = len(df)
+           
+                            row_count = df['ORPHAN_OR_NULL_KEYS'][0]
                             output_file_path = ""
 
                             batch_end_time = datetime.now()
@@ -176,13 +178,13 @@ def main():
 
                             create_summary(
                                 run_at, run_id, validation_name, table_name, source, None, None, status,
-                                output_path, source_rows=row_count, output_file_path=output_file_path,
+                                output_path,test_case=test_case, source_rows=row_count, output_file_path=output_file_path,
                                 batch_start_time=batch_start_time_str, batch_end_time=batch_end_time_str,
                                 diff_batch=total_batch_time_taken, layer_type=layer[0], summary=summary
                             )
 
                         except (pyodbc.Error, psycopg2.Error):
-                            error_message = f"Database/network error for table={table_name} for validation={validation_name}"
+                            error_message = f"Database/network error for table={table_name} for validation={validation_name}\n {traceback.format_exc()}"
                             logger.error(
                                 "Database/network error for table=%s validation=%s",
                                 table_name, validation_name, exc_info=True
@@ -196,7 +198,7 @@ def main():
                             continue
 
                         except Exception:
-                            error_message = f"Unexpected error for table={table_name} for validation={validation_name}"
+                            error_message = f"Unexpected error for table={table_name} for validation={validation_name}\n {traceback.format_exc()}"
                             logger.error(
                                 "Unexpected error for table=%s validation=%s",
                                 table_name, validation_name, exc_info=True
@@ -299,7 +301,8 @@ def main():
                             logger.info("Saving mismatch data to %s", filepath)
                             missing_in_source = ""
                             missing_in_target = ""
-                            
+                            mismatch_count = ""
+
                             if validation != 'count_validation':
                                 missing_in_source = target_df.index.difference(source_df.index)
                                 missing_in_source_df = missing_in_source.to_frame(index=False)
@@ -317,8 +320,8 @@ def main():
                                 "Comparing source and target data for table=%s",table_name)
                                 diff_df = (source_df.loc[common_idx].sort_index().compare(target_df.loc[common_idx].sort_index()                    # type: ignore
                                 ))
-                                # if len(diff_df) > 0 :
-                                #     diff_df.to_csv(filepath)
+                                mismatch_count = len(diff_df)
+
                                 with pd.ExcelWriter(filepath, engine="openpyxl") as writer:
                                     sheets_written = 0
 
@@ -355,12 +358,12 @@ def main():
                             batch_start_time = batch_start_time.strftime("%H:%M:%S")
                             batch_end_time = batch_end_time.strftime("%H:%M:%S")
                             total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
+                            create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time,batch_end_time,total_batch_time_taken,missing_in_source,missing_in_target,mismatch_count if args.data_validation[0] == 'yes' else None,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                             print("+"*100)
 
 
                     except (pyodbc.Error, psycopg2.Error):
-                        error_message = (f"Database/network error for table={table_name} for validation={validation_name}")
+                        error_message = (f"Database/network error for table={table_name} for validation={validation_name}\n {traceback.format_exc()}")
                         logger.error(
                             "Database/network error for table=%s validation=%s",
                             table_name,
@@ -373,7 +376,7 @@ def main():
                         continue
 
                     except Exception:
-                        error_message = (f"Unexpected error for table={table_name} for validation={validation_name}")
+                        error_message = (f"Unexpected error for table={table_name} for validation={validation_name}\n {traceback.format_exc()}")
                         logger.error(
                             "Unexpected error for table=%s validation=%s",
                             table_name,
