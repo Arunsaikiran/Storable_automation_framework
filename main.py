@@ -55,7 +55,7 @@ def main():
         "--environment",
         nargs=1,
         required=True,
-        choices=['dev','uat','prod','local']
+        choices=['dev','qat','prod','local']
     )
 
     parser.add_argument(
@@ -139,6 +139,14 @@ def main():
                         logger.debug("Validation configuration: %s", validation_name)
                         source = validation_config.get("source")
                         query = validation_config.get("query")
+                        if environment == "dev":
+                                query = query.format(env = "DEV")
+                        elif environment == "qat":
+                            query = query.format(env = "QAT")
+                        elif environment == "prod":
+                            query = query.format(env = "PROD")
+                        else:
+                            query = query.format(env = "DEV")
                         summary = validation_config.get("summary")
                         test_case = validation_config.get("test_case")
 
@@ -149,7 +157,8 @@ def main():
                             obj = get_database(source, BASE_DIR, environment)
                             df = obj.execute_query(query)
            
-                            row_count = df['ORPHAN_OR_NULL_KEYS'][0]
+                            # row_count = df['ORPHAN_OR_NULL_KEYS'][0]
+                            row_count = len(df)
                             output_file_path = ""
 
                             batch_end_time = datetime.now()
@@ -218,6 +227,14 @@ def main():
                     source_query = validation_config.get("sourcequery")
                     target = validation_config.get("target")
                     target_query = validation_config.get("targetquery")
+                    if environment == "dev":
+                        target_query = target_query.format(env = "DEV")
+                    elif environment == "qat":
+                        query = target_query.format(env = "QAT")
+                    elif environment == "prod":
+                        query = target_query.format(env = "PROD")
+                    else:
+                        query = target_query.format(env = "DEV")
                     source_table_name = validation_config.get("source_table_name")
                     target_table_name = validation_config.get("target_table_name")
                     sourcecolumn = validation_config.get("sourcecolumn",'').lower()
