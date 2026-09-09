@@ -230,13 +230,13 @@ def main():
                     if environment == "dev":
                         target_query = target_query.format(env = "DEV")
                     elif environment == "stg":
-                        query = target_query.format(env = "STG")
+                        target_query = target_query.format(env = "STG")
                     elif environment == "qat":
-                        query = target_query.format(env = "QAT")
+                        target_query = target_query.format(env = "QAT")
                     elif environment == "prod":
-                        query = target_query.format(env = "PROD")
+                        target_query = target_query.format(env = "PROD")
                     else:
-                        query = target_query.format(env = "DEV")
+                        target_query = target_query.format(env = "DEV")
                     source_table_name = validation_config.get("source_table_name")
                     target_table_name = validation_config.get("target_table_name")
                     sourcecolumn = validation_config.get("sourcecolumn",'').lower()
