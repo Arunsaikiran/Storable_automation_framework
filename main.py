@@ -55,7 +55,7 @@ def main():
         "--environment",
         nargs=1,
         required=True,
-        choices=['dev','qat','prod','local']
+        choices=['dev','stg','qat','prod','local']
     )
 
     parser.add_argument(
@@ -229,6 +229,8 @@ def main():
                     target_query = validation_config.get("targetquery")
                     if environment == "dev":
                         target_query = target_query.format(env = "DEV")
+                    elif environment == "stg":
+                        query = target_query.format(env = "STG")
                     elif environment == "qat":
                         query = target_query.format(env = "QAT")
                     elif environment == "prod":

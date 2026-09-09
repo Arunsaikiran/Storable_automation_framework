@@ -5,28 +5,34 @@ tables:
         source_table_name: notes
         source: postgres
         sourcecolumn: id
-        sourcequery: "SELECT\n    COALESCE(CAST(id AS TEXT),'<<NULL>>') AS id,\n \
-          \   COALESCE(TRIM(type),'<<NULL>>') AS type,\n    COALESCE(CAST(event_id\
-          \ AS TEXT),'<<NULL>>') AS event_id,\n    COALESCE(CAST(user_id AS TEXT),'<<NULL>>')\
-          \ AS user_id,\n    COALESCE(TRIM(note),'<<NULL>>') AS note,\n    CASE WHEN\
-          \ important IS NULL THEN '<<NULL>>' WHEN important IS TRUE THEN 'TRUE' WHEN\
-          \ important IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS important,\n  \
-          \  COALESCE(TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
-          \ AS created_at,\n    COALESCE(TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>')\
-          \ AS updated_at,\n    COALESCE(UPPER(TRIM(CAST(uuid AS TEXT))),'<<NULL>>')\
-          \ AS uuid,\n    COALESCE(TRIM(event_type),'<<NULL>>') AS event_type\nFROM\
-          \ public.notes;"
+        sourcequery: |-
+          SELECT
+              COALESCE(CAST(t.id AS TEXT),'<<NULL>>') AS id,
+              COALESCE(TRIM(t.type),'<<NULL>>') AS type,
+              COALESCE(CAST(t.event_id AS TEXT),'<<NULL>>') AS event_id,
+              COALESCE(CAST(t.user_id AS TEXT),'<<NULL>>') AS user_id,
+              COALESCE(TRIM(t.note),'<<NULL>>') AS note,
+              CASE WHEN t.important IS NULL THEN '<<NULL>>' WHEN t.important IS TRUE THEN 'TRUE' WHEN t.important IS FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS important,
+              COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,
+              COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,
+              COALESCE(UPPER(TRIM(CAST(t.uuid AS TEXT))),'<<NULL>>') AS uuid,
+              COALESCE(TRIM(t.event_type),'<<NULL>>') AS event_type
+          FROM public.notes t
+          WHERE t.created_at >= '2026-08-01';
         target_table_name: notes
         target: snowflake
         targetcolumn: id
-        targetquery: "SELECT\n    COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,\n \
-          \   COALESCE(TRIM(t.type),'<<NULL>>') AS type,\n    COALESCE(TO_VARCHAR(t.event_id),'<<NULL>>')\
-          \ AS event_id,\n    COALESCE(TO_VARCHAR(t.user_id),'<<NULL>>') AS user_id,\n\
-          \    COALESCE(TRIM(t.note),'<<NULL>>') AS note,\n    CASE WHEN t.important\
-          \ IS NULL THEN '<<NULL>>' WHEN t.important = TRUE THEN 'TRUE' WHEN t.important\
-          \ = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS important,\n    COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD\
-          \ HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,\n    COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD\
-          \ HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,\n    COALESCE(TRIM(t.uuid),'<<NULL>>')\
-          \ AS uuid,\n    COALESCE(TRIM(t.event_type),'<<NULL>>') AS event_type\n\
-          FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.notes t\nWHERE t._FIVETRAN_ACTIVE\
-          \ = TRUE"
+        targetquery: |-
+          SELECT
+              COALESCE(TO_VARCHAR(t.id),'<<NULL>>') AS id,
+              COALESCE(TRIM(t.type),'<<NULL>>') AS type,
+              COALESCE(TO_VARCHAR(t.event_id),'<<NULL>>') AS event_id,
+              COALESCE(TO_VARCHAR(t.user_id),'<<NULL>>') AS user_id,
+              COALESCE(TRIM(t.note),'<<NULL>>') AS note,
+              CASE WHEN t.important IS NULL THEN '<<NULL>>' WHEN t.important = TRUE THEN 'TRUE' WHEN t.important = FALSE THEN 'FALSE' ELSE '<<NULL>>' END AS important,
+              COALESCE(TO_CHAR(t.created_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS created_at,
+              COALESCE(TO_CHAR(t.updated_at,'YYYY-MM-DD HH24:MI:SS.FF3'),'<<NULL>>') AS updated_at,
+              COALESCE(TRIM(t.uuid),'<<NULL>>') AS uuid,
+              COALESCE(TRIM(t.event_type),'<<NULL>>') AS event_type
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.notes t
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.created_at >= '2026-08-01'

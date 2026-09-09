@@ -18,655 +18,813 @@ tables:
     validations:
       count_validation:
         source_table_name: events
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.events;
+          SELECT COUNT(*) as source_row_count
+          FROM public.events t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
         target_table_name: events
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.events WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.events t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
 
   general_ledger_line_items:
     validations:
       count_validation:
         source_table_name: general_ledger_line_items
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.general_ledger_line_items;
+          SELECT COUNT(*) as source_row_count
+          FROM public.general_ledger_line_items t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501) AND t.created_at >= '2024-08-01';
 
         target_table_name: general_ledger_line_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.general_ledger_line_items WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.general_ledger_line_items t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501) AND t.created_at >= '2024-08-01';
 
 
   leads:
     validations:
       count_validation:
         source_table_name: leads
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.leads;
+          SELECT COUNT(*) as source_row_count
+          FROM public.leads t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501);
 
         target_table_name: leads
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.leads t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501);
 
 
   units:
     validations:
       count_validation:
         source_table_name: units
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.units;
+          SELECT COUNT(*) as source_row_count
+          FROM public.units t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501);
 
         target_table_name: units
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.units WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.units t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501);
 
 
   facilities:
     validations:
       count_validation:
         source_table_name: facilities
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.facilities;
 
         target_table_name: facilities
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   tenants:
     validations:
       count_validation:
         source_table_name: tenants
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.tenants;
+          SELECT COUNT(*) as source_row_count
+          FROM public.tenants t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501);
 
         target_table_name: tenants
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501);
 
 
   discount_plans:
     validations:
       count_validation:
         source_table_name: discount_plans
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.discount_plans;
 
         target_table_name: discount_plans
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plans WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plans WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   users:
     validations:
       count_validation:
         source_table_name: users
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.users;
 
         target_table_name: users
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.users WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.users WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   transactions:
     validations:
       count_validation:
         source_table_name: transactions
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.transactions;
+          SELECT COUNT(*) as source_row_count
+          FROM public.transactions t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
         target_table_name: transactions
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.transactions WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.transactions t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
 
   line_items:
     validations:
       count_validation:
         source_table_name: line_items
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.line_items;
+          SELECT COUNT(*) as source_row_count
+          FROM public.line_items t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
         target_table_name: line_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.line_items WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.line_items t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
 
   ledgers:
     validations:
       count_validation:
         source_table_name: ledgers
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.ledgers;
+          SELECT COUNT(*) as source_row_count
+          FROM public.ledgers t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501);
 
         target_table_name: ledgers
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledgers WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledgers t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501);
 
 
   unit_groups:
     validations:
       count_validation:
         source_table_name: unit_groups
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.unit_groups;
 
         target_table_name: unit_groups
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_groups WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_groups WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   contacts:
     validations:
       count_validation:
         source_table_name: contacts
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.contacts;
+          SELECT COUNT(*) as source_row_count
+          FROM public.contacts t
+          JOIN public.tenants t1 ON t.tenant_id = t1.id
+              JOIN public.facilities f ON t1.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501);
 
         target_table_name: contacts
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.contacts WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.contacts t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants t1 ON t.tenant_id = t1.id
+              JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t1.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501);
 
 
   change_logged_events:
     validations:
       count_validation:
         source_table_name: change_logged_events
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.change_logged_events;
+          SELECT COUNT(*) as source_row_count
+          FROM public.change_logged_events t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501) AND t.created_at >= '2024-08-01';
 
         target_table_name: change_logged_events
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.change_logged_events WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.change_logged_events t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501) AND t.created_at >= '2024-08-01';
 
 
   invoiceable_items:
     validations:
       count_validation:
         source_table_name: invoiceable_items
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.invoiceable_items;
 
         target_table_name: invoiceable_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_items WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_items WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   account_balances:
     validations:
       count_validation:
         source_table_name: account_balances
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.account_balances;
+          SELECT COUNT(*) as source_row_count
+          FROM public.account_balances t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
         target_table_name: account_balances
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balances WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balances t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
 
   credit_items:
     validations:
       count_validation:
         source_table_name: credit_items
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.credit_items;
+          SELECT COUNT(*) as source_row_count
+          FROM public.credit_items t
+          WHERE t.created_at >= '2026-08-01';
 
         target_table_name: credit_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.credit_items WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.credit_items t
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.created_at >= '2026-08-01';
 
 
   insurance_activities:
     validations:
       count_validation:
         source_table_name: insurance_activities
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.insurance_activities;
+          SELECT COUNT(*) as source_row_count
+          FROM public.insurance_activities t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
         target_table_name: insurance_activities
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.insurance_activities WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.insurance_activities t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501) AND t.created_at >= '2025-08-01';
 
 
   discount_plan_ledger_instances:
     validations:
       count_validation:
         source_table_name: discount_plan_ledger_instances
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.discount_plan_ledger_instances;
+          SELECT COUNT(*) as source_row_count
+          FROM public.discount_plan_ledger_instances t
+          JOIN public.discount_plan_ledger_instances_line_items j ON j.discount_plan_ledger_instance_id = t.id
+          WHERE t.created_at >= '2026-08-01';
 
         target_table_name: discount_plan_ledger_instances
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances_line_items j ON j.discount_plan_ledger_instance_id = t.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.created_at >= '2026-08-01';
 
 
   addresses:
     validations:
       count_validation:
         source_table_name: addresses
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.addresses;
+          SELECT COUNT(*) as source_row_count
+          FROM public.addresses t
+          JOIN public.facilities f ON t.addressable_id = f.id
+          WHERE t.addressable_type = 'Facility';
 
         target_table_name: addresses
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.addresses WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.addresses t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.addressable_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.addressable_type = 'Facility';
 
 
   payment_methods:
     validations:
       count_validation:
         source_table_name: payment_methods
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.payment_methods;
+          SELECT COUNT(*) as source_row_count
+          FROM public.payment_methods t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501) AND t.created_at >= '2024-08-01';
 
         target_table_name: payment_methods
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.payment_methods t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501) AND t.created_at >= '2024-08-01';
 
 
   companies:
     validations:
       count_validation:
         source_table_name: companies
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.companies;
 
         target_table_name: companies
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.companies WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.companies WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   discount_lines:
     validations:
       count_validation:
         source_table_name: discount_lines
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.discount_lines;
+          SELECT COUNT(*) as source_row_count
+          FROM public.discount_lines t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501) AND t.created_at >= '2024-08-01';
 
         target_table_name: discount_lines
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_lines t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501) AND t.created_at >= '2024-08-01';
 
 
   phone_numbers:
     validations:
       count_validation:
         source_table_name: phone_numbers
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.phone_numbers;
+          SELECT COUNT(*) as source_row_count
+          FROM public.phone_numbers t
+          JOIN public.tenants t1 ON t.owner_id = t1.id
+              JOIN public.facilities f ON t1.facility_id = f.id
+          WHERE t.owner_type IN ('Tenant') AND f.company_id IN (137,9088,501);
 
         target_table_name: phone_numbers
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.phone_numbers WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.phone_numbers t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants t1 ON t.owner_id = t1.id
+              JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t1.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.owner_type IN ('Tenant') AND f.company_id IN (137,9088,501);
 
 
   deposits:
     validations:
       count_validation:
         source_table_name: deposits
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.deposits;
 
         target_table_name: deposits
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.deposits WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.deposits WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   account_codes:
     validations:
       count_validation:
         source_table_name: account_codes
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.account_codes;
 
         target_table_name: account_codes
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_codes WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_codes WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   ledger_items:
     validations:
       count_validation:
         source_table_name: ledger_items
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.ledger_items;
+          SELECT COUNT(*) as source_row_count
+          FROM public.ledger_items t
+          JOIN public.facilities f ON t.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501);
 
         target_table_name: ledger_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_items WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_items t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501);
 
 
   delinquency_stage_actions:
     validations:
       count_validation:
         source_table_name: delinquency_stage_actions
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.delinquency_stage_actions;
 
         target_table_name: delinquency_stage_actions
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stage_actions WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stage_actions WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   delinquency_stages:
     validations:
       count_validation:
         source_table_name: delinquency_stages
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.delinquency_stages;
 
         target_table_name: delinquency_stages
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stages WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.delinquency_stages WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   account_balance_items:
     validations:
       count_validation:
         source_table_name: account_balance_items
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.account_balance_items;
+          SELECT COUNT(*) as source_row_count
+          FROM public.account_balance_items t
+          WHERE t.created_at >= '2026-08-01';
 
         target_table_name: account_balance_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_items WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_items t
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.created_at >= '2026-08-01';
 
 
   invoiceable_amounts:
     validations:
       count_validation:
         source_table_name: invoiceable_amounts
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.invoiceable_amounts;
+          SELECT COUNT(*) as source_row_count
+          FROM public.invoiceable_amounts t
+          WHERE t.created_at >= '2026-08-01';
 
         target_table_name: invoiceable_amounts
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_amounts WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.invoiceable_amounts t
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.created_at >= '2026-08-01';
 
 
   notes:
     validations:
       count_validation:
         source_table_name: notes
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.notes;
+          SELECT COUNT(*) as source_row_count
+          FROM public.notes t
+          WHERE t.created_at >= '2026-08-01';
 
         target_table_name: notes
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.notes WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.notes t
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.created_at >= '2026-08-01';
 
 
   reasons:
     validations:
       count_validation:
         source_table_name: reasons
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.reasons;
 
         target_table_name: reasons
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.reasons WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.reasons WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   unit_amenities:
     validations:
       count_validation:
         source_table_name: unit_amenities
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.unit_amenities;
 
         target_table_name: unit_amenities
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   unit_types:
     validations:
       count_validation:
         source_table_name: unit_types
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.unit_types;
 
         target_table_name: unit_types
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_types WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_types WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   sources:
     validations:
       count_validation:
         source_table_name: sources
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.sources;
 
         target_table_name: sources
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.sources WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.sources WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   tiers:
     validations:
       count_validation:
         source_table_name: tiers
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.tiers;
 
         target_table_name: tiers
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tiers WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tiers WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   account_balance_taxes:
     validations:
       count_validation:
         source_table_name: account_balance_taxes
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.account_balance_taxes;
+          SELECT COUNT(*) as source_row_count
+          FROM public.account_balance_taxes t
+          WHERE t.created_at >= '2026-08-01';
 
         target_table_name: account_balance_taxes
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_taxes WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_balance_taxes t
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.created_at >= '2026-08-01';
 
 
   ledger_delinquencies:
     validations:
       count_validation:
         source_table_name: ledger_delinquencies
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.ledger_delinquencies;
+          SELECT COUNT(*) as source_row_count
+          FROM public.ledger_delinquencies t
+          WHERE t.created_at >= '2026-08-01';
 
         target_table_name: ledger_delinquencies
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_delinquencies WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ledger_delinquencies t
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.created_at >= '2026-08-01';
 
 
   settings:
     validations:
       count_validation:
         source_table_name: settings
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.settings;
+          SELECT COUNT(*) as source_row_count
+          FROM public.settings t
+          JOIN public.tenants t1 ON t.owner_id = t1.id
+              JOIN public.facilities f ON t1.facility_id = f.id
+          WHERE t.owner_type IN ('Tenant') AND f.company_id IN (137,9088,501);
 
         target_table_name: settings
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.settings t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenants t1 ON t.owner_id = t1.id
+              JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t1.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND t.owner_type IN ('Tenant') AND f.company_id IN (137,9088,501);
 
 
   account_code_sets:
     validations:
       count_validation:
         source_table_name: account_code_sets
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.account_code_sets;
 
         target_table_name: account_code_sets
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_code_sets WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.account_code_sets WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   discount_plan_ledger_instances_line_items:
     validations:
       count_validation:
         source_table_name: discount_plan_ledger_instances_line_items
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.discount_plan_ledger_instances_line_items;
+          SELECT COUNT(*) as source_row_count
+          FROM public.discount_plan_ledger_instances_line_items t
+          JOIN public.discount_plan_ledger_instances ss ON t.discount_plan_ledger_instance_id = ss.id
+          WHERE ss.created_at >= '2026-08-01';
 
         target_table_name: discount_plan_ledger_instances_line_items
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances_line_items WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances_line_items t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.discount_plan_ledger_instances ss ON t.discount_plan_ledger_instance_id = ss.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND ss.created_at >= '2026-08-01';
 
 
   unit_amenities_units:
     validations:
       count_validation:
         source_table_name: unit_amenities_units
-        source: postgresql
+        source: postgres
         sourcequery: |
-          SELECT COUNT(*) as source_row_count FROM public.unit_amenities_units;
+          SELECT COUNT(*) as source_row_count
+          FROM public.unit_amenities_units t
+          JOIN public.units t1 ON t.unit_id = t1.id
+              JOIN public.facilities f ON t1.facility_id = f.id
+          WHERE f.company_id IN (137,9088,501);
 
         target_table_name: unit_amenities_units
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities_units WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count
+          FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.unit_amenities_units t
+          JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.units t1 ON t.unit_id = t1.id
+              JOIN {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities f ON t1.facility_id = f.id
+          WHERE t._FIVETRAN_ACTIVE = TRUE AND f.company_id IN (137,9088,501);
 
 
   facility_groups:
     validations:
       count_validation:
         source_table_name: facility_groups
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.facility_groups;
 
         target_table_name: facility_groups
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facility_groups WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facility_groups WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   tenant_account_kinds:
     validations:
       count_validation:
         source_table_name: tenant_account_kinds
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.tenant_account_kinds;
 
         target_table_name: tenant_account_kinds
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenant_account_kinds WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.tenant_account_kinds WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   time_zone_maps:
     validations:
       count_validation:
         source_table_name: time_zone_maps
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.time_zone_maps;
 
         target_table_name: time_zone_maps
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.time_zone_maps WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.time_zone_maps WHERE _FIVETRAN_ACTIVE = TRUE;
 
 
   facilities_facility_groups:
     validations:
       count_validation:
         source_table_name: facilities_facility_groups
-        source: postgresql
+        source: postgres
         sourcequery: |
           SELECT COUNT(*) as source_row_count FROM public.facilities_facility_groups;
 
         target_table_name: facilities_facility_groups
         target: snowflake
         targetquery: |
-          SELECT COUNT(*) as target_row_count FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities_facility_groups WHERE _FIVETRAN_ACTIVE = TRUE;
+          SELECT COUNT(*) as target_row_count FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.facilities_facility_groups WHERE _FIVETRAN_ACTIVE = TRUE;

@@ -1,8 +1,10 @@
 tables:
-  Table1:
+  fact_delinquency_snapshot:
     validation:
       integrity_check:
         summary: Compare total revenue for each types in the last 24 months
+        testcase: testcase_1
+        table_name: fact_delinquency_snapshot
         source: snowflake
         query: "SELECT COUNT(*) AS orphan_or_null_keys
                 FROM dev_gold.consume.fact_delinquency_snapshot f
