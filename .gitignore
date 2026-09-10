@@ -19,3 +19,4 @@ git
 *.zip
 
 #Yaml files
+config/

@@ -1,563 +1,127 @@
-# Data Validation Framework
+# Storable SQL Comparison / Data Validation Framework
 
-## Overview
+## 1. Architecture
 
-The Data Validation Framework performs automated validation between source and target database systems across different data layers.
+There is no separate validator/plugin engine. `main.py` is a single script that acts as CLI, orchestrator, comparison engine, and report writer. It is supported by two small packages:
 
-The framework supports the following validation types:
+```
+Storable_automation_framework/
+├── main.py                    # CLI, dispatch, comparison logic, exit-code decision
+├── db/
+│   ├── base.py                 # abstract Database interface (connect / execute_query)
+│   ├── factory.py               # get_database(db_type, ...) -> Postgres|Mssqlserver|Snowflake|Redshift|Athena
+│   ├── postgres.py, mssqlserver.py, snowflake.py, redshift.py, athena.py
+├── utils/utility.py             # run-id generation, config/output path resolution, summary CSV writer, logging
+├── creds/{dev,uat,prod,local}.yaml   # per-environment DB credentials (gitignored)
+├── config/
+│   ├── bronze_mssql/{count_validation,data_validation}/*.yaml
+│   ├── bronze_postgres/{count_validation,data_validation}/*.yaml
+│   ├── silver/{count_validation,data_validation}/*.yaml
+│   ├── gold/                    # placeholder layer, no yaml files exist yet
+│   ├── sanity/integrity_check.yaml
+│   └── reports/<report_pack>/data_validation/*.yaml   # emanagement, egrowth, eperformance, ...
+└── output/<layer_type>[/<report_pack>]/validation_<run_id>/
+        {count_validation_<id>, data_validation_<id>, integrity_check_<id>}/
+        validation_<run_id>.log, *_summary.csv, <table>_result.xlsx|csv
+```
 
-- Count validation
-- Data validation
+**Two independent axes drive every run:**
 
-Supported data layers:
+- `--layer_type` selects *which config subtree* is read: `bronze_postgres`, `bronze_mssql`, `silver`, `gold`, `reports`, `sanity`.
+- `--count_validation` / `--data_validation` select *which validation mechanism* runs inside that layer's config.
 
-- Bronze
-- Silver
-- Gold
-- Reporting
+There are exactly **three validation mechanisms**, not per-metric "test types":
 
-Supported database systems:
+| Mechanism | Trigger | What it does |
+|---|---|---|
+| `count_validation` | `validation_name == "count_validation"` | Runs `sourcequery`/`targetquery`, compares `source_row_count` vs `target_row_count` (single-row result required). |
+| `data_validation` | anything else under `validations:` | Runs both queries into DataFrames, indexes on `sourcecolumn`/`targetcolumn` (comma-separated for composite keys), sorts, and does a full `DataFrame.equals()` comparison. |
+| `integrity_check` (sanity layer only) | `layer_type == sanity` | Runs a single `query`, expects 0 rows back; any row returned is a failure (orphan/null-key style checks). |
 
-- PostgreSQL
-- Microsoft SQL Server
-- Snowflake
+"Sum", "count", "avg", "distinct" report files (e.g. `Test_02_Sum_athena.yaml`) are **not** separate code paths — they are `data_validation` entries whose SQL happens to aggregate differently. The filename is just a naming convention for humans.
 
+Config files under `config/*/data_validation/` for `bronze_postgres` are machine-generated from an external plan/generator pipeline (see file headers: "GENERATED FILE — do not hand-edit"). Treat them as build artifacts, not hand-authored config, unless a file's header says otherwise.
 
-The framework compares source and target query results and generates summary files and mismatch reports.
+### Supported connectors (`db/factory.py`)
+
+`source:` / `target:` in a YAML must be exactly one of: `postgres`, `mssql`, `athena`, `snowflake`, `redshift`. Any other string (e.g. `postgresql`, `sqlserver`) raises `ValueError: Unsupported database: <name>` at runtime — it will not be caught until that specific table is processed.
+
+Credentials come only from `creds/<environment>.yaml` — there is no `.env` support. `--environment` accepts `dev, stg, qat, prod, local`, but only `dev.yaml`, `uat.yaml`, `prod.yaml`, `local.yaml` exist on disk today; `stg`/`qat` are accepted by argparse but have no backing creds file.
+
+Snowflake target queries can contain a literal `{env}` placeholder (e.g. `FROM {env}_EDGE_BRONZE...`) which `main.py` fills in based on `--environment` (e.g. `DEV`, `QAT`, `PROD`). This only applies to Snowflake target queries — source queries and non-templated targets are unaffected.
 
 ---
 
-## Features
+## 2. Running each layer
 
-### Count Validation
-
-Count validation compares the number of records available in the source and target systems.
-
-Example query:
-
-```sql
-SELECT COUNT(*)
-FROM customer;
-```
-
-Validation result:
-
-- PASS when the source and target counts match
-- FAIL when the source and target counts do not match
-
-### Data Validation
-
-Data validation compares the actual records returned by the source and target queries.
-
-```sql
-SELECT CorpID, CustomerName, Status FROM customer;
-```
-
-Validation result:
-
-- PASS when the source and target datasets are identical
-- FAIL when differences are detected
-
-When a mismatch is found, the framework generates a CSV file containing the differences.
-
----
-
-## Project Structure
-
-```text
-project/
-|
-|-- config/
-|   |-- count_validation/
-|   |-- data_validation/
-|
-|-- db/
-|   |-- base.py
-|   |-- factory.py
-|   |-- postgres.py
-|   |-- mssqlserver.py
-|
-|-- creds/
-|    |--dev.yaml
-|    |--uat.yaml
-|    |--prod.yaml
-|
-|-- output/
-|
-|-- utils/
-|   |-- utility.py
-|
-|-- main.py
-|-- README.md
-```
-
----
-
-## Prerequisites
-
-Make sure Python is installed and available from the command line.
-
-The framework requires the following Python packages:
-
-```text
-pandas
-PyYAML
-pyodbc
-psycopg2
-```
-
-Install the required packages using:
+Base command shape:
 
 ```bash
-python -m pip install pandas PyYAML pyodbc psycopg2-binary
+python main.py --layer_type <layer> [--report_pack <pack>] --tables <name(s)|all> --count_validation <yes|no> --data_validation <yes|no> --environment <dev|stg|qat|prod|local>
 ```
 
-For Microsoft SQL Server connections, the appropriate Microsoft ODBC driver must also be installed on the machine.
-
----
-
-## Command-Line Arguments
-
-### layer_type
-
-Specifies the data layer that must be validated.
-
-Example:
+### bronze_postgres / bronze_mssql / silver
+Standard layers, both validation flags are usable freely.
 
 ```bash
---layer_type bronze
+python main.py --layer_type bronze_postgres --tables all --count_validation yes --data_validation yes --environment dev
 ```
 
-Allowed values:
-
-```text
-bronze
-silver
-gold
-reporting
+### gold
+Argparse accepts it, but `config/gold/` currently has no YAML files. Any run against `gold` fails immediately with:
 ```
+FileNotFoundError: [Errno 2] No such file or directory: '...\config\gold\count_validation\gold.yaml'
+```
+Do not use `gold` until config files are added for it.
 
-### tables
-
-Specifies the tables that must be validated.
-
-Validate one table:
+### reports
+Requires `--report_pack` (`emanagement`, `smanagement`, `egrowth`, `sgrowth`, `eperformance`, `sperformance`) and **only supports `--data_validation`**. There is no `count_validation` subfolder for report packs.
 
 ```bash
---tables Customer
+python main.py --layer_type reports --report_pack emanagement --tables all --count_validation no --data_validation yes --environment dev
 ```
 
-Validate multiple tables:
+**Expected error — count validation not accepted for reports:**
+```bash
+python main.py --layer_type reports --report_pack emanagement --tables all --count_validation yes --data_validation no --environment dev
+```
+```
+main.py: error: --count_validation is not supported for layer_type=reports; only --data_validation is accepted.
+```
+This is an explicit `argparse.parser.error()` guard — it exits with code `2` before any config is read or DB connection made.
+
+**Expected error — missing `--report_pack`:**
+```
+TypeError: 'NoneType' object is not subscriptable
+```
+Unhandled traceback; always pass `--report_pack` for `reports`.
+
+### sanity
+Runs the single `config/sanity/integrity_check.yaml`. Unlike `reports`, it does **not** reject `count_validation` — both flags map to the same integrity-check flow, so passing either (or both) as `yes` runs the same checks. Passing `no` to both simply means no tables get processed for that run.
 
 ```bash
---tables Customer Product Sales
-```
-
-Validate all tables available in the configuration:
-
-```bash
---tables all
-```
-
-### count_validation
-
-Enables or disables count validation.
-
-Example:
-
-```bash
---count_validation yes
-```
-
-Allowed values:
-
-```text
-yes
-no
-```
-
-### data_validation
-
-Enables or disables data validation.
-
-Example:
-
-```bash
---data_validation yes
-```
-
-Allowed values:
-
-```text
-yes
-no
+python main.py --layer_type sanity --tables all --count_validation no --data_validation yes --environment dev
 ```
 
 ---
 
-## Execution Examples
+## 3. Other expected errors
 
-The following examples use Windows Command Prompt syntax.
+| Scenario | Result |
+|---|---|
+| `--tables <name not in config>` | `ValueError: No tables found to process.` |
+| YAML `source`/`target` not in `{postgres, mssql, athena, snowflake, redshift}` | `ValueError: Unsupported database: <name>` — caught by the generic exception handler, logged, table marked FAIL, run **continues**, exit code stays `0`. |
+| `--environment` has no matching `creds/<env>.yaml` (e.g. `stg`, `qat` today) | `FileNotFoundError` — same generic handling as above, exit code stays `0`. |
+| Postgres/MSSQL connection failure (`psycopg2.Error` / `pyodbc.Error`) | Explicitly caught, sets `system_error = True` → process exits with code `1`. |
+| Snowflake/Athena/Redshift connection failure | Falls through to the generic exception handler — logged as FAIL, but does **not** set `system_error`, so exit code stays `0`. This asymmetry matters for CI gating: only Postgres/MSSQL outages currently fail the build. |
 
-### Run Count Validation Only
-
-```bat
-python main.py 
-  --layer_type bronze 
-  --tables all 
-  --count_validation yes 
-  --data_validation no
-```
-
-The same command can be entered on a single line:
-
-```bat
-python main.py --layer_type bronze --tables all --count_validation yes --data_validation no
-```
-
-### Run Data Validation Only
-
-```bat
-python main.py 
-  --layer_type bronze 
-  --tables all 
-  --count_validation no 
-  --data_validation yes
-```
-
-### Run Both Validations
-
-```bat
-python main.py 
-  --layer_type bronze 
-  --tables all 
-  --count_validation yes 
-  --data_validation yes
-```
-
-### Validate Selected Tables
-
-```bat
-python main.py 
-  --layer_type silver 
-  --tables Customer Product 
-  --count_validation yes 
-  --data_validation yes
-```
+**Exit code summary:** `sys.exit(1 if system_error else 0)` — `1` only means a Postgres/MSSQL connectivity error occurred somewhere in the run; every other failure (bad config, unsupported connector, missing creds file, PASS/FAIL mismatches) exits `0` and must be checked via the summary CSV or log, not the exit code.
 
 ---
 
-## Configuration File Structure
-
-The validation configuration is stored in YAML files.
-
-### Count Validation Configuration
-
-```yaml
-tables:
-  Customer:
-    validations:
-      count_validation:
-        source: postgres
-        sourcequery: "SELECT COUNT(*) FROM customer"
-        target: sqlserver
-        targetquery: "SELECT COUNT(*) FROM customer"
-        source_table_name: customer
-        target_table_name: customer
-```
-
-### Data Validation Configuration
-
-Specify the required columns explicitly in the source and target queries.
-
-```yaml
-tables:
-  Customer:
-    validations:
-      data_validation:
-        source: postgres
-        sourcequery: "SELECT CorpID, CustomerName, Status FROM customer"
-        target: sqlserver
-        targetquery: "SELECT CorpID, CustomerName, Status FROM customer"
-        sourcecolumn: CorpID
-        targetcolumn: CorpID
-        source_table_name: customer
-        target_table_name: customer
-```
-
-Both queries should return compatible columns in the same order and with compatible data types.
-
----
-
-## Validation Process
-
-The framework performs the following steps:
-
-1. Reads the command-line arguments.
-2. Generates a unique run ID.
-3. Identifies the required validation directories.
-4. Loads the appropriate YAML configuration files.
-5. Creates source and target database connections.
-6. Executes the configured source and target queries.
-7. Compares the query results.
-8. Generates a validation summary.
-9. Generates a mismatch report when required.
-10. Returns the appropriate process exit code.
-
----
-
-## Output Files
-
-### Summary Report
-
-A summary report is generated for each validation.
-
-The summary can contain:
-
-- Run date and time
-- Run ID
-- Validation type
-- Source system
-- Source table name
-- Target system
-- Target table name
-- Source row count
-- Target row count
-- Validation status
-- Mismatch file path
-
-### Mismatch Report
-
-A mismatch report is generated when data validation fails.
-
-Example filename:
-
-```text
-Customer_data_validation_result_RUN_ID.csv
-```
-
-The mismatch report contains column-level differences between common source and target records.
-
-The current implementation uses `CorpID` as the comparison index for data validation.
-
----
-
-## Validation Status
-
-### PASS
-
-A validation receives PASS status when the source and target results are equal.
-
-### FAIL
-
-A validation receives FAIL status when the source and target results are different.
-
-Validation failures are recorded in the summary output. They do not cause the program to return exit code 1.
-
----
-
-## Logging
-
-The framework uses centralized logging.
-
-The logs can include:
-
-- Validation start and completion
-- Run ID
-- Input parameters
-- Validation type
-- Configuration file path
-- Table name
-- Source and target queries
-- Source and target record counts
-- Validation result
-- Mismatch output path
-- Database errors
-- Unexpected errors
-
-Example log output:
-
-```text
-INFO - Validation job started
-INFO - Processing validation type: count_validation
-INFO - Processing table: Customer
-INFO - Match/Mismatch: Match
-WARNING - Validation failed for table=Customer validation=data_validation
-ERROR - Database or network error
-INFO - Validation job completed
-```
-
-When `exc_info=True` is used with the logger, the complete exception traceback is included in the log.
-
----
-
-## Exit Codes
-
-### Exit Code 0
-
-The program returns exit code 0 when no database or network error occurs.
-
-This includes the following situations:
-
-- All validations pass
-- A count mismatch is found
-- A data mismatch is found
-
-Validation mismatches are treated as validation results rather than application failures.
-
-### Exit Code 1
-
-The program returns exit code 1 when a database or network error is detected.
-
-Examples include:
-
-- Database server unavailable
-- Network connectivity failure
-- Invalid database credentials
-- Connection timeout
-- PostgreSQL connection failure
-- SQL Server connection failure
-
-The final exit logic is:
-
-```python
-sys.exit(1 if system_error else 0)
-```
-
----
-
-## Error Handling
-
-### Database and Network Errors
-
-Database-related exceptions are handled separately:
-
-```python
-except (pyodbc.Error, psycopg2.Error):
-    logger.error(
-        "Database/network error for table=%s validation=%s",
-        table_name,
-        validation_name,
-        exc_info=True
-    )
-    system_error = True
-    continue
-```
-
-These errors set `system_error` to `True` and cause the program to return exit code 1 after processing is complete.
-
-### Unexpected Errors
-
-Other exceptions are logged separately:
-
-```python
-except Exception:
-    logger.error(
-        "Unexpected error for table=%s validation=%s",
-        table_name,
-        validation_name,
-        exc_info=True
-    )
-    continue
-```
-
-The current implementation logs unexpected errors but does not set `system_error` to `True`.
-
----
-
-## Supported Databases
-
-### PostgreSQL
-
-PostgreSQL connectivity is implemented using:
-
-```python
-psycopg2
-```
-
-### Microsoft SQL Server
-
-Microsoft SQL Server connectivity is implemented using:
-
-```python
-pyodbc
-```
-
----
-
-## Validation Workflow
-
-```text
-Start
-  |
-  v
-Read command-line arguments
-  |
-  v
-Generate run ID
-  |
-  v
-Load validation configuration
-  |
-  v
-Connect to source database
-  |
-  v
-Execute source query
-  |
-  v
-Connect to target database
-  |
-  v
-Execute target query
-  |
-  v
-Compare source and target results
-  |
-  |-- Results match
-  |      |
-  |      v
-  |    Set status to PASS
-  |
-  |-- Results do not match
-         |
-         v
-       Set status to FAIL
-         |
-         v
-       Generate mismatch report
-  |
-  v
-Create validation summary
-  |
-  v
-Check for system errors
-  |
-  |-- System error detected: exit code 1
-  |
-  |-- No system error detected: exit code 0
-  |
-  v
-End
-```
-
----
-
-## Important Notes
-
-- The source and target queries should return matching column names and compatible data types.
-- Data validation currently uses `CorpID` as the record comparison key.
-- The required output directories must be available or created by the utility functions.
-- Database credentials should not be committed directly to source control.
-- Sensitive configuration files should be excluded using `.gitignore`.
-- The final `sys.exit` statement must remain outside all validation loops.
-
----
-
-## Author
-
-Arunsaikiran S
-
-## Version
-
-1.0
+## 4. Output
+
+Each run writes to `output/<layer_type>[/<report_pack>]/validation_<run_id>/`:
+- `validation_<run_id>.log` — full run log.
+- `<validation_type>_summary.csv` — one appended row per table/validation, PASS/FAIL plus counts (or comparison result).
+- On mismatch: `<table>_result.xlsx` (data_validation, sheets: `Differences`, `Missing_in_Source`, `Missing_in_Target`) or `<table>_<check>_result_<run_id>.csv` (sanity/integrity_check).

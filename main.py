@@ -144,7 +144,7 @@ def main():
                         elif environment == "qat":
                             query = query.format(env = "QAT")
                         elif environment == "prod":
-                            query = query.format(env = "PROD")
+                            query = query.format(env = "PRD")
                         else:
                             query = query.format(env = "DEV")
                         summary = validation_config.get("summary")
@@ -234,7 +234,7 @@ def main():
                     elif environment == "qat":
                         target_query = target_query.format(env = "QAT")
                     elif environment == "prod":
-                        target_query = target_query.format(env = "PROD")
+                        target_query = target_query.format(env = "PRD")
                     else:
                         target_query = target_query.format(env = "DEV")
                     source_table_name = validation_config.get("source_table_name")
@@ -268,6 +268,10 @@ def main():
 
                         source_df.columns = source_df.columns.str.strip().str.lower()
                         target_df.columns = target_df.columns.str.strip().str.lower()
+                        print("="*100)
+                        print(source_df.columns)
+                        print(target_df.columns)
+                        print("="*100)
 
                         if validation_name == "count_validation": 
                             source_rows = source_df['source_row_count'].iloc[0]
@@ -290,6 +294,12 @@ def main():
                             output_file_path = ""
                             logger.debug("Source row count: %s", source_rows)
                             logger.debug("Target row count: %s", target_rows)
+                            print("="*100)
+                            print(source_df)
+                            print("="*100)
+                            print(target_df)
+                            print("="*100)
+
                         if source_df.equals(target_df):
                             logger.info("Match/Mismatch: Match")
                             status = "PASS"

@@ -29,17 +29,7 @@ class Snowflake(Database):
     def execute_query(self, query):
         with self.connect() as conn:
             with conn.cursor() as cs:
-                cs.execute("USE WAREHOUSE DEVELOPER_WH;")
                 cs.execute(query)
                 rows = cs.fetchall()
                 df = pd.DataFrame(rows,columns=[c[0] for c in cs.description])
                 return df
- 
-
-        # with conn.cursor() as cur:
-        #     cur.execute(query)
-        #     data = cur.fetchall()
-
-        #     columns = [desc[0] for desc in cur.description]
-
-        #     return pd.DataFrame(data, columns=columns)
