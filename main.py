@@ -294,12 +294,7 @@ def main():
                             output_file_path = ""
                             logger.debug("Source row count: %s", source_rows)
                             logger.debug("Target row count: %s", target_rows)
-                            print("="*100)
-                            print(source_df)
-                            print("="*100)
-                            print(target_df)
-                            print("="*100)
-
+                            
                         if source_df.equals(target_df):
                             logger.info("Match/Mismatch: Match")
                             status = "PASS"
@@ -353,16 +348,28 @@ def main():
 
                                 with pd.ExcelWriter(filepath, engine="openpyxl") as writer:
                                     sheets_written = 0
-
+                                    columns = set()
+                                    d = {}
                                     if not diff_df.empty:
-                                        diff_df.iloc[:2000].to_excel(writer, sheet_name="Differences", index=True)
-                                        sheets_written += 1
+                                        for i in diff_df.columns.to_list():
+                                            columns.add(i[0])
+                                        for col in columns:
+                                                    col_df =  diff_df.loc[:,col]
+                                                    col_df = col_df.reset_index()
+                                                    col_df = col_df[col_df.notna().all(axis=1)]
+                                                    col_df_count = len(col_df)
+                                                    col_df.iloc[:2000].to_excel(writer, sheet_name=col, index=False)
+                                                    sheets_written += 1
+                                                    d[col] = col_df_count
+                                        counts_df = pd.DataFrame(d.items(),index=None,columns=['Column Name','Count'])
+                                        counts_df.to_excel(writer, sheet_name="column_counts", index=False)
+
 
                                     if not missing_in_source_df.empty:
                                         missing_in_source_df.iloc[:2000].to_excel(
                                             writer,
                                             sheet_name="Missing_in_Source",
-                                            index=True
+                                            index=False
                                         )
                                         sheets_written += 1
 
@@ -370,7 +377,7 @@ def main():
                                         missing_in_target_df.iloc[:2000].to_excel(
                                             writer,
                                             sheet_name="Missing_in_Target",
-                                            index=True
+                                            index=False
                                         )
                                         sheets_written += 1
 
