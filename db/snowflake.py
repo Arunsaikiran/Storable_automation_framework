@@ -12,24 +12,29 @@ class Snowflake(Database):
         self.SNOWFLAKE_DATABASE = SNOWFLAKE_DATABASE
         self.SNOWFLAKE_SCHEMA = SNOWFLAKE_SCHEMA
         self.SNOWFLAKE_WAREHOUSE = SNOWFLAKE_WAREHOUSE
+        self._conn = None
 
     def connect(self):
-        
-        conn = snowflake.connector.connect(
-            account=self.SNOWFLAKE_ACCOUNT,
-            user=self.SNOWFLAKE_USER,
-            role=self.SNOWFLAKE_ROLE,
-            authenticator=self.externalbrowser,
-            database=self.SNOWFLAKE_DATABASE,
-            schema=self.SNOWFLAKE_SCHEMA,
-            warehouse=self.SNOWFLAKE_WAREHOUSE 
-        )
-        return conn
+        if self._conn is None or self._conn.is_closed():
+            self._conn = snowflake.connector.connect(
+                account=self.SNOWFLAKE_ACCOUNT,
+                user=self.SNOWFLAKE_USER,
+                role=self.SNOWFLAKE_ROLE,
+                authenticator=self.externalbrowser,
+                database=self.SNOWFLAKE_DATABASE,
+                schema=self.SNOWFLAKE_SCHEMA,
+                warehouse=self.SNOWFLAKE_WAREHOUSE
+            )
+        return self._conn
 
     def execute_query(self, query):
-        with self.connect() as conn:
-            with conn.cursor() as cs:
-                cs.execute(query)
-                rows = cs.fetchall()
-                df = pd.DataFrame(rows,columns=[c[0] for c in cs.description])
-                return df
+        conn = self.connect()
+        with conn.cursor() as cs:
+            cs.execute(query)
+            rows = cs.fetchall()
+            return pd.DataFrame(rows,columns=[c[0] for c in cs.description])
+
+    def close(self):
+        if self._conn is not None and not self._conn.is_closed():
+            self._conn.close()
+        self._conn = None

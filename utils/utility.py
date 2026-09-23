@@ -3,7 +3,9 @@ from pathlib import Path
 import os
 import pandas as pd
 import logging
+from openpyxl import load_workbook
 import sys
+import argparse
 
 
 #Generating runids
@@ -72,13 +74,13 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
         
                     yaml_paths = []
                     if 'all' in table_list:
-                        all_configs = (os.listdir(os.path.join(base_dir, "config", layer_type[0],report_pack[0], validation)))
+                        all_configs = (os.listdir(os.path.join(config_path, layer_type[0],report_pack[0], validation)))
                         for table in all_configs:
-                            yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0],report_pack[0], validation,f"{table}"))])
-        
+                            yaml_paths.extend([(os.path.join(config_path, layer_type[0],report_pack[0], validation,f"{table}"))])
+
                     else:
                         for table in table_list:
-                            yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0],report_pack[0], validation,f"{table}.yaml"))])
+                            yaml_paths.extend([(os.path.join(config_path, layer_type[0],report_pack[0], validation,f"{table}.yaml"))])
         
                     configpaths[validation] = yaml_paths
                     outputpaths[validation] = path
@@ -145,13 +147,13 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
 
                 yaml_paths = []
                 if 'all' in table_list:
-                    all_configs = (os.listdir(os.path.join(base_dir, "config", layer_type[0], validation)))
+                    all_configs = (os.listdir(os.path.join(base_dir, config_path, layer_type[0], validation)))
                     for table in all_configs:
-                        yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0], validation,f"{table}"))])
+                        yaml_paths.extend([(os.path.join(base_dir,config_path, layer_type[0], validation,f"{table}"))])
 
                 else:
                     for table in table_list:
-                        yaml_paths.extend([(os.path.join(base_dir, "config", layer_type[0], validation,f"{table}.yaml"))])
+                        yaml_paths.extend([(os.path.join(base_dir, config_path, layer_type[0], validation,f"{table}.yaml"))])
 
                 configpaths[validation] = yaml_paths
                 outputpaths[validation] = path
@@ -159,6 +161,58 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
                 os.makedirs(path, exist_ok=True)
 
     return outputpaths,configpaths,logpath
+
+
+# CHANGE: Added a reusable helper so create_summary() can replicate the exact
+# summary row into the table-specific result workbook without duplicating
+# validation-specific summary construction in main.py.
+def _write_summary_to_table_result_excel(summary_df, output_path, table_name):
+    """
+    Replicate the row produced by create_summary() into:
+        <table_name>_result.xlsx
+    as:
+        <table_name>_summary
+
+    The existing <validation_type>_summary.csv behavior is intentionally
+    preserved. This helper only adds the Excel-sheet copy.
+    """
+    if not table_name:
+        return
+
+    # CHANGE: Excel sheet names are limited to 31 characters.
+    sheet_name = f"{table_name}_summary"[:31]
+    result_file = os.path.join(output_path, f"{table_name}_result.xlsx")
+    print(result_file)
+
+    os.makedirs(output_path, exist_ok=True)
+
+    try:
+        if os.path.exists(result_file):
+            # CHANGE: Preserve all existing result sheets and only replace/
+            # rebuild the table summary sheet.
+            with pd.ExcelWriter(
+                result_file,
+                engine="openpyxl",
+                mode="a",
+                if_sheet_exists="replace"
+            ) as writer:
+                summary_df.to_excel(writer, sheet_name=sheet_name, index=False)
+        else:
+            # CHANGE: If no result workbook exists yet (for example a PASS),
+            # create it so the summary is still available in Excel.
+            with pd.ExcelWriter(result_file, engine="openpyxl") as writer:
+                summary_df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+    except Exception:
+        # CHANGE: Summary CSV is the existing source of record. An Excel
+        # replication failure must not prevent the validation itself from
+        # completing or prevent the CSV summary from being written.
+        logging.getLogger(__name__).exception(
+            "Unable to write table summary sheet for table=%s to %s",
+            table_name,
+            result_file
+        )
+
 
 def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,status,output_path,source_rows=None,target_rows=None,output_file_path=None,batch_start_time=None,batch_end_time=None,diff_batch=None,missing_in_source=None,missing_in_target=None,mismatch_count=None,error_message=None,layer_type=None,report_pack=None,report_tile=None,test_case=None,summary=None):
     if validation_type == 'integrity_check':
@@ -231,6 +285,11 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
         else:
             summary_df = pd.DataFrame([summary_dict])
 
+        _write_summary_to_table_result_excel(
+        summary_df=summary_df,
+        output_path=output_path,
+        table_name=source_table_name)
+
     else:
 
         summary_df = pd.DataFrame([{
@@ -258,6 +317,18 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
         mode="a",
         index=False,
         header=not os.path.exists(summary_file))
+
+    # CHANGE: Keep the existing summary CSV behavior AND replicate the same
+    # summary row into this table's <table_name>_result.xlsx workbook.
+    # create_summary() remains the single place where the summary structure
+    # is created, so main.py does not need redundant summary-building code.
+    # print(output_path)
+    # print(source_table_name)
+    # _write_summary_to_table_result_excel(
+    #     summary_df=summary_df,
+    #     output_path=output_path,
+    #     table_name=source_table_name
+    # )
 
 def get_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
@@ -310,8 +381,14 @@ def add_file_handler(
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
 
-    logger.addHandler(file_handler)
+    logger.addHandler(file_handler) 
 
     logger.info("Log file location: %s", log_file.resolve())
 
     return logger
+
+def valid_date(date_str):
+    try:
+        return str(datetime.strptime(date_str, "%Y-%m-%d").date())
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Invalid date: {date_str}. Expected format YYYY-MM-DD")

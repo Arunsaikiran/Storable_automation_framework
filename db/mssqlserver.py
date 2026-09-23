@@ -9,10 +9,14 @@ class Mssqlserver(Database):
         self.DATABASE = DATABASE
         self.UID = UID
         self.PWD = PWD
+        self._conn = None
 
     def connect(self):
-        if self.UID and self.PWD: 
-            conn = pyodbc.connect(
+        if self._conn is not None:
+            return self._conn
+
+        if self.UID and self.PWD:
+            self._conn = pyodbc.connect(
                     f"DRIVER={{{self.DRIVER}}};"
                     f"SERVER=tcp:{self.SERVER},1400;"#,1400 add for storable mssqlserver
                     f"DATABASE={self.DATABASE};"
@@ -20,9 +24,8 @@ class Mssqlserver(Database):
                     f"PWD={self.PWD};"
                     "TrustServerCertificate=yes;"
                 )
-            return conn
         else:
-            conn = pyodbc.connect(
+            self._conn = pyodbc.connect(
                         f"DRIVER={{{self.DRIVER}}};"
                         f"SERVER={self.SERVER};"
                         f"DATABASE={self.DATABASE};"
@@ -30,19 +33,18 @@ class Mssqlserver(Database):
                         "Encrypt=yes;"
                         "TrustServerCertificate=yes;"
                         )
-            return conn
+        return self._conn
 
     def execute_query(self,query):
-        
+
         conn = self.connect()
-
         try:
-            df = pd.read_sql(
-                query,
-                conn
-            )
-        finally:
-            assert conn is not None
-            conn.close()
+            return pd.read_sql(query, conn)
+        except Exception:
+            conn.rollback()
+            raise
 
-        return df 
+    def close(self):
+        if self._conn is not None:
+            self._conn.close()
+        self._conn = None 

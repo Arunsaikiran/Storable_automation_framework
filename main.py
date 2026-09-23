@@ -5,8 +5,8 @@ import yaml
 import time
 import pyodbc
 import psycopg2
-from db.factory import get_database
-from utils.utility import (generate_runid,get_config_output_paths,create_summary,get_logger,add_file_handler)
+from db.factory import get_database, close_all_databases
+from utils.utility import (generate_runid,get_config_output_paths,create_summary,get_logger,add_file_handler,valid_date)
 from datetime import datetime
 import traceback
 import pandas as pd
@@ -16,7 +16,7 @@ def main():
     #Generating run id
     run_id,run_at = generate_runid()
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(BASE_DIR,"config")
+    base_config_path = os.path.join(BASE_DIR,"config")
 
     #Logging module
     logger = get_logger(__name__)
@@ -65,16 +65,51 @@ def main():
         choices=['yes','no']
     )
 
+    parser.add_argument(
+        "--from_date",
+        type=valid_date,
+        required=False,
+        help="Date in YYYY-MM-DD format"
+    )
+
+    parser.add_argument(
+        "--to_date",
+        type=valid_date,
+        required=False,
+        help="Date in YYYY-MM-DD format"
+    )
+
+    parser.add_argument(
+        "--run_type",
+        required=False,
+        help="Run-type Historical/Incremental",
+        default='historical',
+        choices=['historical','incremental']
+    )
+
     args = parser.parse_args()
+    run_type = args.run_type
+    if run_type == "historical":
+        if args.from_date or args.to_date:
+            parser.error("--from-date and --to-date can only be used with --incremental")
+    else:
+        if args.from_date is None or args.to_date is None:
+            parser.error("Both from and to dates must be provided!")
+
+    if run_type == "historical":
+        config_path = os.path.join(base_config_path,"historical")
+    else:
+        config_path = os.path.join(base_config_path,"incremental")
 
     layer = args.layer_type
     report_pack = args.report_pack
     tables = args.tables
     environment = args.environment[0]
-
+    from_date = args.from_date
+    to_date = args.to_date
+    
     if layer[0] == "reports" and args.count_validation[0] == "yes":
         parser.error("--count_validation is not supported for layer_type=reports; only --data_validation is accepted.")
-
 
     validation_dirs = []
     if args.count_validation[0] == 'yes':
@@ -171,7 +206,7 @@ def main():
                                 status = "FAIL"
                                 failure_count += 1
                                 logger.info("Current failure count: %s", failure_count)
-                                filepath = os.path.join(output_path, f"{table_name}_{validation_name}_result_{run_id}.csv")
+                                filepath = os.path.join(output_path, f"{table_name}_result.csv")
                                 df.to_csv(filepath, index=False)
                                 output_file_path = filepath
                                 logger.warning(
@@ -213,6 +248,7 @@ def main():
                                 table_name, validation_name, exc_info=True
                             )
                             status = "FAIL"
+                            system_error = True
                             create_summary(
                                 run_at, run_id, validation_name, table_name, source, None, None, status,
                                 output_path, error_message=error_message, layer_type=layer[0], summary=summary
@@ -225,18 +261,25 @@ def main():
                     logger.debug("Validation configuration: %s", validation_name)
                     source = validation_config.get("source")
                     source_query = validation_config.get("sourcequery")
+                    condition = f" WHERE created_date between {from_date} and {to_date}"
+                    if run_type == "incremental":
+                        source_query = (source_query+condition)
+
                     target = validation_config.get("target")
                     target_query = validation_config.get("targetquery")
                     if environment == "dev":
-                        target_query = target_query.format(env = "DEV")
+                        target_query = target_query.format(env = "DEV",schema_env= "DEV")
                     elif environment == "stg":
-                        target_query = target_query.format(env = "STG")
+                        target_query = target_query.format(env = "STG",schema_env= "STAGING")
                     elif environment == "qat":
                         target_query = target_query.format(env = "QAT")
                     elif environment == "prod":
                         target_query = target_query.format(env = "PRD")
                     else:
                         target_query = target_query.format(env = "DEV")
+                    if run_type == "incremental":
+                        target_query = (target_query+condition)
+
                     source_table_name = validation_config.get("source_table_name")
                     target_table_name = validation_config.get("target_table_name")
                     sourcecolumn = validation_config.get("sourcecolumn",'').lower()
@@ -248,6 +291,7 @@ def main():
                     if layer[0] == "reports":
                         report_tile = validation_config.get("report_tile")
                         test_case = validation_config.get("test_case")
+                        source_table_name = table_name
                         summary = validation_config.get("summary")
 
                     try:
@@ -268,10 +312,6 @@ def main():
 
                         source_df.columns = source_df.columns.str.strip().str.lower()
                         target_df.columns = target_df.columns.str.strip().str.lower()
-                        print("="*100)
-                        print(source_df.columns)
-                        print(target_df.columns)
-                        print("="*100)
 
                         if validation_name == "count_validation": 
                             source_rows = source_df['source_row_count'].iloc[0]
@@ -342,11 +382,19 @@ def main():
 
                                 logger.debug(
                                 "Comparing source and target data for table=%s",table_name)
+
                                 diff_df = (source_df.loc[common_idx].sort_index().compare(target_df.loc[common_idx].sort_index()                    # type: ignore
                                 ))
                                 mismatch_count = len(diff_df)
 
-                                with pd.ExcelWriter(filepath, engine="openpyxl") as writer:
+                                writer_kwargs = {
+                                    "engine": "openpyxl",
+                                    "mode": "a" if os.path.exists(filepath) else "w"
+                                }
+                                if writer_kwargs["mode"] == "a":
+                                    writer_kwargs["if_sheet_exists"] = "replace"
+
+                                with pd.ExcelWriter(filepath, **writer_kwargs) as writer:
                                     sheets_written = 0
                                     columns = set()
                                     d = {}
@@ -362,7 +410,7 @@ def main():
                                                     sheets_written += 1
                                                     d[col] = col_df_count
                                         counts_df = pd.DataFrame(d.items(),index=None,columns=['Column Name','Count'])
-                                        counts_df.to_excel(writer, sheet_name="column_counts", index=False)
+                                        #counts_df.to_excel(writer, sheet_name="column_counts", index=False)
 
 
                                     if not missing_in_source_df.empty:
@@ -419,6 +467,7 @@ def main():
                             validation_name,
                             exc_info=True
                         )
+                        system_error = True
                         status = "FAIL"
                         create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                         continue
@@ -431,6 +480,7 @@ def main():
     logger.info("Duration: %s", total_time_taken)
     logger.info("Total failures: %s", failure_count)
     logger.info("Run ID: %s", run_id)
+    close_all_databases()
     sys.exit(1 if system_error else 0)
 
 if __name__ == "__main__":

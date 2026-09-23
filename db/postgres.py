@@ -10,20 +10,21 @@ class Postgres(Database):
         self.password = password
         self.host = host
         self.port = port
+        self._conn = None
 
     def connect(self):
-        
-        conn = psycopg2.connect(
-            dbname=self.dbname,
-            user=self.user,
-            password=self.password,
-            host=self.host,
-            port=self.port
-        )
-        return conn
+        if self._conn is None or self._conn.closed:
+            self._conn = psycopg2.connect(
+                dbname=self.dbname,
+                user=self.user,
+                password=self.password,
+                host=self.host,
+                port=self.port
+            )
+        return self._conn
 
     def execute_query(self, query):
-        
+
         conn = self.connect()
         cur = None
         try:
@@ -32,7 +33,14 @@ class Postgres(Database):
             data = cur.fetchall()
             columns = [desc[0] for desc in cur.description] # type: ignore
             return pd.DataFrame(data, columns=columns)
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             if cur is not None:
                 cur.close()
-            conn.close()
+
+    def close(self):
+        if self._conn is not None and not self._conn.closed:
+            self._conn.close()
+        self._conn = None

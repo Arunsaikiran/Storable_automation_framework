@@ -9,3 +9,7 @@ class Database(ABC):
     @abstractmethod
     def execute_query(self, query: str) -> Any:
         raise NotImplementedError
+
+    @abstractmethod
+    def close(self) -> None:
+        raise NotImplementedError

@@ -11,10 +11,12 @@ class Athena(Database):
         self.AWS_REGION = AWS_REGION
         self.ATHENA_DB = ATHENA_DB
         self.ATHENA_OUTPUT = ATHENA_OUTPUT
+        self._session = None
 
     def connect(self):
-        session = boto3.Session(profile_name=self.PROFILE, region_name=self.AWS_REGION)
-        return session
+        if self._session is None:
+            self._session = boto3.Session(profile_name=self.PROFILE, region_name=self.AWS_REGION)
+        return self._session
 
     def execute_query(self, query):
         session = self.connect()
@@ -64,3 +66,6 @@ class Athena(Database):
                 raise
 
         return df
+
+    def close(self):
+        self._session = None
