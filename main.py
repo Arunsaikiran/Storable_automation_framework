@@ -410,8 +410,7 @@ def main():
                                                     sheets_written += 1
                                                     d[col] = col_df_count
                                         counts_df = pd.DataFrame(d.items(),index=None,columns=['Column Name','Count'])
-                                        #counts_df.to_excel(writer, sheet_name="column_counts", index=False)
-
+                                        counts_df.to_excel(writer, sheet_name="column_counts", index=False)
 
                                     if not missing_in_source_df.empty:
                                         missing_in_source_df.iloc[:2000].to_excel(

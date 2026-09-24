@@ -30,9 +30,9 @@ def generate_sql(load_type,source_query,target_query,from_date,to_date,col):
 def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,validation_dirs,table_list):
     outputpaths = {}
     configpaths = {}
-
+    logpath = None
     output_dir = os.path.join(base_dir, "output")
-    if layer_type[0] == "reports":
+    if layer_type[0] == "reports" or layer_type[0] == "sanity":
         logpath = os.path.join(
         output_dir,
         layer_type[0],
@@ -87,29 +87,7 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
                     
                     os.makedirs(path, exist_ok=True)
 
-    elif layer_type[0] == "sanity":
-        logpath = os.path.join(
-            output_dir,
-            layer_type[0],
-            f"validation_{run_id}"
-        )
-        os.makedirs(output_dir, exist_ok=True)
-
-        path = os.path.join(
-            output_dir,
-            layer_type[0],
-            f"validation_{run_id}",
-            f"integrity_check_{run_id}"
-        )
-        os.makedirs(path, exist_ok=True)
-
-        yamlpath = os.path.join(config_path, layer_type[0], "integrity_check.yaml")
-
-        for validation in validation_dirs:
-            outputpaths[validation] = path
-            configpaths[validation] = [yamlpath]
-
-    else:
+    elif layer_type[0] == "bronze_mssql" or layer_type[0] == "bronze_postgres":
         logpath = os.path.join(
             output_dir,
             layer_type[0],
@@ -161,7 +139,6 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
                 os.makedirs(path, exist_ok=True)
 
     return outputpaths,configpaths,logpath
-
 
 # CHANGE: Added a reusable helper so create_summary() can replicate the exact
 # summary row into the table-specific result workbook without duplicating
