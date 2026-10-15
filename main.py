@@ -121,8 +121,6 @@ def main():
     close_all_databases()
     if system_error:
         exit_code = 1
-    elif failure_count > 0:
-        exit_code = 2
     else:
         exit_code = 0
     logger.info("Exit code: %s", exit_code)

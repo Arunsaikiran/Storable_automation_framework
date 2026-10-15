@@ -82,6 +82,7 @@ def validate_schema(ctx):
             source_df = obj.execute_query(formatted_source_query)
             source_df = source_df[~source_df['column_name'].isin(source_column_exclusion)]
             source_df.columns = [f"{i}_source" for i in source_df.columns]
+            source_df = source_df.replace({None: np.nan})
             logger.info("Source Query: %s", formatted_source_query)
             obj = get_database(target,BASE_DIR,environment)
             formatted_target_query = target_query.format(table_name = table_name.upper())
@@ -141,7 +142,7 @@ def validate_schema(ctx):
             if join_df['column_name_source'].isna().any():
                 new_missing_in_source_df = join_df[join_df['column_name_source'].isna()][['table_name_target','column_name_target']]
                 new_missing_in_source_df = new_missing_in_source_df.reset_index()
-                table_result["missing_in_source"] = {"status":"FAIL","data":new_missing_in_source_df}
+                table_result["columns_missing_in_source"] = {"status":"FAIL","data":new_missing_in_source_df}
                 source_column_name_failure_counts += join_df['column_name_source'].isna().sum()
                 missing_in_source_df = pd.concat([missing_in_source_df, new_missing_in_source_df], ignore_index=True)
 
@@ -152,7 +153,7 @@ def validate_schema(ctx):
             if join_df['column_name_target'].isna().any():
                 new_missing_in_target_df = join_df[join_df['column_name_target'].isna()][['table_name_source','column_name_source']]
                 new_missing_in_target_df = new_missing_in_target_df.reset_index()
-                table_result["missing_in_target"] = {"status":"FAIL","data":new_missing_in_target_df}
+                table_result["columns_missing_in_target"] = {"status":"FAIL","data":new_missing_in_target_df}
                 target_column_name_failure_counts += join_df['column_name_target'].isna().sum()
                 missing_in_target_df = pd.concat([missing_in_target_df, new_missing_in_target_df], ignore_index=True)
 
@@ -190,11 +191,15 @@ def validate_schema(ctx):
                         table_warning = "Yes"
                         r = row[['table_name_source','column_name_source','data_type_source','data_type_target','datetime_precision_source','datetime_precision_target']].copy()
                         r['warning'] = "Yes"
+                        r['status'] = "PASS"
+                        r['description'] = "Target precision is greater than source precision"
                         datetime_rows.append(r)
                 else:
                     datetime_failure_counts += 1
                     r = row[['table_name_source','column_name_source','data_type_source','data_type_target','datetime_precision_source','datetime_precision_target']].copy()
                     r['warning'] = "No"
+                    r['status'] = "FAIL"
+                    r['description'] = ""
                     datetime_rows.append(r)
             new_datetime_df = pd.DataFrame(datetime_rows).reset_index() if datetime_rows else pd.DataFrame()
             if datetime_failure_counts == 0:
@@ -212,11 +217,15 @@ def validate_schema(ctx):
                         table_warning = "Yes"
                         r = row[['table_name_source','column_name_source','data_type_source','data_type_target','numeric_precision_source','numeric_precision_target','numeric_scale_source','numeric_scale_target']].copy()
                         r['warning'] = "Yes"
+                        r['status'] = "PASS"
+                        r['description'] = "Target precision is greater than source precision"
                         integer_rows.append(r)
                 else:
                     integer_failure_counts += 1
                     r = row[['table_name_source','column_name_source','data_type_source','data_type_target','numeric_precision_source','numeric_precision_target','numeric_scale_source','numeric_scale_target']].copy()
                     r['warning'] = "No"
+                    r['status'] = "FAIL"
+                    r['description'] = ""
                     integer_rows.append(r)
             new_integer_df = pd.DataFrame(integer_rows).reset_index() if integer_rows else pd.DataFrame()
             if integer_failure_counts == 0:
@@ -229,16 +238,21 @@ def validate_schema(ctx):
             #Character length
             character_rows = []
             for _,row in join_df[join_df['data_type_source'].isin(['character varying'])].iterrows():
+                print(row)
                 if row['character_maximum_length_source'] <= row['character_maximum_length_target']:
                     if row['character_maximum_length_source'] < row['character_maximum_length_target']:
                         table_warning = "Yes"
                         r = row[['table_name_source','column_name_source','data_type_source','data_type_target','character_maximum_length_source','character_maximum_length_target']].copy()
                         r['warning'] = "Yes"
+                        r['status'] = "PASS"
+                        r['description'] = "Target character maximum length is greater than source maximum length"
                         character_rows.append(r)
                 else:
                     character_failure_counts += 1
                     r = row[['table_name_source','column_name_source','data_type_source','data_type_target','character_maximum_length_source','character_maximum_length_target']].copy()
                     r['warning'] = "No"
+                    r['status'] = "FAIL"
+                    r['description'] = ""
                     character_rows.append(r)
             new_character_df = pd.DataFrame(character_rows).reset_index() if character_rows else pd.DataFrame()
             if character_failure_counts == 0:
@@ -298,8 +312,8 @@ def validate_schema(ctx):
             continue
 
     dfs_to_write = {
-        "missing_in_source": missing_in_source_df,
-        "missing_in_target": missing_in_target_df,
+        "columns_missing_in_source": missing_in_source_df,
+        "columns_missing_in_target": missing_in_target_df,
         "datatype_validation": datatype_df,
         "datetime_precision_validation": datetime_df,
         "integer_precision_validation": integer_df,

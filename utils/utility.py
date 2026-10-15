@@ -562,6 +562,12 @@ def parse_arguments():
         if args.report_pack:
             parser.error("--report_pack is only allowed when --layer_type is 'sanity' or 'reports'.")
 
+    if args.integrity_check and layer_type[0] in ("sanity"):
+        parser.error("--integrity_check is only allowed when --layer_type is 'sanity'.")
+        
+
+
+
     return args
 
 def data_context():
