@@ -1,127 +1,270 @@
-# Storable SQL Comparison / Data Validation Framework
+# Storable Data Validation Framework
+
+A command-line framework that validates data migrated between systems (Postgres / MSSQL → Snowflake, plus report-level checks on Snowflake/Athena/Redshift). It runs YAML-defined SQL on a **source** and a **target**, compares the results, and writes PASS/FAIL summaries and mismatch details to Excel/CSV.
+
+## Contents
+1. [Architecture](#1-architecture)
+2. [Setup](#2-setup)
+3. [Commands](#3-commands)
+4. [Configuration (YAML)](#4-configuration-yaml)
+5. [Output](#5-output)
+6. [Exit codes](#6-exit-codes)
+---
 
 ## 1. Architecture
 
-There is no separate validator/plugin engine. `main.py` is a single script that acts as CLI, orchestrator, comparison engine, and report writer. It is supported by two small packages:
+### Layout
 
 ```
 Storable_automation_framework/
-├── main.py                    # CLI, dispatch, comparison logic, exit-code decision
-├── db/
-│   ├── base.py                 # abstract Database interface (connect / execute_query)
-│   ├── factory.py               # get_database(db_type, ...) -> Postgres|Mssqlserver|Snowflake|Redshift|Athena
-│   ├── postgres.py, mssqlserver.py, snowflake.py, redshift.py, athena.py
-├── utils/utility.py             # run-id generation, config/output path resolution, summary CSV writer, logging
-├── creds/{dev,uat,prod,local}.yaml   # per-environment DB credentials (gitignored)
-├── config/
-│   ├── bronze_mssql/{count_validation,data_validation}/*.yaml
-│   ├── bronze_postgres/{count_validation,data_validation}/*.yaml
-│   ├── silver/{count_validation,data_validation}/*.yaml
-│   ├── gold/                    # placeholder layer, no yaml files exist yet
-│   ├── sanity/integrity_check.yaml
-│   └── reports/<report_pack>/data_validation/*.yaml   # emanagement, egrowth, eperformance, ...
-└── output/<layer_type>[/<report_pack>]/validation_<run_id>/
-        {count_validation_<id>, data_validation_<id>, integrity_check_<id>}/
-        validation_<run_id>.log, *_summary.csv, <table>_result.xlsx|csv
+├── main.py                      # Entry point: parse args → build paths → run validators → exit code
+├── utils/
+│   └── utility.py               # CLI parsing, run-id, config/output path resolution,
+│                                #   logger, summary writers, DataContext dataclass
+├── validators/                  # One module per validation type; each exposes validate(ctx)
+│   ├── schema_validation.py     #   -> (failure_count, system_error)
+│   ├── count_validation.py
+│   ├── data_validation.py
+│   └── integrity_check.py
+├── db/                          # Connector layer
+│   ├── base.py                  #   abstract Database: connect / execute_query / close
+│   ├── factory.py               #   get_database(type, BASE_DIR, env) – cached per (type, env)
+│   └── postgres.py, mssqlserver.py, snowflake.py, redshift.py, athena.py
+│   └── ddl/ddl.sql              #   "control" table DDL (not read by the framework at runtime)
+├── config/                      # (gitignored) YAML test definitions
+│   ├── historical/<layer>/...   #   full-load runs
+│   └── incremental/<layer>/...  #   date-ranged runs
+├── creds/<env>.yaml             # (gitignored) DB credentials per environment
+└── output/                      # (gitignored) results, one folder per run
 ```
 
-**Two independent axes drive every run:**
+### Execution flow
 
-- `--layer_type` selects *which config subtree* is read: `bronze_postgres`, `bronze_mssql`, `silver`, `gold`, `reports`, `sanity`.
-- `--count_validation` / `--data_validation` select *which validation mechanism* runs inside that layer's config.
+```
+python main.py <args>
+   │
+   ├─ parse_arguments()                 validates flag combinations (argparse)
+   ├─ get_config_output_paths()         resolves YAML files + creates output dirs
+   ├─ DataContext(...)                  single object handed to every validator
+   │
+   ├─ for each enabled validator (schema → count → data [+ integrity]):
+   │     validate(ctx)
+   │       ├─ load YAML → pick tables
+   │       └─ per table / per validation:
+   │            get_database(source).execute_query(sourcequery)
+   │            get_database(target).execute_query(targetquery)
+   │            compare → PASS/FAIL → write summary (+ mismatch file)
+   │            any exception → table marked FAIL, error captured, run continues
+   │
+   ├─ close_all_databases()
+   └─ sys.exit(1 if system_error else 0)
+```
 
-There are exactly **three validation mechanisms**, not per-metric "test types":
+Connections are cached per `(db_type, environment)` so each database is opened once per run and closed at the end.
 
-| Mechanism | Trigger | What it does |
+### Validation types
+
+| Validator | Flag | Config file(s) | What it does |
+|---|---|---|---|
+| **Schema** | `--schema_validation yes` | one `schema_validation.yaml` per layer | Compares `information_schema`-style column metadata: columns missing in source/target, data-type mapping (`datatype_map`), datetime precision, integer precision, character length. Target being *wider* than source is a PASS with `warning=Yes`. |
+| **Count** | `--count_validation yes` | one `<layer>.yaml` per layer | Runs both queries; each must return a single value named `source_row_count` / `target_row_count`. PASS if equal. |
+| **Data** | `--data_validation yes` | one YAML per table | Loads both result sets as strings, indexes on `sourcecolumn`/`targetcolumn` (comma-separated for composite keys), sorts, and does a full `DataFrame.equals()`. On mismatch it writes missing-in-source, missing-in-target and per-column differences. |
+| **Integrity** | `--integrity_check yes` | `sanity/<pack>/integrity_check/*.yaml` | Runs one query that is expected to return **0 rows**. Any row returned = FAIL, and the offending rows are saved to CSV. |
+
+"Sum", "avg", "distinct" etc. report tests are not separate code paths – they are `data_validation` entries whose SQL aggregates differently.
+
+### Layers
+
+| `--layer_type` | Supports | Notes |
 |---|---|---|
-| `count_validation` | `validation_name == "count_validation"` | Runs `sourcequery`/`targetquery`, compares `source_row_count` vs `target_row_count` (single-row result required). |
-| `data_validation` | anything else under `validations:` | Runs both queries into DataFrames, indexes on `sourcecolumn`/`targetcolumn` (comma-separated for composite keys), sorts, and does a full `DataFrame.equals()` comparison. |
-| `integrity_check` (sanity layer only) | `layer_type == sanity` | Runs a single `query`, expects 0 rows back; any row returned is a failure (orphan/null-key style checks). |
+| `bronze_postgres` | schema, count, data | Postgres → Snowflake bronze |
+| `bronze_mssql` | schema, count, data | MSSQL → Snowflake bronze |
+| `silver` | count, data | Requires `{env}` placeholders in queries |
+| `reports` | data only | Requires `--report_pack` |
+| `sanity` | integrity (+ data) | Requires `--report_pack` |
+| `gold` | – | Accepted by argparse but **not implemented** (see §7) |
 
-"Sum", "count", "avg", "distinct" report files (e.g. `Test_02_Sum_athena.yaml`) are **not** separate code paths — they are `data_validation` entries whose SQL happens to aggregate differently. The filename is just a naming convention for humans.
+Report packs: `emanagement`, `smanagement`, `egrowth`, `sgrowth`, `eperformance`, `sperformance`. Packs with YAML on disk today: `emanagement`, `egrowth`, `eperformance`.
 
-Config files under `config/*/data_validation/` for `bronze_postgres` are machine-generated from an external plan/generator pipeline (see file headers: "GENERATED FILE — do not hand-edit"). Treat them as build artifacts, not hand-authored config, unless a file's header says otherwise.
+### Supported connectors
 
-### Supported connectors (`db/factory.py`)
-
-`source:` / `target:` in a YAML must be exactly one of: `postgres`, `mssql`, `athena`, `snowflake`, `redshift`. Any other string (e.g. `postgresql`, `sqlserver`) raises `ValueError: Unsupported database: <name>` at runtime — it will not be caught until that specific table is processed.
-
-Credentials come only from `creds/<environment>.yaml` — there is no `.env` support. `--environment` accepts `dev, stg, qat, prod, local`, but only `dev.yaml`, `uat.yaml`, `prod.yaml`, `local.yaml` exist on disk today; `stg`/`qat` are accepted by argparse but have no backing creds file.
-
-Snowflake target queries can contain a literal `{env}` placeholder (e.g. `FROM {env}_EDGE_BRONZE...`) which `main.py` fills in based on `--environment` (e.g. `DEV`, `QAT`, `PROD`). This only applies to Snowflake target queries — source queries and non-templated targets are unaffected.
+`source:` / `target:` in a YAML must be exactly one of `postgres`, `mssql`, `athena`, `snowflake`, `redshift`. Anything else (e.g. `postgresql`, `sqlserver`) raises `ValueError: Unsupported database`.
 
 ---
 
-## 2. Running each layer
+## 2. Setup
 
-Base command shape:
-
-```bash
-python main.py --layer_type <layer> [--report_pack <pack>] --tables <name(s)|all> --count_validation <yes|no> --data_validation <yes|no> --environment <dev|stg|qat|prod|local>
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-### bronze_postgres / bronze_mssql / silver
-Standard layers, both validation flags are usable freely.
+Requirements: `pyyaml, pyodbc, psycopg2-binary, pandas, boto3, snowflake-connector-python, redshift_connector, awswrangler, openpyxl, certifi`.
+MSSQL also needs the **ODBC Driver 18 for SQL Server** installed on the machine.
 
-```bash
-python main.py --layer_type bronze_postgres --tables all --count_validation yes --data_validation yes --environment dev
-```
+### Credentials – `creds/<environment>.yaml`
 
-### gold
-Argparse accepts it, but `config/gold/` currently has no YAML files. Any run against `gold` fails immediately with:
-```
-FileNotFoundError: [Errno 2] No such file or directory: '...\config\gold\count_validation\gold.yaml'
-```
-Do not use `gold` until config files are added for it.
+Expected keys per connector (only the ones your YAMLs use need to be present):
 
-### reports
-Requires `--report_pack` (`emanagement`, `smanagement`, `egrowth`, `sgrowth`, `eperformance`, `sperformance`) and **only supports `--data_validation`**. There is no `count_validation` subfolder for report packs.
-
-```bash
-python main.py --layer_type reports --report_pack emanagement --tables all --count_validation no --data_validation yes --environment dev
+```yaml
+postgres:  { dbname, user, password, host, port }
+mssql:     { driver, server, database, uid, pwd }
+athena:    { profile, aws_region, athena_db, athena_output }
+snowflake: { snowflake_account, snowflake_user, snowflake_role, externalbrowser,
+             snowflake_database, snowflake_schema, snowflake_warehouse }
+redshift:  { redshift_host, redshift_port, redshift_database, redshift_user, redshift_password }
 ```
 
-**Expected error — count validation not accepted for reports:**
-```bash
-python main.py --layer_type reports --report_pack emanagement --tables all --count_validation yes --data_validation no --environment dev
-```
-```
-main.py: error: --count_validation is not supported for layer_type=reports; only --data_validation is accepted.
-```
-This is an explicit `argparse.parser.error()` guard — it exits with code `2` before any config is read or DB connection made.
-
-**Expected error — missing `--report_pack`:**
-```
-TypeError: 'NoneType' object is not subscriptable
-```
-Unhandled traceback; always pass `--report_pack` for `reports`.
-
-### sanity
-Runs the single `config/sanity/integrity_check.yaml`. Unlike `reports`, it does **not** reject `count_validation` — both flags map to the same integrity-check flow, so passing either (or both) as `yes` runs the same checks. Passing `no` to both simply means no tables get processed for that run.
-
-```bash
-python main.py --layer_type sanity --tables all --count_validation no --data_validation yes --environment dev
-```
+- Files on disk today: `dev`, `stg`, `uat`, `prod`, `local`. Note `--environment` accepts `dev, stg, qat, prod, local` – **`qat` has no creds file** and `uat` is not an accepted value.
+- Snowflake uses SSO (`externalbrowser`): a browser window opens on first connect.
+- Athena uses an AWS CLI profile (`profile:`) – it must be logged in already.
+- Never commit `creds/`; it is gitignored.
 
 ---
 
-## 3. Other expected errors
+## 3. Commands
 
-| Scenario | Result |
+### Arguments
+
+| Argument | Required | Values | Notes |
+|---|---|---|---|
+| `--layer_type` | yes | `bronze_postgres bronze_mssql silver gold reports sanity` | |
+| `--tables` | yes | one or more names, or `all` | Names must match keys in the YAML (`all` runs every table) |
+| `--schema_validation` | yes | `yes` / `no` | |
+| `--count_validation` | yes | `yes` / `no` | |
+| `--data_validation` | yes | `yes` / `no` | |
+| `--integrity_check` | no (default `no`) | `yes` / `no` | |
+| `--environment` | yes | `dev stg qat prod local` | Selects `creds/<env>.yaml` and fills `{env}` in queries |
+| `--report_pack` | for `reports`/`sanity` only | see above | Rejected for other layers |
+| `--run_type` | no (default `historical`) | `historical` / `incremental` | Picks `config/historical` or `config/incremental` |
+| `--from_date`, `--to_date` | only for `incremental` | `YYYY-MM-DD` | Both required for incremental; forbidden for historical |
+
+### Examples
+
+```powershell
+# Bronze Postgres – everything, all tables
+python main.py --layer_type bronze_postgres --tables all `
+  --schema_validation yes --count_validation yes --data_validation yes --environment dev
+
+# Bronze MSSQL – only specific tables, data check only
+python main.py --layer_type bronze_mssql --tables Sites Units Tenants `
+  --schema_validation no --count_validation no --data_validation yes --environment dev
+
+# Bronze Postgres – schema check only
+python main.py --layer_type bronze_postgres --tables all `
+  --schema_validation yes --count_validation no --data_validation no --environment dev
+
+# Silver[WIP]
+python main.py --layer_type silver --tables all `
+  --schema_validation no --count_validation yes --data_validation yes --environment dev
+
+# Reports (data validation only)
+python main.py --layer_type reports --report_pack emanagement --tables all `
+  --schema_validation no --count_validation no --data_validation yes --environment dev
+
+# Sanity / integrity checks
+python main.py --layer_type sanity --report_pack egrowth --tables all `
+  --schema_validation no --count_validation no --data_validation no `
+  --integrity_check yes --environment dev
+```
+
+Use `python main.py -h` for the built-in help.
+
+---
+
+## 4. Configuration (YAML)
+
+Path convention: `config/<run_type>/<layer>/<validation>/...`
+
+| Validation | Path |
 |---|---|
-| `--tables <name not in config>` | `ValueError: No tables found to process.` |
-| YAML `source`/`target` not in `{postgres, mssql, athena, snowflake, redshift}` | `ValueError: Unsupported database: <name>` — caught by the generic exception handler, logged, table marked FAIL, run **continues**, exit code stays `0`. |
-| `--environment` has no matching `creds/<env>.yaml` (e.g. `stg`, `qat` today) | `FileNotFoundError` — same generic handling as above, exit code stays `0`. |
-| Postgres/MSSQL connection failure (`psycopg2.Error` / `pyodbc.Error`) | Explicitly caught, sets `system_error = True` → process exits with code `1`. |
-| Snowflake/Athena/Redshift connection failure | Falls through to the generic exception handler — logged as FAIL, but does **not** set `system_error`, so exit code stays `0`. This asymmetry matters for CI gating: only Postgres/MSSQL outages currently fail the build. |
+| schema | `config/<run_type>/<layer>/schema_validation/schema_validation.yaml` |
+| count | `config/<run_type>/<layer>/count_validation/<layer>.yaml` |
+| data | `config/<run_type>/<layer>/data_validation/<table>.yaml` |
+| reports data | `config/<run_type>/reports/<pack>/data_validation/<table>.yaml` |
+| integrity | `config/<run_type>/sanity/<pack>/integrity_check/<test>.yaml` |
 
-**Exit code summary:** `sys.exit(1 if system_error else 0)` — `1` only means a Postgres/MSSQL connectivity error occurred somewhere in the run; every other failure (bad config, unsupported connector, missing creds file, PASS/FAIL mismatches) exits `0` and must be checked via the summary CSV or log, not the exit code.
+**Count / data validation:**
+
+```yaml
+tables:
+  account_codes:
+    validations:
+      data_validation:            # key is free text; it becomes validation_performed
+        source: postgres
+        source_table_name: account_codes
+        sourcequery: |
+          SELECT ... FROM public.account_codes
+        sourcecolumn: id          # key column(s), comma-separated for composite keys
+        target: snowflake
+        target_table_name: account_codes
+        targetquery: |
+          SELECT ... FROM {env}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.ACCOUNT_CODES
+        targetcolumn: id
+```
+
+Count validation queries must return one column each: `source_row_count` and `target_row_count`.
+
+**Placeholders in queries** (filled by `str.format`): `{env}` → `DEV` / `STG` / `QAT` / `PRD`; `{schema_env}` → `DEV` / `STAGING` / `QAT` / `PRD` (data validation). Because of this, **literal `{` `}` in SQL must be doubled** (`{{ }}`).
+
+**Integrity check:** `tables.<name>.validation.integrity_check` with `source`, `query`, `summary`, `testcase`.
+
+**Schema validation:** one block with `source`, `target`, `sourcequery`, `targetquery` (both use `{table_name}`), `datatype_map` (source type → expected target type), and `tables.<table>.source_column_exclusion / target_column_exclusion`.
+
+**Incremental runs** append ` WHERE created_date between <from_date> and <to_date>` to both queries (see §7 for the caveats).
+
+Many bronze YAMLs are machine-generated ("GENERATED FILE — do not hand-edit"); regenerate rather than editing by hand.
 
 ---
 
-## 4. Output
+## 5. Output
 
-Each run writes to `output/<layer_type>[/<report_pack>]/validation_<run_id>/`:
-- `validation_<run_id>.log` — full run log.
-- `<validation_type>_summary.csv` — one appended row per table/validation, PASS/FAIL plus counts (or comparison result).
-- On mismatch: `<table>_result.xlsx` (data_validation, sheets: `Differences`, `Missing_in_Source`, `Missing_in_Target`) or `<table>_<check>_result_<run_id>.csv` (sanity/integrity_check).
+```
+output/<layer>/validation_<run_id>/                       (reports/sanity: output/<layer>/<pack>/validation_<run_id>/)
+├── validation_<run_id>.log                               full DEBUG log of the run
+├── schema_validation_<run_id>/
+│     schema_validation_result_summary.xlsx               summary + sheets for each failing check type
+├── count_validation_<run_id>/
+│     count_validation_summary.csv
+│     <table>_result.xlsx           (one "<table>_summary" sheet)
+├── data_validation_<run_id>/
+│     <validation>_result_summary.xlsx    (sheet "summary", all tables)
+│     <table>_result.xlsx                 summary sheet + mismatch sheets:
+│                                           <column>, column_counts, Missing_in_Source, Missing_in_Target
+└── integrity_check_<run_id>/
+      integrity_check_summary.csv
+      <table>_result.csv                (only when offending rows were found)
+```
+
+- `run_id` format: `YYYYMMDD_HHMMSS_ffffff`.
+- Mismatch sheets are capped at **2,000 rows** each; the true counts are in the summary (`missing_in_source`, `missing_in_target`, `mismatch_count`) and `column_counts`.
+- Summary columns include `status` (`PASS`/`FAIL`), `source_count`, `target_count`, timings and `error_message` (full traceback when a query/config error occurred).
+
+---
+
+## 6. Exit codes
+
+`main.py` itself only sets `0` or `1` (`sys.exit(1 if system_error else 0)`).
+
+| Code | Set by | Meaning |
+|---|---|---|
+| `0` | `main.py` | Run completed with no system error. **Data mismatches (FAIL) alone do not change the exit code** – they are only visible in the summary files and log (`Total failures: N`). |
+| `1` | `main.py` | A system error occurred: a validator crashed or any table raised an exception (DB/network error, bad YAML, missing creds, bad query, …). Also returned by Python when an exception is uncaught at startup (e.g. `--layer_type gold`). |
+---
+
+## 7. Expected errors
+
+### Argument errors (exit code 2, before any DB connection)
+
+| Message | Cause |
+|---|---|
+| `Both from and to dates must be provided!` | `--run_type incremental` without both dates |
+| `--from-date and --to-date can only be used with --incremental` | Dates given on a historical run |
+| `Invalid date: ... Expected format YYYY-MM-DD` | Bad date format |
+| `Only the parameter --data_validation = 'yes' is accepted.` | `reports` layer with count or schema = `yes` |
+| `--report_pack is required when --layer_type is 'sanity' or 'reports'.` | Missing pack |
+| `--report_pack is only allowed when --layer_type is 'sanity' or 'reports'.` | Pack given for another layer |
+| `--schema_validation 'yes' is only allowed when ... 'bronze_mssql' or 'bronze_postgres'.` | Intended: schema = yes on another layer. **Currently fires for any value on non-bronze layers (§8).** |
+| `argument --x: invalid choice` / `the following arguments are required` | Typos or missing mandatory flags |
+

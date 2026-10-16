@@ -552,7 +552,7 @@ def parse_arguments():
         if args.count_validation[0] == "yes" or args.schema_validation[0] == "yes":
             parser.error("Only the parameter --data_validation = 'yes' is accepted.")
 
-    if args.schema_validation and layer_type[0] not in ("bronze_mssql", "bronze_postgres"):
+    if args.schema_validation[0] == "yes" and layer_type[0] not in ("bronze_mssql", "bronze_postgres"):
         parser.error("--schema_validation 'yes' is only allowed when --layer_type is 'bronze_mssql' or 'bronze_postgres'.")
 
     if layer_type[0] in ("sanity", "reports"):
@@ -562,7 +562,7 @@ def parse_arguments():
         if args.report_pack:
             parser.error("--report_pack is only allowed when --layer_type is 'sanity' or 'reports'.")
 
-    if args.integrity_check and layer_type[0] in ("sanity"):
+    if args.integrity_check is True and layer_type[0] not in ("sanity"):
         parser.error("--integrity_check is only allowed when --layer_type is 'sanity'.")
         
 
