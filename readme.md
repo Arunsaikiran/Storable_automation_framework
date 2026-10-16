@@ -30,7 +30,6 @@ Storable_automation_framework/
 │   ├── base.py                  #   abstract Database: connect / execute_query / close
 │   ├── factory.py               #   get_database(type, BASE_DIR, env) – cached per (type, env)
 │   └── postgres.py, mssqlserver.py, snowflake.py, redshift.py, athena.py
-│   └── ddl/ddl.sql              #   "control" table DDL (not read by the framework at runtime)
 ├── config/                      # (gitignored) YAML test definitions
 │   ├── historical/<layer>/...   #   full-load runs
 │   └── incremental/<layer>/...  #   date-ranged runs
@@ -82,7 +81,7 @@ Connections are cached per `(db_type, environment)` so each database is opened o
 | `silver` | count, data | Requires `{env}` placeholders in queries |
 | `reports` | data only | Requires `--report_pack` |
 | `sanity` | integrity (+ data) | Requires `--report_pack` |
-| `gold` | – | Accepted by argparse but **not implemented** (see §7) |
+| `gold` | – | Accepted by argparse but **not implemented** |
 
 Report packs: `emanagement`, `smanagement`, `egrowth`, `sgrowth`, `eperformance`, `sperformance`. Packs with YAML on disk today: `emanagement`, `egrowth`, `eperformance`.
 
@@ -212,9 +211,7 @@ Count validation queries must return one column each: `source_row_count` and `ta
 
 **Schema validation:** one block with `source`, `target`, `sourcequery`, `targetquery` (both use `{table_name}`), `datatype_map` (source type → expected target type), and `tables.<table>.source_column_exclusion / target_column_exclusion`.
 
-**Incremental runs** append ` WHERE created_date between <from_date> and <to_date>` to both queries (see §7 for the caveats).
-
-Many bronze YAMLs are machine-generated ("GENERATED FILE — do not hand-edit"); regenerate rather than editing by hand.
+**Incremental runs** append ` WHERE created_date between <from_date> and <to_date>` to both queries.
 
 ---
 
@@ -255,7 +252,7 @@ output/<layer>/validation_<run_id>/                       (reports/sanity: outpu
 
 ## 7. Expected errors
 
-### Argument errors (exit code 2, before any DB connection)
+### Argument errors (before any DB connection)
 
 | Message | Cause |
 |---|---|
@@ -265,6 +262,5 @@ output/<layer>/validation_<run_id>/                       (reports/sanity: outpu
 | `Only the parameter --data_validation = 'yes' is accepted.` | `reports` layer with count or schema = `yes` |
 | `--report_pack is required when --layer_type is 'sanity' or 'reports'.` | Missing pack |
 | `--report_pack is only allowed when --layer_type is 'sanity' or 'reports'.` | Pack given for another layer |
-| `--schema_validation 'yes' is only allowed when ... 'bronze_mssql' or 'bronze_postgres'.` | Intended: schema = yes on another layer. **Currently fires for any value on non-bronze layers (§8).** |
-| `argument --x: invalid choice` / `the following arguments are required` | Typos or missing mandatory flags |
+| `--schema_validation 'yes' is only allowed when ... 'bronze_mssql' or 'bronze_postgres'.` | Intended: schema = yes on another layer.  |
 
