@@ -304,7 +304,7 @@ def validate_schema(ctx):
                 table_name, validation, exc_info=True
             )
             status = "FAIL"
-            system_error = True
+            system_error = False
             create_summary_schema(
                 run_at, run_id, validation, table_name, source, None, target, status,
                 output_path, error_message=error_message, layer_type=layer[0]

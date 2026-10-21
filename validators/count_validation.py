@@ -185,7 +185,7 @@ def validate(ctx):
                     )
                     status = "FAIL"
                     failure_count += 1
-                    system_error = True
+                    system_error = False
                     create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message,layer_type=layer[0])
                     continue
 

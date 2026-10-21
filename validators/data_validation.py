@@ -248,7 +248,7 @@ def validate(ctx):
                     )
                     status = "FAIL"
                     failure_count += 1
-                    system_error = True
+                    system_error = False
                     create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                     continue
 

@@ -153,7 +153,7 @@ def validate(ctx):
                     )
                     status = "FAIL"
                     failure_count += 1
-                    system_error = True
+                    system_error = False
                     create_summary_integrity(
                         run_at, run_id, validation_name, table_name, source, status,
                         output_path, test_case=test_case, summary=summary, error_message=error_message, layer_type=layer[0]
