@@ -1,0 +1,6 @@
+table,count_validation_last_run_date,data_validation_last_run_date,layer,run_at,run_id
+contacts,2026-10-27 04:40:51.528 +0000,2026-10-26 01:37:02.327 +0000,bronze_postgres,,
+facilities,2026-10-29 06:34:00.555 +0000,2026-10-29 06:34:00.555 +0000,bronze_postgres,06:47.2,20261029_130647_197505
+contacts,,,bronze_mssql,,
+payment_methods,2026-10-29 09:14:50.034 +0000,2026-10-29 09:14:50.034 +0000,bronze_postgres,06:51.7,20261029_160651_689496
+tenants,2026-10-29 10:05:19.445 +0000,2026-10-29 10:05:19.445 +0000,bronze_postgres,29-Oct-2026 16:27:52.375542,20261029_162752_375520

@@ -37,7 +37,7 @@ def create_summary_integrity(run_at,run_id,validation_type,table_name,source_typ
         index=False,
         header=not os.path.exists(summary_file))
 
-def validate(ctx):
+def validate_integrity(ctx):
     run_id = ctx.run_id
     run_at = ctx.run_at
     layer = ctx.layer_type

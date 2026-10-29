@@ -1,7 +1,7 @@
 import yaml
 from db.factory import get_database, close_all_databases
-from utils.utility import get_logger
-from datetime import datetime
+from utils.utility import get_logger,get_incremental_dates,update_control_table
+from datetime import datetime,timedelta
 import time
 import pyodbc
 import psycopg2
@@ -37,7 +37,7 @@ def create_summary_count(run_at,run_id,validation_type,source_table_name,source_
         index=False,
         header=not os.path.exists(summary_file))
 
-def validate(ctx):
+def validate_count(ctx):
     run_id = ctx.run_id
     run_at = ctx.run_at
     layer = ctx.layer_type
@@ -59,6 +59,8 @@ def validate(ctx):
     logger.debug("Output path: %s", output_path)
     logger.debug("Config path: %s", config_path_yaml)
 
+    control_table_path = os.path.join(BASE_DIR, "control_table.csv")
+
     for yamlfile in config_path_yaml:
         with open(yamlfile) as f:
             config = yaml.safe_load(f)
@@ -79,9 +81,6 @@ def validate(ctx):
                 logger.debug("Validation configuration: %s", validation_name)
                 source = validation_config.get("source")
                 source_query = validation_config.get("sourcequery")
-                condition = f" WHERE created_date between {from_date} and {to_date}"
-                if run_type == "incremental":
-                    source_query = (source_query+condition)
                 target = validation_config.get("target")
                 target_query = validation_config.get("targetquery")
                 if environment == "dev":
@@ -94,27 +93,67 @@ def validate(ctx):
                     target_query = target_query.format(env = "PRD")
                 else:
                     target_query = target_query.format(env = "DEV")
-                if run_type == "incremental":
-                    target_query = (target_query+condition)
+
+                
                 source_table_name = validation_config.get("source_table_name",'')
                 target_table_name = validation_config.get("target_table_name",'')
+            
+                max_fivetran_start = None
                 try:
                     batch_start_time = datetime.now()
-                    #source
-                    logger.info("Executing source query for table %s", table_name)
-                    logger.debug("Source query: %s", source_query)
-                    obj = get_database(source,BASE_DIR,environment)
-                    source_df = obj.execute_query(source_query)
-                    source_df = source_df.astype(str)
+                    source_df = pd.DataFrame()
+                    target_df = pd.DataFrame()
+                    source_obj = get_database(source,BASE_DIR,environment)
+                    target_obj = get_database(target,BASE_DIR,environment)
+                    if run_type == "historical":
+                        #source
+                        logger.info("Executing source query for table %s", table_name)
+                        logger.debug("Source query: %s", source_query)
+                        source_df = source_obj.execute_query(source_query)
+                        source_df = source_df.astype(str)
 
-                    #target
-                    logger.info("Executing target query for table %s", table_name)
-                    logger.debug("Target query: %s", target_query)
-                    obj = get_database(target,BASE_DIR,environment)
-                    target_df = obj.execute_query(target_query)
-                    target_df = target_df.astype(str)
+                        #target
+                        logger.info("Executing target query for table %s", table_name)
+                        logger.debug("Target query: %s", target_query)
+                        target_df = target_obj.execute_query(target_query)
+                        target_df = target_df.astype(str)
 
-                    source_df.columns = source_df.columns.str.strip().str.lower()
+                    elif run_type == "incremental":
+                        if from_date is True and to_date is True:
+                            for key, value in {
+                                "start_time": from_date,
+                                "end_time": to_date
+                            }.items():
+                                source_query = source_query.replace(f":{key}", f"'{value}'")
+                                target_query = target_query.replace(f":{key}", f"'{value}'")
+                            logger.info("Executing source query for table %s", table_name)
+                            logger.debug("Source query: %s", source_query)
+                            source_df = source_obj.execute_query(source_query)
+                            source_df = source_df.astype(str)                                
+                            logger.info("Executing target query for table %s", table_name)
+                            logger.debug("Target query: %s", target_query)
+                            target_df = target_obj.execute_query(target_query)
+                            target_df = target_df.astype(str)
+                        else:
+                            #Check freshness, then get the latest sync date (fivetran) and previous sync date (control table)
+                            max_fivetran_start,min_fivetran_start = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'count')
+                            for key, value in {
+                                "start_time": min_fivetran_start,
+                                "end_time": max_fivetran_start
+                            }.items():
+                                source_query = source_query.replace(f":{key}", f"'{value}'")
+                                target_query = target_query.replace(f":{key}", f"'{value}'")
+                            logger.info("Executing source query for table %s", table_name)
+                            logger.debug("Source query: %s", source_query)
+                            source_df = source_obj.execute_query(source_query)
+                            source_df = source_df.astype(str)
+                            logger.info("Executing target query for table %s", table_name)
+                            logger.debug("Target query: %s", target_query)
+                            target_df = target_obj.execute_query(target_query)
+                            target_df = target_df.astype(str)
+
+
+                    source_df.columns = source_df.columns.str.strip().str.lower() 
                     target_df.columns = target_df.columns.str.strip().str.lower()
 
                     source_rows = source_df['source_row_count'].iloc[0]
@@ -140,6 +179,9 @@ def validate(ctx):
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
                         create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0])
+                        if max_fivetran_start is not None:
+                            logger.info("Updating control table")
+                            update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start,run_at,run_id)
 
                     else:
                         logger.info("Match/Mismatch: Mismatch")
@@ -159,6 +201,8 @@ def validate(ctx):
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
                         create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0])
+                        logger.info("Updating control table")
+                        update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start,run_at,run_id)
                         print("+"*100)
 
                 except (pyodbc.Error, psycopg2.Error):

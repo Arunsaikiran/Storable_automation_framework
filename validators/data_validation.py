@@ -1,6 +1,6 @@
 import yaml
 from db.factory import get_database
-from utils.utility import get_logger, create_summary
+from utils.utility import get_logger, create_summary, get_incremental_dates, update_control_table
 from datetime import datetime
 import time
 import pyodbc
@@ -11,7 +11,12 @@ import pandas as pd
 
 logger = get_logger(__name__)
 
-def validate(ctx):
+
+def add_condition(query,condition):
+    keyword = " AND " if " where " in query.lower() else " WHERE "
+    return query + keyword + condition
+
+def validate_data(ctx):
     run_id = ctx.run_id
     run_at = ctx.run_at
     layer = ctx.layer_type
@@ -34,12 +39,7 @@ def validate(ctx):
     logger.debug("Output path: %s", output_path)
     logger.debug("Config path: %s", config_path_yaml)
 
-    env_params = {
-        "dev": {"env": "DEV", "schema_env": "DEV"},
-        "stg": {"env": "STG", "schema_env": "STAGING"},
-        "qat": {"env": "QAT", "schema_env": "QAT"},
-        "prod": {"env": "PRD", "schema_env": "PRD"},
-    }.get(environment, {"env": "DEV", "schema_env": "DEV"})
+    control_table_path = os.path.join(BASE_DIR, "control_table.csv")
 
     for yamlfile in config_path_yaml:
         with open(yamlfile) as f:
@@ -61,18 +61,19 @@ def validate(ctx):
                 logger.debug("Validation configuration: %s", validation_name)
                 source = validation_config.get("source")
                 source_query = validation_config.get("sourcequery")
-                if layer[0] == "silver":
-                    source_query = source_query.format(**env_params)
-
-                condition = f" WHERE created_date between {from_date} and {to_date}"
-                if run_type == "incremental":
-                    source_query = (source_query+condition)
 
                 target = validation_config.get("target")
                 target_query = validation_config.get("targetquery")
-                target_query = target_query.format(**env_params)
-                if run_type == "incremental":
-                    target_query = (target_query+condition)
+                if environment == "dev":
+                    target_query = target_query.format(env = "DEV",schema_env= "DEV")
+                elif environment == "stg":
+                    target_query = target_query.format(env = "STG",schema_env= "STAGING")
+                elif environment == "qat":
+                    target_query = target_query.format(env = "QAT")
+                elif environment == "prod":
+                    target_query = target_query.format(env = "PRD")
+                else:
+                    target_query = target_query.format(env = "DEV")
 
                 source_table_name = validation_config.get("source_table_name",'')
                 target_table_name = validation_config.get("target_table_name",'')
@@ -88,21 +89,62 @@ def validate(ctx):
                     source_table_name = table_name
                     summary = validation_config.get("summary")
 
+                max_fivetran_start = None
                 try:
                     batch_start_time = datetime.now()
-                    #source
-                    logger.info("Executing source query for table %s", table_name)
-                    logger.debug("Source query: %s", source_query)
-                    obj = get_database(source,BASE_DIR,environment)
-                    source_df = obj.execute_query(source_query)
-                    source_df = source_df.astype(str)
+                    source_df = pd.DataFrame()
+                    target_df = pd.DataFrame()
+                    source_obj = get_database(source,BASE_DIR,environment)
+                    target_obj = get_database(target,BASE_DIR,environment)  
+                    if run_type == "historical":
+                        #source
+                        logger.info("Executing source query for table %s", table_name)
+                        logger.debug("Source query: %s", source_query)
+                        obj = get_database(source,BASE_DIR,environment)
+                        source_df = obj.execute_query(source_query)
+                        source_df = source_df.astype(str)
 
-                    #target
-                    logger.info("Executing target query for table %s", table_name)
-                    logger.debug("Target query: %s", target_query)
-                    obj = get_database(target,BASE_DIR,environment)
-                    target_df = obj.execute_query(target_query)
-                    target_df = target_df.astype(str)
+                        #target
+                        logger.info("Executing target query for table %s", table_name)
+                        logger.debug("Target query: %s", target_query)
+                        obj = get_database(target,BASE_DIR,environment)
+                        target_df = obj.execute_query(target_query)
+                        target_df = target_df.astype(str)
+
+                    elif run_type == "incremental":
+                        if from_date is True and to_date is True:
+                            for key, value in {
+                                "start_time": from_date,
+                                "end_time": to_date
+                            }.items():
+                                source_query = source_query.replace(f":{key}", f"'{value}'")
+                                target_query = target_query.replace(f":{key}", f"'{value}'")
+                            logger.info("Executing source query for table %s", table_name)
+                            logger.debug("Source query: %s", source_query)
+                            source_df = source_obj.execute_query(source_query)
+                            source_df = source_df.astype(str)                                
+                            logger.info("Executing target query for table %s", table_name)
+                            logger.debug("Target query: %s", target_query)
+                            target_df = target_obj.execute_query(target_query)
+                            target_df = target_df.astype(str)
+                        else:
+                            #Check freshness, then get the latest sync date (fivetran) and previous sync date (control table)
+                            max_fivetran_start,min_fivetran_start = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'count')
+                            for key, value in {
+                                "start_time": min_fivetran_start,
+                                "end_time": max_fivetran_start
+                            }.items():
+                                source_query = source_query.replace(f":{key}", f"'{value}'")
+                                target_query = target_query.replace(f":{key}", f"'{value}'")
+                            logger.info("Executing source query for table %s", table_name)
+                            logger.debug("Source query: %s", source_query)
+                            source_df = source_obj.execute_query(source_query)
+                            source_df = source_df.astype(str)
+                            logger.info("Executing target query for table %s", table_name)
+                            logger.debug("Target query: %s", target_query)
+                            target_df = target_obj.execute_query(target_query)
+                            target_df = target_df.astype(str)
+
 
                     source_df.columns = source_df.columns.str.strip().str.lower()
                     target_df.columns = target_df.columns.str.strip().str.lower()
@@ -134,6 +176,9 @@ def validate(ctx):
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
                         create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,output_file_path,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
+                        if max_fivetran_start is not None:
+                            logger.info("Updating control table")
+                            update_control_table(control_table_path,target_table_name,layer[0],'data',max_fivetran_start,run_at,run_id)
 
                     else:
                         logger.info("Match/Mismatch: Mismatch")
@@ -221,7 +266,10 @@ def validate(ctx):
                         batch_start_time_str = batch_start_time.strftime("%H:%M:%S")
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
+                        #Function to log last success date
                         create_summary(run_at,run_id,validation_name,table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time_str,batch_end_time_str,total_batch_time_taken,missing_in_source,missing_in_target,mismatch_count,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile if layer[0] == "reports" else None,test_case=test_case if layer[0] == "reports" else None,summary=summary if layer[0] == "reports" else None)
+                        logger.info("Updating control table")
+                        update_control_table(control_table_path,target_table_name,layer[0],'data',max_fivetran_start,run_at,run_id)
                         print("+"*100)
 
                 except (pyodbc.Error, psycopg2.Error):
@@ -234,7 +282,7 @@ def validate(ctx):
                     )
                     status = "FAIL"
                     failure_count += 1
-                    system_error = True
+                    system_error = True 
                     create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                     continue
 

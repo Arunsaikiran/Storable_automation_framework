@@ -5,9 +5,9 @@ from datetime import datetime
 from db.factory import close_all_databases
 from utils.utility import generate_runid, get_config_output_paths, get_logger, add_file_handler, parse_arguments, data_context
 from validators.schema_validation import validate_schema
-from validators.integrity_check import validate as validate_integrity
-from validators.count_validation import validate as validate_count
-from validators.data_validation import validate as validate_data
+from validators.integrity_check import validate_integrity
+from validators.count_validation import validate_count
+from validators.data_validation import validate_data
 
 def main():
     start_time = datetime.now()
@@ -93,6 +93,7 @@ def main():
             )
 
     validators_to_run = []
+    module_dict = {'validate_integrity':'Integrity validation','validate_schema':'Schema validation','validate_count':'Count validation','validate_data':'Data validation'}
     if layer[0] == "sanity" and "integrity_check" in outputpaths:
         validators_to_run.append(validate_integrity)
     for validation in validation_dirs:
@@ -102,27 +103,34 @@ def main():
             validators_to_run.append(validate_count)
         elif validation == "data_validation":
             validators_to_run.append(validate_data)
-
+    m_d = {}
     for run_validator in validators_to_run:
         try:
             failures, sys_err = run_validator(ctx)
+            m_d[module_dict[run_validator.__name__]] = failures
             failure_count += failures
             system_error = system_error or sys_err
         except Exception:
             logger.error("Validator %s crashed", run_validator.__module__, exc_info=True)
             system_error = True
-
     end_time = datetime.now()
     total_time_taken = time.strftime("%H:%M:%S", time.gmtime((end_time - start_time).total_seconds()))
     logger.info("Validation job completed")
     logger.info("Duration: %s", total_time_taken)
+    for validation,failures in m_d.items():
+        logger.info(f"{validation} - Failure count: {failures}")
+
     logger.info("Total failures: %s", failure_count)
     logger.info("Run ID: %s", run_id)
     close_all_databases()
     if system_error:
         exit_code = 1
+    elif failure_count > 0:
+        exit_code = 2
+        logger.info("Failure counts is greater than zero")
     else:
         exit_code = 0
+    #log failure reason for 2 
     logger.info("Exit code: %s", exit_code)
     sys.exit(exit_code)
 
