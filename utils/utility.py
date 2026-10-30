@@ -7,25 +7,13 @@ from openpyxl import load_workbook
 import sys
 import argparse
 from dataclasses import dataclass
+import yaml
+import requests
 
 
 #Generating runids
 def generate_runid():
     return datetime.now().strftime("%Y%m%d_%H%M%S_%f"),datetime.now().strftime("%d-%b-%Y %H:%M:%S.%f")
-
-#Return sql based on load_type[Historical/Incremental]
-def generate_sql(load_type,source_query,target_query,from_date,to_date,col):
-
-    if load_type.lower() == 'historical':
-        source_query = source_query 
-        target_query = target_query 
-
-    elif load_type.lower() == 'incremental':
-        incremental_query = f" where {col} between {from_date} and {to_date}"
-        source_query = source_query + incremental_query
-        target_query = target_query + incremental_query
-
-    return source_query,target_query
 
 #Function to read the correct configuration file based on the parameters passed
 def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,validation_dirs,table_list):
@@ -449,11 +437,7 @@ def add_file_handler(
 
     return logger
 
-def valid_date(date_str):
-    try:
-        return str(datetime.strptime(date_str, "%Y-%m-%d").date())
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"Invalid date: {date_str}. Expected format YYYY-MM-DD")
+logger = get_logger(__name__)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -514,18 +498,49 @@ def parse_arguments():
         choices=['yes','no']
     )
 
+    # CHANGE: YAML generation. 'yes' writes or refreshes the YAML for the requested tables from the live source and Snowflake
+    # structure before the validators run (main.py calls yaml_generation/generate_yaml.py). 'no' (default) validates the YAML
+    # already in config/, as before.
     parser.add_argument(
-        "--from_date",
-        type=valid_date,
+        "--yaml_generation",
+        nargs=1,
         required=False,
-        help="Date in YYYY-MM-DD format"
+        default=['no'],
+        choices=['yes','no']
     )
 
+    # CHANGE: YAML generation. Used only with --yaml_generation 'yes'. The defaults are set in yaml_generation/db_rules.py and
+    # yaml_generation/generate_yaml.py: --source_schema is the schema in the source database, --target_database the Snowflake
+    # database (default follows --environment), --target_schema the Snowflake schema under it.
     parser.add_argument(
-        "--to_date",
-        type=valid_date,
+        "--source_schema",
         required=False,
-        help="Date in YYYY-MM-DD format"
+        default=None
+    )
+
+    # CHANGE: YAML generation. See --source_schema.
+    parser.add_argument(
+        "--target_database",
+        required=False,
+        default=None
+    )
+
+    # CHANGE: YAML generation. See --source_schema.
+    parser.add_argument(
+        "--target_schema",
+        required=False,
+        default=None
+    )
+
+    # CHANGE: YAML generation. 'yes' applies the row filters in yaml_generation/Filter-files-excel/ to the generated YAML: the
+    # historical column for --run_type historical, the incremental column for --run_type incremental. A filtered table is then
+    # a part of the big table, so it fits in memory. 'no' (default) loads every row. Used only with --yaml_generation 'yes'.
+    parser.add_argument(
+        "--filter_files",
+        nargs=1,
+        required=False,
+        default=['no'],
+        choices=['yes','no']
     )
 
     parser.add_argument(
@@ -538,21 +553,13 @@ def parse_arguments():
 
     args = parser.parse_args()
 
-    run_type = args.run_type
     layer_type = args.layer_type
 
-    if run_type == "historical":
-        if args.from_date or args.to_date:
-            parser.error("--from-date and --to-date can only be used with --incremental")
-    else:
-        if args.from_date is None or args.to_date is None:
-            parser.error("Both from and to dates must be provided!")
-        
     if layer_type[0] == "reports":
         if args.count_validation[0] == "yes" or args.schema_validation[0] == "yes":
             parser.error("Only the parameter --data_validation = 'yes' is accepted.")
 
-    if args.schema_validation and layer_type[0] not in ("bronze_mssql", "bronze_postgres"):
+    if args.schema_validation[0] == "yes" and layer_type[0] not in ("bronze_mssql", "bronze_postgres"):
         parser.error("--schema_validation 'yes' is only allowed when --layer_type is 'bronze_mssql' or 'bronze_postgres'.")
 
     if layer_type[0] in ("sanity", "reports"):
@@ -562,11 +569,25 @@ def parse_arguments():
         if args.report_pack:
             parser.error("--report_pack is only allowed when --layer_type is 'sanity' or 'reports'.")
 
-    if args.integrity_check and layer_type[0] in ("sanity"):
+    if args.integrity_check is True and layer_type[0] not in ("sanity"):
         parser.error("--integrity_check is only allowed when --layer_type is 'sanity'.")
-        
 
+    # CHANGE: YAML generation. The removed rule required --filter_files 'yes' for an incremental run with --yaml_generation 'yes',
+    # because the generated YAML had no window. The generated queries now hold the incremental window (:start_time, :end_time),
+    # so an incremental run no longer needs the filter workbook.
 
+    # CHANGE: YAML generation. The generator reads the source and Snowflake catalogues of the layer's own database. Only the two
+    # bronze layers have a generator (yaml_generation/db_rules.py).
+    if args.yaml_generation[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
+        parser.error("--yaml_generation 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql'.")
+
+    # CHANGE: YAML generation. The filter workbooks hold PostgreSQL statements only. Any other layer would get no filter, so an
+    # incremental run would compare whole tables.
+    if args.filter_files[0] == "yes" and layer_type[0] != "bronze_postgres":
+        parser.error("--filter_files 'yes' is only allowed when --layer_type is 'bronze_postgres' (the filter workbooks are PostgreSQL).")
+
+    # CHANGE: YAML generation. These flags are used whenever a YAML is written: with --yaml_generation 'yes', and without it
+    # when a named table has no YAML yet (main.py creates it). So they are accepted with either value of --yaml_generation.
 
     return args
 
@@ -584,6 +605,112 @@ def data_context():
         tables: list
         run_type: str = 'historical'
         report_pack: list | None = None
-        from_date: str | None = None
-        to_date: str | None = None
     return DataContext
+
+#to do
+def check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type,threshold:int=2):
+    freshness_check = 'Pass'
+    if layer_type == "bronze_postgres":
+        source_query = f"""
+        SELECT max(updated_at) as max_date from {source_table_name}
+            """
+        target_query = f"""
+            SELECT max(updated_at) as max_date from storedge_fms_public.{target_table_name}
+            """
+    elif layer_type == "bronze_mssql":
+        source_query = f"""
+        SELECT max(dupdated) as max_date from {source_table_name}
+            """
+        target_query = f"""
+            SELECT max(dupdated) as max_date from storedge_fms_public.{target_table_name}-
+            """
+    target_df = source_conn.execute_query(source_query)
+    source_df = target_conn.execute_query(target_query)
+
+    hours = (target_df['max_date'] - source_df['MAX_DATE']).dt.total_seconds() / 3600
+    value = int(hours.iloc[0])
+
+    if value > threshold:
+        freshness_check = 'Fail'
+    return freshness_check
+
+def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name):
+
+    yaml_path = os.path.join(base_dir,"creds","api.yaml")
+    control_file = os.path.join(base_dir,'control_table.csv')
+    apikey, secret, connection_id = get_api_creds(yaml_path, layer)
+
+    url = f"https://api.fivetran.com/v1/connections/{connection_id}"
+    response = requests.get(
+        url,
+        auth=(apikey, secret),
+    )
+
+    response.raise_for_status()
+    d = response.json()
+    dt = datetime.fromisoformat(d['data']['succeeded_at'])
+    sync_date = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + dt.strftime('%z')
+    date_column = 'data_validation_last_run_date' if validation == 'data' else 'count_validation_last_run_date'
+    control_df = pd.read_csv(control_file)
+    rows = (control_df[(control_df['table'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
+
+    if rows.empty:
+        raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
+    previous_sync_date = rows.iloc[0]
+    logger.info(f"Table '{table_name.lower()}' ({layer}): sync_date={sync_date}, previous_sync_date={previous_sync_date}")
+
+    target_query = f"""
+    SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
+    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
+    WHERE _FIVETRAN_ACTIVE = TRUE
+    and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
+    """
+
+    target_df =  target_conn.execute_query(target_query)
+    min_ts = pd.Timestamp(target_df['MIN_FIVETRAN_START'].iloc[0])
+    max_ts = pd.Timestamp(target_df['MAX_FIVETRAN_START'].iloc[0])
+
+    min_fivetran_start = (min_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + min_ts.strftime('%z'))
+    max_fivetran_start = (max_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + max_ts.strftime('%z'))
+
+    logger.info(f"Table '{table_name.lower()}' ({layer}): max_fivetran_start={max_fivetran_start}, min_fivetran_start={min_fivetran_start}")
+    
+    return max_fivetran_start,min_fivetran_start
+
+def update_control_table(file_location, table_name, layer, validation, sync_date,run_at,run_id):
+    date_column = (
+        'data_validation_last_run_date'
+        if validation == 'data'
+        else 'count_validation_last_run_date'
+    )
+    control_df = pd.read_csv(file_location, dtype=str)
+    mask = (
+        (control_df['table'] == table_name.lower()) &
+        (control_df['layer'] == layer)
+    )
+
+    if not mask.any():
+        print(f"No control table row for {table_name.lower()} / {layer}; nothing updated")
+        return
+
+    updates = {date_column: sync_date, 'run_at': run_at, 'run_id': run_id}
+    for column, value in updates.items():
+        if column not in control_df.columns:
+            print(f"Column '{column}' not in control table; skipped")
+            continue
+        control_df.loc[mask, column] = str(value)
+
+    control_df.to_csv(file_location, index=False)
+def get_incremental_dates(base_dir,source_conn,target_conn,source_table_name,target_table_name,layer_type,validation):
+    if check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type) == "Fail":
+        raise RuntimeError(f"Freshness check failed for {target_table_name}")
+    return get_dates(base_dir,validation,target_table_name,layer_type,target_conn,target_table_name)
+
+def get_api_creds(path, layer):
+    with open(path, "r") as f:
+        data = yaml.safe_load(f)
+
+    try:
+        return data["apikey"], data["secret"], data[layer]
+    except KeyError as e:
+        raise KeyError(f"Missing key in YAML: {e}")

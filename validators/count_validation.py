@@ -1,7 +1,7 @@
 import yaml
 from db.factory import get_database, close_all_databases
-from utils.utility import get_logger
-from datetime import datetime
+from utils.utility import get_logger,get_incremental_dates,update_control_table
+from datetime import datetime,timedelta
 import time
 import pyodbc
 import psycopg2
@@ -37,7 +37,7 @@ def create_summary_count(run_at,run_id,validation_type,source_table_name,source_
         index=False,
         header=not os.path.exists(summary_file))
 
-def validate(ctx):
+def validate_count(ctx):
     run_id = ctx.run_id
     run_at = ctx.run_at
     layer = ctx.layer_type
@@ -46,9 +46,8 @@ def validate(ctx):
     BASE_DIR = ctx.BASE_DIR
     environment = ctx.environment
     tables = ctx.tables
-    from_date = ctx.from_date
-    to_date = ctx.to_date
     run_type = ctx.run_type
+    # CHANGE: YAML generation. The generated-YAML flag is no longer read here: every incremental YAML uses the freshness check.
     failure_count = 0
     system_error = False
 
@@ -58,6 +57,8 @@ def validate(ctx):
     logger.info("Processing validation type: %s", validation)
     logger.debug("Output path: %s", output_path)
     logger.debug("Config path: %s", config_path_yaml)
+
+    control_table_path = os.path.join(BASE_DIR, "control_table.csv")
 
     for yamlfile in config_path_yaml:
         with open(yamlfile) as f:
@@ -79,42 +80,67 @@ def validate(ctx):
                 logger.debug("Validation configuration: %s", validation_name)
                 source = validation_config.get("source")
                 source_query = validation_config.get("sourcequery")
-                condition = f" WHERE created_date between {from_date} and {to_date}"
-                if run_type == "incremental":
-                    source_query = (source_query+condition)
                 target = validation_config.get("target")
                 target_query = validation_config.get("targetquery")
+                # CHANGE: YAML generation. schema_env is now passed for qat and prod too, as readme.md lists it (QAT, PRD). Before,
+                # a query with {schema_env} failed with KeyError on those two. local stays DEV, as before.
                 if environment == "dev":
                     target_query = target_query.format(env = "DEV",schema_env= "DEV")
                 elif environment == "stg":
                     target_query = target_query.format(env = "STG",schema_env= "STAGING")
                 elif environment == "qat":
-                    target_query = target_query.format(env = "QAT")
+                    target_query = target_query.format(env = "QAT",schema_env= "QAT")
                 elif environment == "prod":
-                    target_query = target_query.format(env = "PRD")
+                    target_query = target_query.format(env = "PRD",schema_env= "PRD")
                 else:
-                    target_query = target_query.format(env = "DEV")
-                if run_type == "incremental":
-                    target_query = (target_query+condition)
+                    target_query = target_query.format(env = "DEV",schema_env= "DEV")
+
+                
                 source_table_name = validation_config.get("source_table_name",'')
                 target_table_name = validation_config.get("target_table_name",'')
+            
+                max_fivetran_start = None
                 try:
                     batch_start_time = datetime.now()
-                    #source
-                    logger.info("Executing source query for table %s", table_name)
-                    logger.debug("Source query: %s", source_query)
-                    obj = get_database(source,BASE_DIR,environment)
-                    source_df = obj.execute_query(source_query)
-                    source_df = source_df.astype(str)
+                    source_df = pd.DataFrame()
+                    target_df = pd.DataFrame()
+                    source_obj = get_database(source,BASE_DIR,environment)
+                    target_obj = get_database(target,BASE_DIR,environment)
+                    if run_type == "historical":
+                        #source
+                        logger.info("Executing source query for table %s", table_name)
+                        logger.debug("Source query: %s", source_query)
+                        source_df = source_obj.execute_query(source_query)
+                        source_df = source_df.astype(str)
 
-                    #target
-                    logger.info("Executing target query for table %s", table_name)
-                    logger.debug("Target query: %s", target_query)
-                    obj = get_database(target,BASE_DIR,environment)
-                    target_df = obj.execute_query(target_query)
-                    target_df = target_df.astype(str)
+                        #target
+                        logger.info("Executing target query for table %s", table_name)
+                        logger.debug("Target query: %s", target_query)
+                        target_df = target_obj.execute_query(target_query)
+                        target_df = target_df.astype(str)
 
-                    source_df.columns = source_df.columns.str.strip().str.lower()
+                    elif run_type == "incremental":
+                        # CHANGE: YAML generation. The freshness check also runs for a generated YAML: its queries hold the
+                        # same :start_time and :end_time placeholders as a hand-written one.
+                        #Check freshness, then get the latest sync date (fivetran) and previous sync date (control table)
+                        max_fivetran_start,min_fivetran_start = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'count')
+                        for key, value in {
+                            "start_time": min_fivetran_start,
+                            "end_time": max_fivetran_start
+                        }.items():
+                            source_query = source_query.replace(f":{key}", f"'{value}'")
+                            target_query = target_query.replace(f":{key}", f"'{value}'")
+                        logger.info("Executing source query for table %s", table_name)
+                        logger.debug("Source query: %s", source_query)
+                        source_df = source_obj.execute_query(source_query)
+                        source_df = source_df.astype(str)
+                        logger.info("Executing target query for table %s", table_name)
+                        logger.debug("Target query: %s", target_query)
+                        target_df = target_obj.execute_query(target_query)
+                        target_df = target_df.astype(str)
+
+
+                    source_df.columns = source_df.columns.str.strip().str.lower() 
                     target_df.columns = target_df.columns.str.strip().str.lower()
 
                     source_rows = source_df['source_row_count'].iloc[0]
@@ -140,6 +166,9 @@ def validate(ctx):
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
                         create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0])
+                        if max_fivetran_start is not None:
+                            logger.info("Updating control table")
+                            update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start,run_at,run_id)
 
                     else:
                         logger.info("Match/Mismatch: Mismatch")
@@ -159,6 +188,11 @@ def validate(ctx):
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
                         create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0])
+                        # CHANGE: YAML generation. As on PASS, the control table is updated only when there is a freshness watermark.
+                        # A historical run has no sync date, and writing it would store 'None' as the watermark.
+                        if max_fivetran_start is not None:
+                            logger.info("Updating control table")
+                            update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start,run_at,run_id)
                         print("+"*100)
 
                 except (pyodbc.Error, psycopg2.Error):
@@ -185,7 +219,7 @@ def validate(ctx):
                     )
                     status = "FAIL"
                     failure_count += 1
-                    system_error = True
+                    system_error = False
                     create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message,layer_type=layer[0])
                     continue
 
