@@ -1,0 +1,14 @@
+# Global exclusions: columns that are never compared, for EVERY table, on both sides.
+#
+# Write each name in lower case with underscores, exactly as the generator normalises names
+# (spaces and hyphens become underscores, letters become lower case). Example: "Fivetran Synced" -> fivetran_synced.
+#
+# Table-specific exclusions are not here. They go in the table rules workbook (exclude_columns column).
+exclude_columns:
+  - _fivetran_synced
+  - _fivetran_deleted
+  - _fivetran_id
+  - _fivetran_index
+  - _fivetran_active
+  - _fivetran_start
+  - _fivetran_end

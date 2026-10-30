@@ -137,7 +137,6 @@ redshift:  { redshift_host, redshift_port, redshift_database, redshift_user, red
 | `--environment` | yes | `dev stg qat prod local` | Selects `creds/<env>.yaml` and fills `{env}` in queries |
 | `--report_pack` | for `reports`/`sanity` only | see above | Rejected for other layers |
 | `--run_type` | no (default `historical`) | `historical` / `incremental` | Picks `config/historical` or `config/incremental` |
-| `--from_date`, `--to_date` | only for `incremental` | `YYYY-MM-DD` | Both required for incremental; forbidden for historical |
 
 ### Examples
 
@@ -211,7 +210,7 @@ Count validation queries must return one column each: `source_row_count` and `ta
 
 **Schema validation:** one block with `source`, `target`, `sourcequery`, `targetquery` (both use `{table_name}`), `datatype_map` (source type → expected target type), and `tables.<table>.source_column_exclusion / target_column_exclusion`.
 
-**Incremental runs** append ` WHERE created_date between <from_date> and <to_date>` to both queries.
+**Incremental runs** fill `:start_time` and `:end_time` in both queries from the control table and the Fivetran sync dates.
 
 ---
 
@@ -256,9 +255,6 @@ output/<layer>/validation_<run_id>/                       (reports/sanity: outpu
 
 | Message | Cause |
 |---|---|
-| `Both from and to dates must be provided!` | `--run_type incremental` without both dates |
-| `--from-date and --to-date can only be used with --incremental` | Dates given on a historical run |
-| `Invalid date: ... Expected format YYYY-MM-DD` | Bad date format |
 | `Only the parameter --data_validation = 'yes' is accepted.` | `reports` layer with count or schema = `yes` |
 | `--report_pack is required when --layer_type is 'sanity' or 'reports'.` | Missing pack |
 | `--report_pack is only allowed when --layer_type is 'sanity' or 'reports'.` | Pack given for another layer |
