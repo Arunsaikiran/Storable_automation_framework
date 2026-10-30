@@ -20,3 +20,6 @@ git
 
 #Yaml files
 config/
+
+# CHANGE: YAML generation. The docs/ folder (review and findings notes) is kept out of git.
+docs/

@@ -15,20 +15,6 @@ import requests
 def generate_runid():
     return datetime.now().strftime("%Y%m%d_%H%M%S_%f"),datetime.now().strftime("%d-%b-%Y %H:%M:%S.%f")
 
-#Return sql based on load_type[Historical/Incremental]
-def generate_sql(load_type,source_query,target_query,from_date,to_date,col):
-
-    if load_type.lower() == 'historical':
-        source_query = source_query 
-        target_query = target_query 
-
-    elif load_type.lower() == 'incremental':
-        incremental_query = f" where {col} between {from_date} and {to_date}"
-        source_query = source_query + incremental_query
-        target_query = target_query + incremental_query
-
-    return source_query,target_query
-
 #Function to read the correct configuration file based on the parameters passed
 def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,validation_dirs,table_list):
     outputpaths = {}
@@ -453,12 +439,6 @@ def add_file_handler(
 
 logger = get_logger(__name__)
 
-def valid_date(date_str):
-    try:
-        return str(datetime.strptime(date_str, "%Y-%m-%d").date())
-    except ValueError:
-        raise argparse.ArgumentTypeError(f"Invalid date: {date_str}. Expected format YYYY-MM-DD")
-
 def parse_arguments():
     parser = argparse.ArgumentParser()
 
@@ -518,18 +498,49 @@ def parse_arguments():
         choices=['yes','no']
     )
 
+    # CHANGE: YAML generation. 'yes' writes or refreshes the YAML for the requested tables from the live source and Snowflake
+    # structure before the validators run (main.py calls yaml_generation/generate_yaml.py). 'no' (default) validates the YAML
+    # already in config/, as before.
     parser.add_argument(
-        "--from_date",
-        type=valid_date,
+        "--yaml_generation",
+        nargs=1,
         required=False,
-        help="Date in YYYY-MM-DD format"
+        default=['no'],
+        choices=['yes','no']
     )
 
+    # CHANGE: YAML generation. Used only with --yaml_generation 'yes'. The defaults are set in yaml_generation/db_rules.py and
+    # yaml_generation/generate_yaml.py: --source_schema is the schema in the source database, --target_database the Snowflake
+    # database (default follows --environment), --target_schema the Snowflake schema under it.
     parser.add_argument(
-        "--to_date",
-        type=valid_date,
+        "--source_schema",
         required=False,
-        help="Date in YYYY-MM-DD format"
+        default=None
+    )
+
+    # CHANGE: YAML generation. See --source_schema.
+    parser.add_argument(
+        "--target_database",
+        required=False,
+        default=None
+    )
+
+    # CHANGE: YAML generation. See --source_schema.
+    parser.add_argument(
+        "--target_schema",
+        required=False,
+        default=None
+    )
+
+    # CHANGE: YAML generation. 'yes' applies the row filters in yaml_generation/Filter-files-excel/ to the generated YAML: the
+    # historical column for --run_type historical, the incremental column for --run_type incremental. A filtered table is then
+    # a part of the big table, so it fits in memory. 'no' (default) loads every row. Used only with --yaml_generation 'yes'.
+    parser.add_argument(
+        "--filter_files",
+        nargs=1,
+        required=False,
+        default=['no'],
+        choices=['yes','no']
     )
 
     parser.add_argument(
@@ -542,16 +553,8 @@ def parse_arguments():
 
     args = parser.parse_args()
 
-    run_type = args.run_type
     layer_type = args.layer_type
 
-    if run_type == "historical":
-        if args.from_date or args.to_date:
-            parser.error("--from-date and --to-date can only be used with --incremental")
-    # else:
-    #     if args.from_date is None or args.to_date is None:
-    #         parser.error("Both from and to dates must be provided!")
-        
     if layer_type[0] == "reports":
         if args.count_validation[0] == "yes" or args.schema_validation[0] == "yes":
             parser.error("Only the parameter --data_validation = 'yes' is accepted.")
@@ -569,6 +572,23 @@ def parse_arguments():
     if args.integrity_check is True and layer_type[0] not in ("sanity"):
         parser.error("--integrity_check is only allowed when --layer_type is 'sanity'.")
 
+    # CHANGE: YAML generation. The removed rule required --filter_files 'yes' for an incremental run with --yaml_generation 'yes',
+    # because the generated YAML had no window. The generated queries now hold the incremental window (:start_time, :end_time),
+    # so an incremental run no longer needs the filter workbook.
+
+    # CHANGE: YAML generation. The generator reads the source and Snowflake catalogues of the layer's own database. Only the two
+    # bronze layers have a generator (yaml_generation/db_rules.py).
+    if args.yaml_generation[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
+        parser.error("--yaml_generation 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql'.")
+
+    # CHANGE: YAML generation. The filter workbooks hold PostgreSQL statements only. Any other layer would get no filter, so an
+    # incremental run would compare whole tables.
+    if args.filter_files[0] == "yes" and layer_type[0] != "bronze_postgres":
+        parser.error("--filter_files 'yes' is only allowed when --layer_type is 'bronze_postgres' (the filter workbooks are PostgreSQL).")
+
+    # CHANGE: YAML generation. These flags are used whenever a YAML is written: with --yaml_generation 'yes', and without it
+    # when a named table has no YAML yet (main.py creates it). So they are accepted with either value of --yaml_generation.
+
     return args
 
 def data_context():
@@ -585,8 +605,6 @@ def data_context():
         tables: list
         run_type: str = 'historical'
         report_pack: list | None = None
-        from_date: str | None = None
-        to_date: str | None = None
     return DataContext
 
 #to do
