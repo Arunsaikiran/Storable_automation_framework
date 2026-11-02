@@ -1,8 +1,10 @@
-"""Builds the framework's YAML for one table pair: the reconciliation, the SQL and the files.
+"""Builds the framework's YAML for one table pair: the column matching, the SQL and the files.
 
 This file makes no database calls. The generator reads the columns and keys (db_rules.py), and this file:
   1. Normalises column names and reconciles the two sides by exact match (no fuzzy matching, no schema check). A column
      on one side only stays in the comparison, and the side that lacks it holds a token (MISSING_IN_SOURCE or _TARGET).
+     A window column on one side only is named on that side instead, so the query fails there. A key column that is not on
+     both sides fails the data before this file builds any query (generate_yaml.py).
   2. Builds one normalised SELECT for the source and one for the Snowflake table. Each column becomes text
      in the same way on both sides, so the framework can compare them.
   3. Adds the optional row filters (the same condition on the count and on the data query).
@@ -11,7 +13,7 @@ This file makes no database calls. The generator reads the columns and keys (db_
 Why normalise: the two databases store the same value in different types. A boolean is true/false in
 PostgreSQL and 1/0 in SQL Server, and a timestamp prints differently in each. The rules are in db_rules.py.
 
-Known limits (see docs/YAML_GENERATION_GUIDE.md)
+Known limits (see docs/YAML_Generation_Handover_Guide.docx)
   - Only simple types have a format rule. Other types are cast to text as they are and listed in the header.
   - The framework runs str.format() on the target query. A curly brace in the SQL would crash it, so _checked() refuses
     every brace except {env} in a target query, which the framework fills in for the run's environment.
@@ -143,12 +145,20 @@ def window_condition(column_sql: str) -> str:
 
 
 def incremental_window(pairs, column: str, source_rules: dict):
-    """(source_window, target_window) on the incremental column, or None when it is not compared on both sides."""
+    """(source_window, target_window, missing) on the incremental column. missing lists the sides ("source", "target")
+    that do not compare it, because the column is absent there or excluded.
+
+    The window is always written, by name: the source as the source reports it (lower case when it lacks the column),
+    the target in upper case. The validation query then fails on a side that lacks the column; the schema check reports it.
+    """
     norm = normalize_name(column)
-    for source, _, target, _, name in pairs:
-        if name == norm and source and target:
-            return window_condition(quote(source, source_rules)), window_condition(quote(target, RULES["snowflake"]))
-    return None
+    source = target = None
+    for s, _, t, _, name in pairs:
+        if name == norm:
+            source, target = s, t
+    missing = [side for side, name in (("source", source), ("target", target)) if name is None]
+    return (window_condition(quote(source or norm, source_rules)),
+            window_condition(quote(target or norm.upper(), RULES["snowflake"])), missing)
 
 
 @dataclass
@@ -157,7 +167,7 @@ class Reconciliation:
 
     pairs    = [(source_name, source_type, target_name, target_type, normalised_name), ...] to be compared.
                A side is None when the column is not on that side; its token is written in the SQL instead.
-    rows     = [(source_name, target_name, status, note), ...] one per column, for the reconciliation report
+    rows     = [(source_name, target_name, status, note), ...] one per column, for the log
     problems = reasons the data file cannot be built from these columns (text)
     """
 
@@ -173,7 +183,7 @@ def reconcile(source_columns, target_columns, global_excluded, table_excluded, s
     a difference. Only the exclusions remove a column.
 
     Statuses: MATCHED, MISSING_IN_TARGET (source only), EXTRA_IN_TARGET (target only),
-              EXCLUDED_GLOBAL and EXCLUDED_TABLE (excluded by the global or the table list).
+              EXCLUDED_GLOBAL (excluded by settings/exclusions.yaml) and EXCLUDED_TABLE (by the table rules).
     """
     result = Reconciliation()
     target_by_norm = {}
@@ -322,7 +332,10 @@ def flattened_columns(pairs, source_rules: dict) -> dict:
 
 
 def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters) -> dict:
-    """The data_validation block: both normalised SELECTs, the key, and the names the framework reads."""
+    """The data_validation block: both normalised SELECTs, the key, and the names the framework reads.
+
+    Every key column must be on both sides of pairs. generate() checks that before it calls this.
+    """
     source_rules = RULES[spec.source_type]
     snow = RULES["snowflake"]
     key = key_expression(key_columns)
@@ -368,9 +381,13 @@ def build_count_entry(spec: TableSpec, filters: Filters) -> dict:
 
 
 def plain_text_columns(pairs, source_rules) -> list:
-    """Columns with no format rule. They are compared as plain text, and may FAIL on formatting alone."""
+    """Columns with no format rule. They are compared as plain text, and may FAIL on formatting alone.
+
+    A refused type is not listed: comparability_problems() refuses its table, so it is never compared as text.
+    """
     return [f"{source} ({source_type})" for source, source_type, target, _, _ in pairs
-            if source and target and kind_of(source_type, source_rules) == "other"]
+            if source and target and kind_of(source_type, source_rules) == "other"
+            and normalize_type(source_type) not in source_rules["refused_types"]]
 
 
 def data_header(spec: TableSpec, key: str, rec: Reconciliation, filters: Filters, stamp: str) -> list:
@@ -390,7 +407,7 @@ def data_header(spec: TableSpec, key: str, rec: Reconciliation, filters: Filters
         lines.append(f"# Incremental window (source): {filters.source_window}   (validators bind :start_time, :end_time)")
     if filters.target_window:
         lines.append(f"# Incremental window (target): {filters.target_window}")
-    for status, label in [("EXCLUDED_GLOBAL", "Excluded (global list)"), ("EXCLUDED_TABLE", "Excluded (table rule)"),
+    for status, label in [("EXCLUDED_GLOBAL", "Excluded (exclusions file)"), ("EXCLUDED_TABLE", "Excluded (table rule)"),
                           ("MISSING_IN_TARGET", f"Source columns not in Snowflake (compared as {MISSING_IN_TARGET}, "
                                                 "so every row differs)"),
                           ("EXTRA_IN_TARGET", f"Snowflake columns not in source (compared as {MISSING_IN_SOURCE}, "

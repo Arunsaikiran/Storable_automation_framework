@@ -27,7 +27,7 @@ GLOBAL_EXCLUDED = {"_fivetran_synced", "_fivetran_deleted", "_fivetran_id", "_fi
 # The source (PostgreSQL) and the Snowflake copy of three tables.
 #   units   has an id, an updated_at, and Fivetran columns.
 #   notes   has an id and an updated_at.
-#   lookup  has no primary key and no id: its data file FAILS (nothing is written for it, its count included).
+#   lookup  has no primary key and no id: its data file FAILS (no key), but its count is written.
 SOURCE_TABLES = {
     ("edge", "units"): [("id", "integer"), ("unit_name", "character varying"),
                         ("created_at", "timestamp without time zone"), ("updated_at", "timestamp without time zone"),
@@ -95,7 +95,7 @@ def make_args(run_type="historical", tables=("all",), data="yes", count="yes", e
 
 def run_generate(args, config_dir, source=None, target=None, global_excluded=GLOBAL_EXCLUDED, table_rules=None,
                  file_filters=None, create_only=False):
-    """Call generate() with fake databases. Returns (results, reconciliation_rows)."""
+    """Call generate() with fake databases. Returns the results list."""
     source = source or FakeDB(SOURCE_TABLES, PRIMARY_KEYS)
     target = target or FakeDB(TARGET_TABLES)
     return generate_yaml.generate(args, source, target, config_dir, global_excluded, table_rules or {}, LOG, STAMP,

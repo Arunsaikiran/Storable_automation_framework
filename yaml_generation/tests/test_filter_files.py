@@ -165,14 +165,51 @@ def test_a_filter_refused_by_check_filter_is_not_applied(folder, caplog):
 
 
 def test_a_table_listed_twice_keeps_the_first_row(tmp_path):
-    _workbook(tmp_path / "a.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"],
+    _workbook(tmp_path / "postgres_a.xlsx",{"s": [["Target Table Name", "Incremental filters to apply"],
                                            ["units", "units\nwhere id > 1"], ["units", "units\nwhere id > 2"]]})
     filters = ff.load("postgres", "public", "DEV", "S", "incremental", folder=tmp_path, log=logging.getLogger("t"))
     assert filters["units"] == ("id > 1", "id > 1")
 
 
-def test_other_source_types_read_no_filter_files(folder):
-    assert ff.load("mssql", "dbo", "DEV", "S", "incremental", folder=folder, log=logging.getLogger("t")) == {}
+def test_a_source_without_a_layout_reads_no_filter_files(folder):
+    assert ff.load("athena", "glue", "DEV", "S", "incremental", folder=folder, log=logging.getLogger("t")) == {}
+
+
+MS_ARGS = ("mssql", "dbo", "DEV_SITELINK_BRONZE", "SITELINK")
+
+
+def test_sql_server_joins_are_written_with_brackets():
+    src, _ = ff.convert("select count(*) from AcctTypes j join Promotions p on j.promo_id=p.id where p.active = 1", *MS_ARGS)
+    assert src == "promo_id IN (SELECT id FROM [dbo].[Promotions] WHERE active = 1)"
+
+
+def test_a_bind_parameter_is_refused_because_it_has_no_value():
+    with pytest.raises(ff.Refused, match="bind parameter"):
+        ff.convert("select count(*) from AcctTypes t where t.scorpcode = :scorpcode", *MS_ARGS)
+
+
+def test_a_postgresql_cast_is_not_mistaken_for_a_bind_parameter():
+    source_where, _ = ff.convert("select count(*) from units where created_at::date > '2024-08-01'", "postgres", "public",
+                                 "DEV_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC")
+    assert "::date" in source_where
+
+
+def test_sql_server_reads_only_the_sitelink_workbook(tmp_path, caplog):
+    # The PostgreSQL workbook in the same folder must not be applied to SQL Server.
+    _workbook(tmp_path / "postgres.xlsx", {"filters": [["Target Table Name", "Incremental filters to apply"],
+                                                       ["units", "units\nwhere id > 1"]]})
+    _workbook(tmp_path / "Sitelink_bronze_filters.xlsx", {"Sheet1": [
+        ["s.no", "table", " filters to Apply", "Incremental filters to Apply"],
+        [1, "AcctTypes", "AcctTypes t\nwhere t.scorpcode = :scorpcode", "AcctTypes t\nwhere t.scorpcode = :scorpcode"],
+        [2, "Promotions", "compare full", "compare full"],
+        [3, "Accounts", "Accounts t\nwhere t.active = 1", "Accounts t\nwhere t.active = 1"],
+    ]})
+    with caplog.at_level(logging.WARNING):
+        filters = ff.load("mssql", "dbo", "{env}_SITELINK_BRONZE", "SITELINK", "incremental", folder=tmp_path,
+                          log=logging.getLogger("t"))
+    assert filters == {"Accounts": ("active = 1", "active = 1")}
+    assert "AcctTypes" not in filters and "loaded in full" in caplog.text
+    assert "units" not in filters
 
 
 def test_the_shipped_workbooks_load_for_both_run_types():
@@ -183,7 +220,7 @@ def test_the_shipped_workbooks_load_for_both_run_types():
 
 def test_a_cell_about_another_table_is_refused_and_the_table_loaded_in_full(tmp_path, caplog):
     # A cell copied from another row would filter the wrong table. The row's table must be the one the statement reads.
-    _workbook(tmp_path / "a.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"],
+    _workbook(tmp_path / "postgres_a.xlsx",{"s": [["Target Table Name", "Incremental filters to apply"],
         ["discount_plan_ledger_instances", "discount_plan_ledger_instances_line_items j\n"
                                            "join discount_plan_ledger_instances ss on j.discount_plan_ledger_instance_id=ss.id\n"
                                            "where j.created_at >= '2026-08-01'"]]})
@@ -194,7 +231,7 @@ def test_a_cell_about_another_table_is_refused_and_the_table_loaded_in_full(tmp_
 
 
 def test_a_refused_first_row_does_not_block_a_valid_second_row(tmp_path):
-    _workbook(tmp_path / "a.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"],
+    _workbook(tmp_path / "postgres_a.xlsx",{"s": [["Target Table Name", "Incremental filters to apply"],
                                            ["units", 'units\nwhere "id" > 1'], ["units", "units\nwhere id > 2"]]})
     filters = ff.load("postgres", "public", "DEV", "S", "incremental", folder=tmp_path, log=logging.getLogger("t"))
     assert filters["units"] == ("id > 2", "id > 2")
@@ -203,3 +240,29 @@ def test_a_refused_first_row_does_not_block_a_valid_second_row(tmp_path):
 def test_quoted_identifiers_are_refused_as_the_docstring_says():
     with pytest.raises(ff.Refused, match="quoted identifiers"):
         ff.convert('select count(*) from events j join facilities f on j.facility_id=f.id where f."company_id" in (137)', *ARGS)
+
+
+# --- which workbook is for which database: the file name prefix, and the table list for --tables all ----------------
+
+def test_the_file_name_prefix_picks_the_database(tmp_path, caplog):
+    _workbook(tmp_path / "postgres Table filters.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"],
+                                                              ["units", None]]})
+    _workbook(tmp_path / "Sitelink_bronze_filters.xlsx", {"Sheet1": [["table", "Incremental filters to Apply"],
+                                                                     ["Accounts", None]]})
+    _workbook(tmp_path / "notes.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"], ["other", None]]})
+    with caplog.at_level(logging.WARNING):
+        assert ff.workbook_tables("postgres", "incremental", folder=tmp_path, log=logging.getLogger("t")) == ["units"]
+        assert ff.workbook_tables("mssql", "incremental", folder=tmp_path, log=logging.getLogger("t")) == ["Accounts"]
+    assert "notes.xlsx has no known database prefix" in caplog.text
+
+
+def test_workbook_tables_lists_a_table_whose_filter_cell_is_empty(folder):
+    assert ff.workbook_tables("postgres", "incremental", folder=folder, log=logging.getLogger("t")) == \
+        ["units", "notes", "events", "bad"]
+
+
+def test_the_shipped_workbooks_list_their_own_database_tables():
+    postgres = ff.workbook_tables("postgres", "incremental", log=logging.getLogger("t"))
+    sitelink = ff.workbook_tables("mssql", "incremental", log=logging.getLogger("t"))
+    assert "events" in postgres and "NationalMasterAccounts" not in postgres
+    assert "NationalMasterAccounts" in sitelink and "events" not in sitelink

@@ -33,6 +33,22 @@ def detail_of(results, table, kind):
     return next(detail for t, k, _, detail in results if t == table and k == kind)
 
 
+@pytest.fixture(autouse=True)
+def workbook_folder(monkeypatch, tmp_path_factory):
+    """--tables all reads its table names from the filter workbooks. This folder lists the fake tables, so 'all' means
+    units, notes and lookup in these tests, as the fake source holds them."""
+    folder = tmp_path_factory.mktemp("workbooks")
+    book = Workbook()
+    ws = book.active
+    ws.title = "filters"
+    for row in [["Target Table Name", "Historical Filter to apply.", "Incremental filters to apply"],
+                ["units"], ["notes"], ["lookup"]]:
+        ws.append(row)
+    book.save(folder / "postgres_tables.xlsx")
+    monkeypatch.setattr(filter_files, "FOLDER", folder)
+    return folder
+
+
 # --- resolving the arguments -----------------------------------------------------------------------------------
 
 def test_defaults_come_from_the_rules_and_the_environment():
@@ -94,9 +110,9 @@ def test_athena_without_a_schema_is_refused_before_any_table_is_read():
 
 def test_historical_run_writes_the_expected_kinds_and_statuses(tmp_path):
     config = config_dir_for(tmp_path, "historical")
-    results, _ = run_generate(make_args("historical"), config)
+    results = run_generate(make_args("historical"), config)
     assert statuses(results) == {
-        ("lookup", "data_validation"): "FAILED",
+        ("lookup", "data_validation"): "FAILED", ("lookup", "count_validation"): "NEW",
         ("notes", "data_validation"): "NEW", ("notes", "count_validation"): "NEW",
         ("units", "data_validation"): "NEW", ("units", "count_validation"): "NEW",
     }
@@ -104,10 +120,13 @@ def test_historical_run_writes_the_expected_kinds_and_statuses(tmp_path):
         "unable to find the primary key of edge.lookup in the source")
 
 
-def test_a_table_with_no_primary_key_fails_and_the_log_says_why(tmp_path, caplog):
+def test_a_table_with_no_primary_key_fails_its_data_and_still_counts(tmp_path, caplog):
+    config = config_dir_for(tmp_path, "historical")
     with caplog.at_level(logging.ERROR):
-        results, _ = run_generate(make_args("historical", tables=("lookup",)), config_dir_for(tmp_path, "historical"))
-    assert statuses(results) == {("lookup", "data_validation"): "FAILED"}, "nothing is written for a failed table, its count too"
+        results = run_generate(make_args("historical", tables=("lookup",)), config)
+    assert statuses(results) == {("lookup", "data_validation"): "FAILED", ("lookup", "count_validation"): "NEW"}
+    assert not (config / "data_validation" / "lookup.yaml").exists(), "no data YAML without a key"
+    assert "lookup" in yb._count_tables(config, "bronze_postgres"), "the count needs no key"
     assert "unable to find the primary key of edge.lookup" in caplog.text
 
 
@@ -130,13 +149,13 @@ def test_historical_data_file_drops_the_global_exclusions_and_lists_them_in_the_
     assert "_fivetran" not in data_block(config, "units")["sourcequery"].lower()
     header = (config / "data_validation" / "units.yaml").read_text(encoding="utf-8")
     assert "# Key: id_normalized   Columns compared: 4" in header
-    assert "# Excluded (global list): _fivetran_synced, _fivetran_active" in header
+    assert "# Excluded (exclusions file): _fivetran_synced, _fivetran_active" in header
 
 
 def test_second_historical_run_leaves_every_file_unchanged(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical"), config)
-    results, _ = run_generate(make_args("historical"), config)
+    results = run_generate(make_args("historical"), config)
     got = statuses(results)
     assert got[("units", "data_validation")] == "UNCHANGED"
     assert got[("notes", "data_validation")] == "UNCHANGED"
@@ -148,7 +167,7 @@ def test_a_source_column_with_no_target_match_is_compared_as_missing_not_dropped
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical"), config)
     changed = {**SOURCE_TABLES, ("edge", "units"): SOURCE_TABLES[("edge", "units")] + [("note_text", "text")]}
-    results, _ = run_generate(make_args("historical"), config, source=FakeDB(changed, PRIMARY_KEYS))
+    results = run_generate(make_args("historical"), config, source=FakeDB(changed, PRIMARY_KEYS))
     got = statuses(results)
     assert got[("units", "data_validation")] == "UPDATED"
     assert got[("units", "count_validation")] == "UNCHANGED"
@@ -163,7 +182,7 @@ def test_a_snowflake_column_with_no_source_match_is_compared_as_missing_not_drop
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical"), config)
     target = {**TARGET_TABLES, ("EDGE", "UNITS"): TARGET_TABLES[("EDGE", "UNITS")] + [("EXTRA_FLAG", "BOOLEAN")]}
-    results, _ = run_generate(make_args("historical"), config, target=FakeDB(target))
+    results = run_generate(make_args("historical"), config, target=FakeDB(target))
     assert statuses(results)[("units", "data_validation")] == "UPDATED"
     block = data_block(config, "units")
     assert f"CAST('{yb.MISSING_IN_SOURCE}' AS TEXT) AS extra_flag_normalized" in block["sourcequery"]
@@ -178,13 +197,6 @@ def test_the_global_list_is_what_drops_a_column(tmp_path):
     assert "_fivetran_synced_normalized" in data_block(config, "units")["sourcequery"]
 
 
-def test_reconciliation_has_a_status_for_every_source_and_target_column(tmp_path):
-    _, rows = run_generate(make_args("historical"), config_dir_for(tmp_path, "historical"))
-    units = {(s, t): status for table, s, t, status, _ in rows if table == "units"}
-    assert units[("_fivetran_synced", "_FIVETRAN_SYNCED")] == "EXCLUDED_GLOBAL"
-    assert units[("id", "ID")] == "MATCHED"
-
-
 def test_a_table_rule_excludes_a_column_and_filters_both_sides_for_that_table_only(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     rules = {"units": TableRule(exclude={"unit_name"}, source_where="id > 0", target_where="ID > 0")}
@@ -197,26 +209,18 @@ def test_a_table_rule_excludes_a_column_and_filters_both_sides_for_that_table_on
     assert "WHERE (" not in data_block(config, "notes")["sourcequery"], "the rule is for one table only"
 
 
-def test_an_excluded_key_column_fails_the_data_file_and_writes_no_count(tmp_path):
-    results, _ = run_generate(make_args("historical"), config_dir_for(tmp_path, "historical"),
+def test_an_excluded_key_column_fails_the_data_file_and_still_counts(tmp_path):
+    results = run_generate(make_args("historical"), config_dir_for(tmp_path, "historical"),
                               table_rules={"notes": TableRule(exclude={"id"})})
     assert statuses(results)[("notes", "data_validation")] == "FAILED"
-    assert detail_of(results, "notes", "data_validation").startswith("key column(s) not in both source and Snowflake: id")
-    assert ("notes", "count_validation") not in statuses(results)
-
-
-def test_a_key_missing_from_snowflake_fails_the_data_file(tmp_path):
-    columns = [c for c in TARGET_TABLES[("EDGE", "UNITS")] if c[0] != "ID"]
-    results, _ = run_generate(make_args("historical", tables=("units",)), config_dir_for(tmp_path, "historical"),
-                              target=FakeDB({**TARGET_TABLES, ("EDGE", "UNITS"): columns}))
-    assert statuses(results)[("units", "data_validation")] == "FAILED"
-    assert detail_of(results, "units", "data_validation").startswith("key column(s) not in both source and Snowflake: id")
-    assert ("units", "count_validation") not in statuses(results)
+    assert detail_of(results, "notes", "data_validation").startswith(
+        "key column(s) not on both sides of the comparison: id")
+    assert statuses(results)[("notes", "count_validation")] == "NEW"
 
 
 def test_a_key_rule_gives_a_key_to_a_table_without_one(tmp_path):
     config = config_dir_for(tmp_path, "historical")
-    results, _ = run_generate(make_args("historical"), config, table_rules={"lookup": TableRule(key_columns=["code"])})
+    results = run_generate(make_args("historical"), config, table_rules={"lookup": TableRule(key_columns=["code"])})
     assert statuses(results)[("lookup", "data_validation")] == "NEW"
     assert data_block(config, "lookup")["sourcecolumn"] == "code_normalized"
 
@@ -224,18 +228,18 @@ def test_a_key_rule_gives_a_key_to_a_table_without_one(tmp_path):
 def test_one_table_failing_does_not_stop_the_others(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     source = FakeDB(SOURCE_TABLES, PRIMARY_KEYS, fail_on=("notes",))
-    results, _ = run_generate(make_args("historical"), config, source=source)
+    results = run_generate(make_args("historical"), config, source=source)
     got = statuses(results)
     assert got[("notes", "table")] == "FAILED"
     assert got[("units", "data_validation")] == "NEW"
-    assert set(yb._count_tables(config, "bronze_postgres")) == {"units"}, "notes failed and lookup has no key: neither is counted"
+    assert set(yb._count_tables(config, "bronze_postgres")) == {"units", "lookup"}, "notes failed; lookup has no key but still counts"
 
 
 def test_a_table_missing_from_the_source_is_an_error_and_its_yaml_is_kept(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical", tables=("notes",)), config)
     gone = FakeDB({k: v for k, v in SOURCE_TABLES.items() if k[1] != "notes"}, PRIMARY_KEYS)
-    results, _ = run_generate(make_args("historical", tables=("notes",)), config, source=gone)
+    results = run_generate(make_args("historical", tables=("notes",)), config, source=gone)
     assert statuses(results)[("notes", "table")] == "FAILED"
     assert "nothing was changed" in detail_of(results, "notes", "table")
     assert (config / "data_validation" / "notes.yaml").exists(), "nothing is deleted"
@@ -246,7 +250,7 @@ def test_a_table_missing_from_snowflake_is_an_error_and_nothing_is_deleted(tmp_p
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical"), config)
     target = FakeDB({k: v for k, v in TARGET_TABLES.items() if k[1] != "NOTES"})
-    results, _ = run_generate(make_args("historical"), config, target=target)
+    results = run_generate(make_args("historical"), config, target=target)
     assert statuses(results)[("notes", "table")] == "FAILED"
     assert (config / "data_validation" / "notes.yaml").exists()
     assert "notes" in yb._count_tables(config, "bronze_postgres")
@@ -256,7 +260,7 @@ def test_all_leaves_a_generated_table_that_left_the_source_alone(tmp_path, caplo
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical"), config)
     gone = FakeDB({k: v for k, v in SOURCE_TABLES.items() if k[1] != "notes"}, PRIMARY_KEYS)
-    results, _ = run_generate(make_args("historical"), config, source=gone)
+    results = run_generate(make_args("historical"), config, source=gone)
     assert not any(status == "REMOVED" for _, _, status, _ in results)
     assert (config / "data_validation" / "notes.yaml").exists()
     assert "notes" in yb._count_tables(config, "bronze_postgres")
@@ -269,6 +273,21 @@ def test_all_never_deletes_a_file_the_generator_did_not_write(tmp_path):
     manual.write_text("tables: {}\n", encoding="utf-8")
     run_generate(make_args("historical"), config)
     assert manual.exists()
+
+
+def test_all_takes_the_table_names_from_the_workbook_not_the_source(tmp_path):
+    source = FakeDB({**SOURCE_TABLES, ("edge", "extra"): [("id", "integer")]}, PRIMARY_KEYS)
+    results = run_generate(make_args("historical"), config_dir_for(tmp_path, "historical"), source=source)
+    assert not any(table == "extra" for table, *_ in results), "a source table that no workbook lists is not generated"
+    assert statuses(results)[("units", "data_validation")] == "NEW"
+
+
+def test_all_with_no_table_names_in_the_workbooks_is_refused(tmp_path, monkeypatch):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.setattr(filter_files, "FOLDER", empty)
+    with pytest.raises(ValueError, match="no table names in the filter workbooks"):
+        run_generate(make_args("historical"), config_dir_for(tmp_path, "historical"))
 
 
 # --- an incremental run writes to its own folder -----------------------------------------------------------------
@@ -289,11 +308,11 @@ def test_a_rules_target_where_with_the_env_placeholder_is_written_as_it_is(tmp_p
     ws = book.active
     ws.title = settings.RULES_SHEET
     ws.append(settings.RULE_HEADERS)
-    ws.append(["units", None, None, None, "ID IN (SELECT ID FROM {env}_EDGE_BRONZE.EDGE.NOTES)"])
+    ws.append(["postgres", None, "units", None, None, None, "ID IN (SELECT ID FROM {env}_EDGE_BRONZE.EDGE.NOTES)", None])
     book.save(path)
     rules = settings.load_table_rules(path, "postgres")
     config = config_dir_for(tmp_path, "historical")
-    results, _ = run_generate(make_args("historical", tables=("units",)), config, table_rules=rules)
+    results = run_generate(make_args("historical", tables=("units",)), config, table_rules=rules)
     assert statuses(results)[("units", "data_validation")] == "NEW"
     assert "(ID IN (SELECT ID FROM {env}_EDGE_BRONZE.EDGE.NOTES))" in data_block(config, "units")["targetquery"]
 
@@ -305,11 +324,11 @@ def test_a_file_filter_with_the_env_placeholder_on_the_target_side_is_written_an
     ws.title = "filters"
     ws.append(["Target Table Name", "Historical Filter to apply."])
     ws.append(["units", "units j\njoin notes n on j.note_id = n.id\nwhere n.body is not null"])
-    book.save(tmp_path / "filters.xlsx")
+    book.save(tmp_path / "postgres_filters.xlsx")
     file_filters = filter_files.load("postgres", SOURCE_SCHEMA, "{env}_EDGE_BRONZE", "EDGE", "historical",
                                      folder=tmp_path, log=LOG)
     config = config_dir_for(tmp_path, "historical")
-    results, _ = run_generate(make_args("historical", tables=("units",)), config, file_filters=file_filters)
+    results = run_generate(make_args("historical", tables=("units",)), config, file_filters=file_filters)
     assert statuses(results)[("units", "data_validation")] == "NEW", "a target query that fails _checked() would be FAILED"
     assert ('note_id IN (SELECT id FROM {env}_EDGE_BRONZE."EDGE"."NOTES" WHERE body is not null AND _FIVETRAN_ACTIVE = TRUE)'
             in data_block(config, "units")["targetquery"])
@@ -321,8 +340,7 @@ def test_a_file_filter_with_the_env_placeholder_on_the_target_side_is_written_an
 def run_env(monkeypatch, tmp_path):
     """Points the entry point at a temporary folder and fake databases. Returns the folder and a rules workbook."""
     monkeypatch.setattr(generate_yaml, "FRAMEWORK_ROOT", tmp_path)
-    monkeypatch.setattr(generate_yaml, "OUTPUT_DIR", tmp_path / "output")
-    dbs = {"source": FakeDB(SOURCE_TABLES, PRIMARY_KEYS), "target": FakeDB(TARGET_TABLES)}
+    dbs ={"source": FakeDB(SOURCE_TABLES, PRIMARY_KEYS), "target": FakeDB(TARGET_TABLES)}
     monkeypatch.setattr(generate_yaml, "get_database",
                         lambda db_type, root, env: dbs["source"] if db_type == "postgres" else dbs["target"])
     monkeypatch.setattr(filter_files, "load", lambda *a, **k: {})
@@ -331,7 +349,7 @@ def run_env(monkeypatch, tmp_path):
     ws = book.active
     ws.title = settings.RULES_SHEET
     ws.append(settings.RULE_HEADERS)
-    ws.append(["units", None, None, None, "ID > 5"])
+    ws.append(["postgres", None, "units", None, None, None, "ID > 5", None])
     book.save(rules)
     return SimpleNamespace(root=tmp_path, dbs=dbs, rules=rules)
 
@@ -347,8 +365,27 @@ def _run(env, **overrides):
 def test_run_for_validation_returns_results_and_the_tables_ready_to_validate(run_env):
     results, ready = _run(run_env)
     assert statuses(results)[("units", "data_validation")] == "NEW"
-    assert set(ready) == {"notes", "units"}, "lookup has no primary key, so it FAILED and is not ready"
-    assert list((run_env.root / "output").glob("reconciliation_*.csv"))
+    assert set(ready) == {"notes", "units", "lookup"}, "lookup has no primary key: its data FAILED, but its count is ready"
+    assert not (run_env.root / "output").exists(), "the generator writes no report, only the YAML"
+
+
+def test_a_key_present_only_on_the_source_side_fails_the_data_and_the_count_is_ready(run_env):
+    columns = [c for c in TARGET_TABLES[("EDGE", "UNITS")] if c[0] != "ID"]
+    run_env.dbs["target"] = FakeDB({**TARGET_TABLES, ("EDGE", "UNITS"): columns})
+    results, ready = _run(run_env, tables=["units"])
+    assert statuses(results) == {("units", "data_validation"): "FAILED", ("units", "count_validation"): "NEW"}
+    assert detail_of(results, "units", "data_validation").startswith("key column(s) not on both sides of the comparison: id")
+    assert not (run_env.root / "config" / "historical" / "bronze_postgres" / "data_validation" / "units.yaml").exists()
+    assert ready == ["units"]
+
+
+def test_a_table_whose_count_file_could_not_be_updated_is_not_ready(run_env, monkeypatch):
+    def locked(*args, **kwargs):
+        raise OSError("count file locked")
+    monkeypatch.setattr(generate_yaml, "upsert_count_file", locked)
+    results, ready = _run(run_env)
+    assert statuses(results)[("units", "count_validation")] == "FAILED"
+    assert "units" not in ready, "validating against an old count file would compare the wrong rows"
 
 
 def test_run_for_validation_writes_the_table_rule_from_the_workbook(run_env):
@@ -458,7 +495,7 @@ def test_create_only_writes_a_missing_yaml_and_leaves_an_existing_one_as_it_is(t
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical", tables=("notes",)), config)
     before = (config / "data_validation" / "notes.yaml").read_text(encoding="utf-8")
-    results, _ = run_generate(make_args("historical", tables=("notes", "units")), config, create_only=True)
+    results = run_generate(make_args("historical", tables=("notes", "units")), config, create_only=True)
     got = statuses(results)
     assert got[("notes", "data_validation")] == "PRESENT" and got[("notes", "count_validation")] == "PRESENT"
     assert got[("units", "data_validation")] == "NEW" and got[("units", "count_validation")] == "NEW"
@@ -468,7 +505,7 @@ def test_create_only_writes_a_missing_yaml_and_leaves_an_existing_one_as_it_is(t
 def test_create_only_writes_the_count_entry_when_only_that_is_missing(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical", tables=("notes",), count="no"), config)
-    results, _ = run_generate(make_args("historical", tables=("notes",)), config, create_only=True)
+    results = run_generate(make_args("historical", tables=("notes",)), config, create_only=True)
     got = statuses(results)
     assert got[("notes", "data_validation")] == "PRESENT"
     assert got[("notes", "count_validation")] == "NEW"
@@ -485,7 +522,7 @@ def test_tables_missing_yaml_lists_only_the_named_tables_with_a_missing_file_or_
 def test_a_missing_source_table_is_not_created_in_create_only_mode(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     gone = FakeDB({k: v for k, v in SOURCE_TABLES.items() if k[1] != "units"}, PRIMARY_KEYS)
-    results, _ = run_generate(make_args("historical", tables=("units",)), config, source=gone, create_only=True)
+    results = run_generate(make_args("historical", tables=("units",)), config, source=gone, create_only=True)
     assert statuses(results)[("units", "table")] == "FAILED"
     assert not (config / "data_validation" / "units.yaml").exists()
 
@@ -494,7 +531,7 @@ def test_a_missing_source_table_is_not_created_in_create_only_mode(tmp_path):
 
 def test_an_incremental_run_writes_the_window_on_both_sides_of_data_and_count(tmp_path):
     config = config_dir_for(tmp_path, "incremental")
-    results, _ = run_generate(make_args("incremental"), config)
+    results = run_generate(make_args("incremental"), config)
     assert statuses(results)[("units", "data_validation")] == "NEW"
     block = data_block(config, "units")
     assert '"updated_at" > :start_time AND "updated_at" <= :end_time' in block["sourcequery"]
@@ -511,13 +548,18 @@ def test_a_historical_run_has_no_window(tmp_path):
     assert ":start_time" not in count_block(config, "bronze_postgres", "units")["sourcequery"]
 
 
-def test_an_incremental_table_without_the_column_is_failed_for_data_and_count(tmp_path):
+def test_a_window_column_missing_from_snowflake_is_written_by_name_with_a_warning(tmp_path, caplog):
     config = config_dir_for(tmp_path, "incremental")
-    results, _ = run_generate(make_args("incremental", tables=("lookup",)), config)
-    assert statuses(results) == {("lookup", "data_validation"): "FAILED", ("lookup", "count_validation"): "FAILED"}
-    assert detail_of(results, "lookup", "data_validation").startswith(
-        "incremental column updated_at is not compared on both sides")
-    assert not (config / "data_validation" / "lookup.yaml").exists()
+    target = FakeDB({("EDGE", "DOCS"): [c for c in DOCS_TARGET[("EDGE", "DOCS")] if c[0] != "UPDATED_AT"]})
+    with caplog.at_level(logging.WARNING):
+        results = run_generate(make_args("incremental", tables=("docs",)), config,
+                                  source=FakeDB(DOCS_SOURCE, {("edge", "docs"): ["id"]}), target=target)
+    assert statuses(results) == {("docs", "data_validation"): "NEW", ("docs", "count_validation"): "NEW"}
+    block = data_block(config, "docs")
+    assert '"updated_at" > :start_time AND "updated_at" <= :end_time' in block["sourcequery"]
+    assert '"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time' in block["targetquery"]
+    assert count_block(config, "bronze_postgres", "docs")["targetquery"].count(":start_time") == 1
+    assert "incremental column updated_at is not compared on the Snowflake side" in caplog.text
 
 
 def test_the_rules_workbook_can_name_the_incremental_column(tmp_path):
@@ -541,7 +583,7 @@ DOCS_TARGET = {("EDGE", "DOCS"): [("ID", "NUMBER"), ("META", "VARIANT"), ("TAGS"
 def test_jsonb_and_hstore_columns_are_listed_for_the_validator_and_selected_as_text(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     source, target = FakeDB(DOCS_SOURCE, {("edge", "docs"): ["id"]}), FakeDB(DOCS_TARGET)
-    results, _ = run_generate(make_args("historical", tables=("docs",)), config, source=source, target=target)
+    results = run_generate(make_args("historical", tables=("docs",)), config, source=source, target=target)
     assert statuses(results)[("docs", "data_validation")] == "NEW"
     block = data_block(config, "docs")
     assert block["json_columns"] == {"meta_normalized": "jsonb", "tags_normalized": "hstore"}
