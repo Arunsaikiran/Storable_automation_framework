@@ -159,6 +159,20 @@ def test_unknown_type_is_cast_as_it_is_and_reported_as_plain_text():
     assert yb.plain_text_columns(pairs, PG) == ["shape (money)"]
 
 
+def test_a_refused_rowversion_is_not_reported_as_plain_text_because_its_table_is_refused():
+    pairs = _pairs(("uTS", "timestamp", "UTS", "BINARY"), ("shape", "money", "SHAPE", "NUMBER"))
+    assert yb.plain_text_columns(pairs, MS) == ["shape (money)"]
+    assert yb.comparability_problems(pairs, MS), "the rowversion is the reason the table is refused"
+
+
+def test_an_excluded_name_is_left_out_of_both_sides():
+    """Bidirectional: an excluded column is left out of the source and of the Snowflake copy."""
+    rec = yb.reconcile([("legacy_code", "character varying"), ("id", "integer")],
+                       [("LEGACY_CODE", "TEXT"), ("ID", "NUMBER")], {"legacy_code"}, set(), PG)
+    assert [pair[4] for pair in rec.pairs] == ["id"]
+    assert ("legacy_code", "LEGACY_CODE", "EXCLUDED_GLOBAL", "") in rec.rows, "one report row names both sides"
+
+
 # --- the SQL of the data and count entries ---------------------------------------------------------------------
 
 def _data_entry(filters=None, pairs=None, keys=("id",)):
@@ -228,7 +242,7 @@ def test_header_lists_the_key_the_counts_the_filters_and_the_exclusions():
     assert "# Target: {env}_EDGE_BRONZE.EDGE.UNITS" in header
     assert "# Key: id_normalized   Columns compared: 2" in header
     assert "# Source filter: id > 0" in header and "# Target filter: ID > 0" in header
-    assert "# Excluded (global list): _fivetran_synced" in header
+    assert "# Excluded (exclusions file): _fivetran_synced" in header
     assert "# Excluded (table rule): notes" in header
 
 
@@ -324,13 +338,17 @@ def test_window_is_added_after_the_filters_on_each_side():
     assert filters.target_parts() == ["_FIVETRAN_ACTIVE = TRUE", "(ID > 0)", "(w2)"]
 
 
-def test_incremental_window_needs_the_column_on_both_sides():
+def test_incremental_window_is_written_by_name_on_each_side_and_reports_the_missing_side():
     pairs = _pairs(("updated_at", "timestamp without time zone", "UPDATED_AT", "TIMESTAMP_NTZ"), ("id", "integer", "ID", "NUMBER"))
     assert yb.incremental_window(pairs, "Updated At", PG) == (
         '"updated_at" > :start_time AND "updated_at" <= :end_time',
-        '"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time')
-    assert yb.incremental_window(pairs, "created_at", PG) is None
-    assert yb.incremental_window([("updated_at", "text", None, None, "updated_at")], "updated_at", PG) is None
+        '"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time', [])
+    assert yb.incremental_window(pairs, "created_at", PG) == (
+        '"created_at" > :start_time AND "created_at" <= :end_time',
+        '"CREATED_AT" > :start_time AND "CREATED_AT" <= :end_time', ["source", "target"])
+    assert yb.incremental_window([("updated_at", "text", None, None, "updated_at")], "updated_at", PG) == (
+        '"updated_at" > :start_time AND "updated_at" <= :end_time',
+        '"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time', ["target"])
 
 
 def test_a_data_entry_with_a_window_has_the_placeholders_on_both_sides():

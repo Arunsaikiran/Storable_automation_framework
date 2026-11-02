@@ -581,10 +581,11 @@ def parse_arguments():
     if args.yaml_generation[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
         parser.error("--yaml_generation 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql'.")
 
-    # CHANGE: YAML generation. The filter workbooks hold PostgreSQL statements only. Any other layer would get no filter, so an
-    # incremental run would compare whole tables.
-    if args.filter_files[0] == "yes" and layer_type[0] != "bronze_postgres":
-        parser.error("--filter_files 'yes' is only allowed when --layer_type is 'bronze_postgres' (the filter workbooks are PostgreSQL).")
+    # CHANGE: YAML generation. The filter workbooks hold statements for PostgreSQL and SQL Server only, each read for its own
+    # database (LAYOUTS in yaml_generation/filter_files.py). Any other layer would get no filter, so an incremental run would
+    # compare whole tables.
+    if args.filter_files[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
+        parser.error("--filter_files 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql' (the filter workbooks are for those two).")
 
     # CHANGE: YAML generation. These flags are used whenever a YAML is written: with --yaml_generation 'yes', and without it
     # when a named table has no YAML yet (main.py creates it). So they are accepted with either value of --yaml_generation.

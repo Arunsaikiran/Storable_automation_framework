@@ -55,7 +55,7 @@ def test_live_columns_drive_the_historical_yaml(tmp_path):
     target = FakeDB({("EDGE", table.upper()): [(name.upper(), "TEXT") for name, _ in columns]})
     args = make_args("historical", tables=(table,), source_schema="public")
     config = config_dir_for(tmp_path, "historical")
-    results, _ = run_generate(args, config, source=source, target=target)
+    results = run_generate(args, config, source=source, target=target)
     assert "FAILED" not in {status for _, _, status, _ in results}
     assert statuses(results)[(table, "count_validation")] == "NEW"
     assert (config / "count_validation" / "bronze_postgres.yaml").exists()

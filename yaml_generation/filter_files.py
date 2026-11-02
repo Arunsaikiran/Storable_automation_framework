@@ -33,8 +33,9 @@ What is refused, and the table is then loaded in full (the log names the row)
   OR, BETWEEN, left/right/outer joins, subqueries, group by, quoted identifiers, unbalanced quotes or brackets,
   a condition that uses two tables, and anything check_filter() refuses.
 
-Other workbooks in the folder, for example Sitelink_bronze_filters.xlsx, have no SQL. They are named in the log and
-not read. The statements are PostgreSQL, so they are used for PostgreSQL runs only.
+SQL Server (bronze_mssql) reads only Sitelink_bronze_filters.xlsx, with its own headers: "table", " filters to Apply" and
+"Incremental filters to Apply". A cell that says "compare full" is no filter. A bind parameter such as :scorpcode has no value
+here, so that statement is refused and its table is loaded in full. Each database reads only its own workbook.
 
 Self-check: python yaml_generation/filter_files.py
 """
@@ -55,9 +56,17 @@ from yaml_generation.db_rules import RULES, quote  # noqa: E402
 from yaml_generation.yaml_builder import FIVETRAN_FILTER, check_filter  # noqa: E402
 
 FOLDER = Path(__file__).resolve().parent / "Filter-files-excel"
-# Header text, trimmed and in lower case. The filter column is the one for the run type.
-TABLE_COLUMN = "target table name"
-FILTER_COLUMNS = {"incremental": "incremental filters to apply", "historical": "historical filter to apply."}
+# Which database a workbook is for: the prefix of its file name, the text before the first space, underscore or dot.
+# "postgres Table filters.xlsx" is PostgreSQL and "Sitelink_bronze_filters.xlsx" is SQL Server. A new workbook is read once its
+# prefix is here and its database has a layout in LAYOUTS. A file with any other prefix is named in the log and not read.
+PREFIXES = {"postgres": "postgres", "sitelink": "mssql"}
+# Per database: the table column and the filter column for each run type (header text, trimmed and in lower case). SQL Server
+# has no "historical" word in its workbook, so its first filter column is read as historical.
+LAYOUTS = {
+    "postgres": {"table": "target table name", "historical": "historical filter to apply.",
+                 "incremental": "incremental filters to apply"},
+    "mssql": {"table": "table", "historical": "filters to apply", "incremental": "incremental filters to apply"},
+}
 
 # A quoted literal. Text inside quotes is never read as SQL, and never changed.
 LITERAL = re.compile(r"'[^']*'")
@@ -135,6 +144,8 @@ def _plan(statement) -> _Plan:
     masked = _masked(body)
     if '"' in masked:
         raise Refused("quoted identifiers are not read")
+    if re.search(r"(?<!:):[A-Za-z_]", masked):  # not a PostgreSQL cast (::date)
+        raise Refused("a bind parameter such as :name has no value in the framework")
     if masked.count("(") != masked.count(")"):
         raise Refused("brackets do not balance")
     word = REFUSED_WORDS.search(masked)
@@ -225,16 +236,16 @@ def _join(parts):
     return " AND ".join(parts) if parts else None
 
 
-def _statements(path, filter_column):
+def _statements(path, filter_column, table_column=LAYOUTS["postgres"]["table"]):
     """(row, table, statement) for each row of the first sheet that has both columns. None when no sheet has them."""
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:
         for sheet in workbook.worksheets:
             rows = sheet.iter_rows(values_only=True)
             header = [str(name).strip().lower() if name is not None else "" for name in (next(rows, None) or ())]
-            if TABLE_COLUMN not in header or filter_column not in header:
+            if table_column not in header or filter_column not in header:
                 continue
-            table_at, filter_at = header.index(TABLE_COLUMN), header.index(filter_column)
+            table_at, filter_at = header.index(table_column), header.index(filter_column)
             found = []
             for row_number, row in enumerate(rows, start=2):
                 table = row[table_at] if table_at < len(row) else None
@@ -253,30 +264,60 @@ def _count_statement(text):
     return text if text.lower().startswith("select") else "select count(*) from " + text
 
 
-def load(source_type, source_schema, target_database, target_schema, run_type, folder=FOLDER, log=None) -> dict:
+def workbooks_for(source_type, folder=None, log=None) -> list:
+    """The .xlsx files in the folder whose prefix (PREFIXES) is for this database. Other files are logged and not read."""
+    log = log or logging.getLogger(__name__)
+    paths = []
+    for path in sorted(Path(folder or FOLDER).glob("*.xlsx")):
+        if path.name.startswith("~$"):
+            continue
+        database = PREFIXES.get(re.split(r"[ _.]", path.name, maxsplit=1)[0].lower())
+        if database is None:
+            log.warning("Filter file %s has no known database prefix (%s), so it is not read", path.name, ", ".join(PREFIXES))
+        elif database == source_type:
+            paths.append(path)
+    return paths
+
+
+def workbook_tables(source_type, run_type, folder=None, log=None) -> list:
+    """The table names listed in this database's workbooks, in workbook order, each once. Used for --tables all."""
+    log = log or logging.getLogger(__name__)
+    layout = LAYOUTS[source_type]
+    names = []
+    for path in workbooks_for(source_type, folder, log):
+        rows = _statements(path, layout[run_type], layout["table"])
+        if rows is None:
+            log.warning("Filter file %s has no '%s' column, so its tables are not listed", path.name, layout[run_type])
+            continue
+        for _, table, _ in rows:
+            if table not in names:
+                names.append(table)
+    return names
+
+
+def load(source_type, source_schema, target_database, target_schema, run_type, folder=None, log=None) -> dict:
     """{table: (source_where, target_where)} for the tables whose cell was read. Tables not in it are loaded in full.
 
-    run_type picks the column: incremental reads "Incremental filters to apply", historical reads "Historical Filter to apply.".
+    run_type picks the column for the database's layout in LAYOUTS: the incremental column or the historical one.
     target_database is the Snowflake name as written in the YAML (e.g. {env}_EDGE_BRONZE), so the target side keeps the placeholder.
     A refused cell is logged with its file and row, and that table is loaded in full.
     """
     log = log or logging.getLogger(__name__)
-    if source_type != "postgres":
-        log.info("Filter files: none used for %s, because the statements are PostgreSQL", source_type)
+    layout = LAYOUTS.get(source_type)
+    if layout is None:
+        log.info("Filter files: none used for %s, because no workbook layout is defined for it", source_type)
         return {}
 
-    column = FILTER_COLUMNS[run_type]
+    column = layout[run_type]
     filters, seen, used_files = {}, set(), []
-    for path in sorted(Path(folder).glob("*.xlsx")):
-        if path.name.startswith("~$"):
-            continue
-        rows = _statements(path, column)
+    for path in workbooks_for(source_type, folder, log):
+        rows = _statements(path, column, layout["table"])
         if rows is None:
             log.warning("Filter file %s has no '%s' column, so it is not read", path.name, column)
             continue
         used_files.append(path.name)
         for row_number, table, statement in rows:
-            if not statement.strip():
+            if not statement.strip() or statement.strip().lower() == "compare full":
                 continue
             label = f"{path.name} row {row_number} ({table}), column '{column}'"
             if table in seen:
