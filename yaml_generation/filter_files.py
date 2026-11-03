@@ -28,6 +28,7 @@ Shapes read
   - select count(*) from <table> [alias], then inner joins, then an optional where clause joined with AND.
   - Each join is  <table> [alias] on <a>.<column> = <alias>.id, where <a> is already in the statement.
   - A condition uses one table. A bare column belongs to the first table. Joins chain (a table joined to a joined table).
+  - A cell with only conditions, no table line and no join (e.g. created_at >= '2026-08-01'), is about the row's table.
 
 What is refused, and the table is then loaded in full (the log names the row)
   OR, BETWEEN, left/right/outer joins, subqueries, group by, quoted identifiers, unbalanced quotes or brackets,
@@ -258,10 +259,19 @@ def _statements(path, filter_column, table_column=LAYOUTS["postgres"]["table"]):
         workbook.close()
 
 
-def _count_statement(text):
-    """The cell as a count statement. The cell holds no 'select count(*) from' (the framework adds it), so the parser reads it as before."""
+def _count_statement(text, table):
+    """The cell as a count statement. The cell holds no 'select count(*) from' (the framework adds it), so the parser reads it as before.
+
+    A cell whose first line is not a table name (with an optional alias) holds only conditions on the row's table, so the table
+    goes first: "created_at >= '2026-08-01'" becomes "<table> where created_at >= '2026-08-01'".
+    """
     text = text.strip()
-    return text if text.lower().startswith("select") else "select count(*) from " + text
+    if text.lower().startswith("select"):
+        return text
+    first_line = text.split("\n", 1)[0].strip()
+    if re.match(r"where\b", first_line, re.IGNORECASE) or not TABLE.match(first_line):
+        text = f"{table} where " + re.sub(r"^where\s+", "", text, flags=re.IGNORECASE)
+    return "select count(*) from " + text
 
 
 def workbooks_for(source_type, folder=None, log=None) -> list:
@@ -325,10 +335,10 @@ def load(source_type, source_schema, target_database, target_schema, run_type, f
                 continue
             try:
                 # The statement must be about the row's own table. A cell copied from another row would filter the wrong table.
-                statement_table = BASE_TABLE.match(_count_statement(statement))
+                statement_table = BASE_TABLE.match(_count_statement(statement, table))
                 if not statement_table or statement_table.group(1).lower() != table.lower():
                     raise Refused(f"the statement is about '{statement_table.group(1) if statement_table else '?'}', not '{table}'")
-                source_where, target_where = convert(_count_statement(statement), source_type, source_schema,
+                source_where, target_where = convert(_count_statement(statement, table), source_type, source_schema,
                                                      target_database, target_schema)
                 check_filter(source_where, label)
                 check_filter(target_where, label, placeholders=True)
@@ -403,7 +413,14 @@ if __name__ == "__main__":
     assert convert("select count(*) from events where status = 'x or y.z'", *args)[0] == "status = 'x or y.z'"
 
     # A workbook cell has no 'select count(*) from'; the framework adds it. A cell that starts with 'select' is kept.
-    assert _count_statement("events j\njoin facilities f on j.facility_id=f.id\nwhere f.company_id in (137)") \
+    assert _count_statement("events j\njoin facilities f on j.facility_id=f.id\nwhere f.company_id in (137)", "events") \
         == "select count(*) from events j\njoin facilities f on j.facility_id=f.id\nwhere f.company_id in (137)"
-    assert _count_statement("select count(*) from events") == "select count(*) from events"
+    assert _count_statement("select count(*) from events", "events") == "select count(*) from events"
+
+    # A cell with only conditions (no table line, no join) is about the row's table, with or without a leading 'where'.
+    assert _count_statement("created_at >= '2026-08-01'", "account_balance_items") \
+        == "select count(*) from account_balance_items where created_at >= '2026-08-01'"
+    assert _count_statement("where created_at >= '2026-08-01'", "account_balance_items") \
+        == "select count(*) from account_balance_items where created_at >= '2026-08-01'"
+    assert convert(_count_statement("created_at >= '2026-08-01'", "account_balance_items"), *args)[0] == "created_at >= '2026-08-01'"
     print("filter_files self-check passed")

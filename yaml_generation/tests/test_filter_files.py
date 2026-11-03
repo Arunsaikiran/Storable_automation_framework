@@ -90,8 +90,15 @@ def test_a_comment_marker_is_read_through_and_check_filter_refuses_it():
 
 
 def test_a_workbook_cell_gets_the_count_prefix_and_a_select_is_kept():
-    assert ff._count_statement("events j\nwhere j.x = 1") == "select count(*) from events j\nwhere j.x = 1"
-    assert ff._count_statement("select count(*) from events") == "select count(*) from events"
+    assert ff._count_statement("events j\nwhere j.x = 1", "events") == "select count(*) from events j\nwhere j.x = 1"
+    assert ff._count_statement("select count(*) from events", "events") == "select count(*) from events"
+
+
+def test_a_cell_with_only_conditions_is_about_the_rows_table():
+    assert ff._count_statement("created_at >= '2026-08-01'", "account_balance_items") \
+        == "select count(*) from account_balance_items where created_at >= '2026-08-01'"
+    assert ff.convert(ff._count_statement("created_at >= '2026-08-01'", "account_balance_items"), *ARGS) \
+        == ("created_at >= '2026-08-01'", "created_at >= '2026-08-01'")
 
 
 # --- the workbook reader (_statements) -------------------------------------------------------------------------
@@ -148,6 +155,16 @@ def test_historical_run_reads_the_historical_column(folder):
     assert filters["units"][0] == "created_at >= '2020-01-01'"
     assert filters["notes"] == ("body is not null", "body is not null")
     assert "units" in filters and "events" not in filters
+
+
+def test_a_bare_condition_cell_filters_its_own_table_without_a_join(tmp_path):
+    _workbook(tmp_path / "postgres.xlsx", {"filters": [
+        ["Target Table Name", "Incremental filters to apply", "Historical Filter to apply."],
+        ["account_balance_items", None, "created_at >= '2026-08-01'"],
+    ]})
+    filters = ff.load("postgres", "public", "DEV_EDGE_BRONZE", "STOREDGE", "historical", folder=tmp_path,
+                      log=logging.getLogger("t"))
+    assert filters == {"account_balance_items": ("created_at >= '2026-08-01'", "created_at >= '2026-08-01'")}
 
 
 def test_a_refused_row_loads_its_table_in_full_and_is_logged(folder, caplog):
