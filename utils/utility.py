@@ -314,7 +314,7 @@ def create_summary_schema(run_at,run_id,validation_type,source_table_name,source
                 summary_df.to_excel(writer, sheet_name="summary", index=False)
 
 
-def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,status,output_path,source_rows=None,target_rows=None,output_file_path=None,batch_start_time=None,batch_end_time=None,diff_batch=None,missing_in_source=None,missing_in_target=None,mismatch_count=None,error_message=None,layer_type=None,report_pack=None,report_tile=None,test_case=None,summary=None):
+def create_summary(run_at,run_id,validation_type,source_table_name,source_type,target_table_name,target_type,status,output_path,source_rows=None,target_rows=None,output_file_path=None,batch_start_time=None,batch_end_time=None,diff_batch=None,missing_in_source=0,missing_in_target=0,mismatch_count=0,error_message=None,layer_type=None,report_pack=None,report_tile=None,test_case=None,summary=None):
     summary_dict = {
         "run_id": run_id,
         "run_at": run_at,
@@ -581,10 +581,11 @@ def parse_arguments():
     if args.yaml_generation[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
         parser.error("--yaml_generation 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql'.")
 
-    # CHANGE: YAML generation. The filter workbooks hold PostgreSQL statements only. Any other layer would get no filter, so an
-    # incremental run would compare whole tables.
-    if args.filter_files[0] == "yes" and layer_type[0] != "bronze_postgres":
-        parser.error("--filter_files 'yes' is only allowed when --layer_type is 'bronze_postgres' (the filter workbooks are PostgreSQL).")
+    # CHANGE: YAML generation. The filter workbooks hold statements for PostgreSQL and SQL Server only, each read for its own
+    # database (LAYOUTS in yaml_generation/filter_files.py). Any other layer would get no filter, so an incremental run would
+    # compare whole tables.
+    if args.filter_files[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
+        parser.error("--filter_files 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql' (the filter workbooks are for those two).")
 
     # CHANGE: YAML generation. These flags are used whenever a YAML is written: with --yaml_generation 'yes', and without it
     # when a named table has no YAML yet (main.py creates it). So they are accepted with either value of --yaml_generation.
@@ -677,7 +678,7 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
     
     return max_fivetran_start,min_fivetran_start
 
-def update_control_table(file_location, table_name, layer, validation, sync_date,run_at,run_id):
+def update_control_table(file_location, table_name, layer, validation, sync_date):
     date_column = (
         'data_validation_last_run_date'
         if validation == 'data'
@@ -693,7 +694,7 @@ def update_control_table(file_location, table_name, layer, validation, sync_date
         print(f"No control table row for {table_name.lower()} / {layer}; nothing updated")
         return
 
-    updates = {date_column: sync_date, 'run_at': run_at, 'run_id': run_id}
+    updates = {date_column: sync_date}
     for column, value in updates.items():
         if column not in control_df.columns:
             print(f"Column '{column}' not in control table; skipped")

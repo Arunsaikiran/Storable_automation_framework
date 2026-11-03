@@ -168,7 +168,7 @@ def validate_count(ctx):
                         create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0])
                         if max_fivetran_start is not None:
                             logger.info("Updating control table")
-                            update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start,run_at,run_id)
+                            update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start)
 
                     else:
                         logger.info("Match/Mismatch: Mismatch")
@@ -192,7 +192,7 @@ def validate_count(ctx):
                         # A historical run has no sync date, and writing it would store 'None' as the watermark.
                         if max_fivetran_start is not None:
                             logger.info("Updating control table")
-                            update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start,run_at,run_id)
+                            update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start)
                         print("+"*100)
 
                 except (pyodbc.Error, psycopg2.Error):

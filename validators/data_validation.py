@@ -57,6 +57,7 @@ def validate_data(ctx):
 
         for table_name, table_config in tables_to_process:
             logger.info("Processing table: %s", table_name)
+            filepath = os.path.join(output_path,f"{table_name}_result.xlsx")
 
             for validation_name, validation_config in table_config["validations"].items():
                 logger.debug("Validation configuration: %s", validation_name)
@@ -118,7 +119,7 @@ def validate_data(ctx):
                         # CHANGE: YAML generation. The freshness check also runs for a generated YAML: its queries hold the
                         # same :start_time and :end_time placeholders as a hand-written one.
                         #Check freshness, then get the latest sync date (fivetran) and previous sync date (control table)
-                        max_fivetran_start,min_fivetran_start = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'count')
+                        max_fivetran_start,min_fivetran_start = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'data')
                         for key, value in {
                             "start_time": min_fivetran_start,
                             "end_time": max_fivetran_start
@@ -149,7 +150,6 @@ def validate_data(ctx):
                     target_df = target_df.set_index(targetcolumn)
                     source_df = source_df.sort_values(sourcecolumn)
                     target_df = target_df.sort_values(targetcolumn)
-                    output_file_path = ""
                     logger.debug("Source row count: %s", source_rows)
                     logger.debug("Target row count: %s", target_rows)
 
@@ -167,10 +167,11 @@ def validate_data(ctx):
                         batch_start_time_str = batch_start_time.strftime("%H:%M:%S")
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,output_file_path,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
+                        create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
+
                         if max_fivetran_start is not None:
                             logger.info("Updating control table")
-                            update_control_table(control_table_path,target_table_name,layer[0],'data',max_fivetran_start,run_at,run_id)
+                            update_control_table(control_table_path,target_table_name,layer[0],'data',max_fivetran_start)
 
                     else:
                         logger.info("Match/Mismatch: Mismatch")
@@ -182,7 +183,7 @@ def validate_data(ctx):
                         )
                         failure_count += 1
                         logger.info("Current failure count: %s", failure_count)
-                        filepath = os.path.join(output_path,f"{table_name}_result.xlsx")
+    
                         logger.info("Saving mismatch data to %s", filepath)
 
                         missing_in_source = target_df.index.difference(source_df.index)
@@ -258,13 +259,12 @@ def validate_data(ctx):
                         batch_start_time_str = batch_start_time.strftime("%H:%M:%S")
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
-                        #Function to log last success date
                         create_summary(run_at,run_id,validation_name,table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time_str,batch_end_time_str,total_batch_time_taken,missing_in_source,missing_in_target,mismatch_count,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile if layer[0] == "reports" else None,test_case=test_case if layer[0] == "reports" else None,summary=summary if layer[0] == "reports" else None)
                         # CHANGE: YAML generation. As on PASS, the control table is updated only when there is a freshness watermark.
                         # A historical run has no sync date, and writing it would store 'None' as the watermark.
                         if max_fivetran_start is not None:
                             logger.info("Updating control table")
-                            update_control_table(control_table_path,target_table_name,layer[0],'data',max_fivetran_start,run_at,run_id)
+                            update_control_table(control_table_path,target_table_name,layer[0],'data',max_fivetran_start)
                         print("+"*100)
 
                 except (pyodbc.Error, psycopg2.Error):

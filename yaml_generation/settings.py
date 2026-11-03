@@ -1,9 +1,11 @@
-"""The settings you edit, and the reconciliation report the generator writes.
+"""The settings you edit: the column exclusions and the table rules workbook.
 
 Two kinds of settings, both optional:
 
-  1. Global exclusions: settings/exclusions.yaml
-     Column names that are never compared, for every table. One YAML file. Example: the Fivetran metadata columns.
+  1. Exclusions: settings/exclusions.yaml
+     Column names left out of the comparison, one section per data source. Bidirectional: a name under a source is left
+     out of that source and of Snowflake. The snowflake section applies to every run. Example: the Fivetran metadata
+     columns (snowflake), the SQL Server rowversion (mssql).
 
   2. Table rules: the Excel workbook in settings/ (the one file there is used every run)
      One row per table. Columns:
@@ -12,7 +14,7 @@ Two kinds of settings, both optional:
        exclude_columns  columns to leave out for this table only, comma separated
        source_where   a row filter for the SOURCE query, written as SQL without the word WHERE
        target_where   a row filter for the SNOWFLAKE query, written as SQL without the word WHERE. {env} is allowed in it.
-       incremental_column  the column an incremental run windows on (default updated_at). Optional column.
+       incremental_column  the column an incremental run windows on (default: updated_at, dupdated for SQL Server). Optional.
      The same filter is applied to the count and to the data query. A join is written as a condition with a
      sub-select, for example:  customer_id IN (SELECT id FROM public.customers WHERE active = true)
 
@@ -20,22 +22,25 @@ Without a rules file, nothing is filtered and no table has a key override. That 
 normal run, not an error.
 """
 
-import csv
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
+from yaml_generation.db_rules import RULES, SOURCE_TYPES
 from yaml_generation.yaml_builder import check_filter, normalize_name
 
 SETTINGS_DIR = Path(__file__).resolve().parent / "settings"
 GLOBAL_EXCLUSIONS_FILE = SETTINGS_DIR / "exclusions.yaml"
 RULES_SHEET = "table_rules"
-RULE_HEADERS = ["table_name", "key_columns", "exclude_columns", "source_where", "target_where", "incremental_column"]
-# The column an incremental run windows on, when the rules workbook does not name one. The validators' freshness check
-# reads this column too, so a table without it cannot run an incremental window.
-INCREMENTAL_COLUMN = "updated_at"
+RULE_HEADERS = ["source_type", "source_schema", "table_name", "key_columns", "exclude_columns", "source_where", "target_where",
+                "incremental_column"]
+REQUIRED_RULE_HEADERS = ["source_type", "table_name"]
+# The column an incremental run windows on, per database, when the rules workbook does not name one. The validators' freshness
+# check reads the same column: updated_at for PostgreSQL, dupdated for SQL Server (check_freshness in utils/utility.py).
+# A table without it cannot run an incremental window.
+INCREMENTAL_COLUMNS = {"postgres": "updated_at", "mssql": "dupdated"}
 
 
 @dataclass
@@ -56,18 +61,31 @@ def _names(text) -> list:
     return [normalize_name(part) for part in str(text).split(",") if part.strip()]
 
 
-def load_global_exclusions(path=GLOBAL_EXCLUSIONS_FILE) -> set:
-    """Normalised names of columns excluded for every table. A missing file means no global exclusions."""
+def load_exclusions(path=None, source_type=None) -> set:
+    """Normalised names of the columns a run leaves out, on both sides of the comparison.
+
+    The file has one section per data source (the names of db_rules.RULES). A run of source_type uses that section and
+    the snowflake section. A missing file means none. A section with any other name is refused, so a typo is not ignored.
+    """
+    path = path or GLOBAL_EXCLUSIONS_FILE
     if not Path(path).exists():
         return set()
     data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-    return {normalize_name(str(name)) for name in (data.get("exclude_columns") or [])}
+    unknown = [key for key in data if key not in RULES]
+    if unknown:
+        raise ValueError(f"{Path(path).name}: unknown section(s) {unknown}; each section is a data source: {list(RULES)}")
+    names = set()
+    for section in ["snowflake"] + ([source_type] if source_type else []):
+        names |= {normalize_name(str(name)) for name in ((data.get(section) or {}).get("exclude_columns") or [])}
+    return names
 
 
-def load_table_rules(path, source_type=None) -> dict:
-    """Read the rules workbook into {table_name: TableRule}. Raises ValueError with the row number if something is wrong.
+def load_table_rules(path, source_type=None, source_schema=None) -> dict:
+    """{table_name: TableRule} for one run: the rows of its database and schema. Raises ValueError with the row number.
 
-    source_type is the --source_type of the run. It is needed to check the source_where column.
+    Every row names its source_type (postgres, mssql, athena or redshift), so a rule for one database never applies to
+    another. source_schema is blank (any schema of that database) or the schema of the row. A run passes its own
+    source_type and source_schema; a row for another database or schema is read for its checks and left out.
     """
     from openpyxl import load_workbook
 
@@ -82,9 +100,11 @@ def load_table_rules(path, source_type=None) -> dict:
 
     headers = [str(h or "").strip().lower() for h in rows[0]]
     unknown = [h for h in headers if h and h not in RULE_HEADERS]
-    if unknown or "table_name" not in headers:
+    missing = [h for h in REQUIRED_RULE_HEADERS if h not in headers]
+    if unknown or missing:
         raise ValueError(f"{Path(path).name}: the first row must hold the headers {RULE_HEADERS}; "
-                         f"found {[h for h in headers if h]}" + (f", unknown: {unknown}" if unknown else ""))
+                         f"found {[h for h in headers if h]}" + (f", unknown: {unknown}" if unknown else "")
+                         + (f", missing: {missing}" if missing else ""))
     position = {name: headers.index(name) for name in RULE_HEADERS if name in headers}
 
     rules = {}
@@ -97,12 +117,21 @@ def load_table_rules(path, source_type=None) -> dict:
         table = cell("table_name")
         if table is None:
             continue
+        row_type = (cell("source_type") or "").lower()
+        if row_type not in SOURCE_TYPES:
+            raise ValueError(f"{Path(path).name}, row {number} ({table}): source_type must be one of {SOURCE_TYPES}, "
+                             f"found {cell('source_type')!r}")
+        row_schema = cell("source_schema")
+        if source_type and row_type != source_type:
+            continue
+        if source_schema and row_schema and row_schema != source_schema:
+            continue
         if table in rules:
-            raise ValueError(f"{Path(path).name}, row {number}: table '{table}' is listed twice")
+            raise ValueError(f"{Path(path).name}, row {number}: table '{table}' is listed twice for this run")
         rules[table] = TableRule(
             key_columns=_names(cell("key_columns")) or None,
             exclude=set(_names(cell("exclude_columns"))),
-            source_where=check_filter(cell("source_where"), f"row {number} ({table}) source_where", source_type),
+            source_where=check_filter(cell("source_where"), f"row {number} ({table}) source_where", row_type),
             target_where=check_filter(cell("target_where"), f"row {number} ({table}) target_where", placeholders=True),
             incremental_column=cell("incremental_column"),
         )
@@ -139,21 +168,3 @@ def pick_rules_file(explicit=None, folder=SETTINGS_DIR, ask=input, interactive=N
     if not answer.isdigit() or not 1 <= int(answer) <= len(files):
         raise ValueError(f"'{answer}' is not a number from the list")
     return files[int(answer) - 1]
-
-
-RECONCILIATION_HEADERS = ["run_at", "table", "source_column", "target_column", "status", "note"]
-
-
-def write_reconciliation(path, run_at: str, rows) -> Path:
-    """Write the reconciliation report: one line per column (or per table), with its status.
-
-    rows = [(table, source_column, target_column, status, note), ...]
-    """
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(RECONCILIATION_HEADERS)
-        for table, source_column, target_column, status, note in rows:
-            writer.writerow([run_at, table, source_column, target_column, status, note])
-    return path
