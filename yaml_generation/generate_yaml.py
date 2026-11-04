@@ -1,8 +1,12 @@
 """YAML generation for the Storable automation framework. main.py calls run_for_validation() before the validators run.
 
-It is not a command of its own. main.py runs it when --yaml_generation yes is given. For each table, in the same
-order as the guide (section 5):
-  1. Source and target. The source is the layer's database (postgres or mssql, from --layer_type). The target is Snowflake.
+It is not a command of its own. main.py runs it on every bronze run (--yaml_generation is yes by default; no only creates a
+missing YAML). The filter workbooks (filter_files.py) are the one source of truth for where each table lives: one row per
+table names its application, source schema, Snowflake database and Snowflake schema. Nothing about a location is passed on
+the command line or kept in db_rules.py. The tables are generated one location at a time, so one run can hold the tables of
+several applications on the same engine. For each table, in the same order as the guide (section 5):
+  1. Source and target. The source engine is the layer's (postgres or mssql, from --layer_type); the schemas and the
+     Snowflake database come from the table's workbook row. The target is Snowflake.
   2. Read the columns of the source table and of the Snowflake table, and the source primary key.
   3. Reconcile the two column lists: normalise the names, match them exactly, and apply the exclusions
      (exclusions for the database, and table rules). No fuzzy matching, no schema or type check. A column on one side only is kept:
@@ -14,14 +18,16 @@ order as the guide (section 5):
   5. Check the YAML against this structure. Write it only when the content differs: NEW (no file), UPDATED (the
      structure or a rule changed) or UNCHANGED (left alone). So an out-of-date YAML is rewritten before it is used.
 
-The Snowflake database is read for this run's --environment, but written as {env}_EDGE_BRONZE. The validators fill in
-{env} for their own run (DEV, STG, QAT or PRD), so one YAML serves every environment.
+The workbook writes the Snowflake database as {env}_EDGE_BRONZE. It is read for this run's --environment (DEV_EDGE_BRONZE
+for dev) and written as it is. The validators fill in {env} for their own run (DEV, STG, QAT or PRD), so one YAML serves
+every environment.
 
 What it writes (the same tree main.py reads; the guide explains why run_type is in the path)
   config/<run_type>/bronze_<source_type>/data_validation/<table>.yaml     one file per table
   config/<run_type>/bronze_<source_type>/count_validation/bronze_<source_type>.yaml   one file for all tables
 
-Nothing is ever deleted. A table that is not in the source or not in Snowflake is FAILED, and the YAML it already
+Nothing is ever deleted. A named table with no row in the filter workbooks is FAILED (its schema is not known). A table that
+is not in the source or not in Snowflake is FAILED, and the YAML it already
 has is left as it is. A table with no usable key has its data FAILED, with the reason in the log, and its count still
 written: the count needs no key. A table has no usable key when it has no primary key (and no key_columns in the table
 rules), or when a key column is not on both sides of the comparison. A named table whose YAML is missing is created
@@ -69,41 +75,32 @@ READY_STATUSES = {"NEW", "UPDATED", "UNCHANGED", "PRESENT"}
 
 
 def resolve_args(args):
-    """Fill in the source and target defaults, and check the combination. Raises ValueError with the reason.
+    """Check the run's flags, and work out the Snowflake name to read. Raises ValueError with the reason.
 
-    args.target_database is the Snowflake name this run reads the catalogue from (DEV_EDGE_BRONZE for dev).
-    args.target_template is the name written to the YAML ({env}_EDGE_BRONZE), so the YAML serves every environment.
+    The location is never a default: it is the table's filter workbook row (filter_files.Location).
+      args.source_schema, args.target_schema  as the row writes them
+      args.target_template  the Snowflake database as written to the YAML, e.g. {env}_EDGE_BRONZE
+      args.target_database  the name this run reads the catalogue from: {env} filled in for --environment (DEV_EDGE_BRONZE
+                            for dev). filter_files.read() refuses a row without {env}.
+    run_for_validation() calls this once for the flags (no location yet: target_template None), then once per location.
     """
     if args.data_validation == "no" and args.count_validation == "no":
         raise ValueError("nothing to generate: both data and count validation are no")
     if "all" in args.tables and len(args.tables) > 1:
         raise ValueError("'all' cannot be combined with table names")
-    source = RULES[args.source_type]
-    args.source_schema = args.source_schema or source["default_schema"]
-    # --target_schema overrides the default schema for the source (EDGE or SITELINK) when the Snowflake schema is named differently.
-    args.target_schema = args.target_schema or source["target_schema"]
-    if source["target_system"] is None:
-        # Athena and Redshift have no Snowflake name of their own. --target_database gives it, and it is written as it is.
-        if args.target_database is None:
-            raise ValueError(f"--target_database is required for {source['label']}")
-        args.target_template = args.target_database
-        return args
     token = ENV_TOKENS.get(args.environment)
     if token is None:
         raise ValueError(f"unknown --environment {args.environment}: expected one of {', '.join(ENV_TOKENS)}")
-    expected = f"{token}_{source['target_system']}_BRONZE"
-    if args.target_database not in (None, expected):
-        raise ValueError(f"--target_database {args.target_database} does not match --environment {args.environment} "
-                         f"({expected}). Leave --target_database out: the environment picks the database.")
-    args.target_database = expected
-    args.target_template = f"{ENV_PLACEHOLDER}_{source['target_system']}_BRONZE"
+    args.target_database = args.target_template.replace(ENV_PLACEHOLDER, token) if args.target_template else None
     return args
 
 
 def generate(args, source_db, target_db, config_dir, global_excluded, table_rules, log, stamp, file_filters=None,
              create_only=False):
-    """Write the YAML for every requested table. Returns results.
+    """Write the YAML for the tables of one location. Returns results.
 
+    args          resolve_args() output for one location: args.tables are table names (run_for_validation() turns 'all'
+                  into the workbook's names), and the schemas and Snowflake database are those of their workbook row.
     results       (table, kind, status, detail). status is one of the statuses in the module docstring.
     One table failing does not stop the others. Nothing is deleted. A table that is not in the source or not in Snowflake
     is FAILED, and the YAML it already has is left as it is; main.py does not validate it. A table with no usable key
@@ -121,34 +118,17 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
     want_count = args.count_validation == "yes"
 
     # An empty listing would make every table look missing. Refused before anything is read or written.
-    schema_tables = db_rules.list_tables(source_db, args.source_schema, rules=source)
-    if not schema_tables:
-        raise ValueError(f"no tables visible in source schema {args.source_schema}: check --source_schema and the role's "
-                         f"access (nothing was changed)")
-    # 'all' is the table list of this database's filter workbooks (PREFIXES in filter_files.py). A database with no layout
-    # there uses the source listing.
-    if "all" in args.tables and args.source_type in filter_files.LAYOUTS:
-        tables = filter_files.workbook_tables(args.source_type, args.run_type, log=log)
-        if not tables:
-            raise ValueError(f"--tables all: no table names in the filter workbooks for {source['label']} (their file names "
-                             f"start with a known prefix: {', '.join(filter_files.PREFIXES)}). Name the tables instead.")
-    else:
-        tables = schema_tables if "all" in args.tables else args.tables
+    if not db_rules.list_tables(source_db, args.source_schema, rules=source):
+        raise ValueError(f"no tables visible in source schema {args.source_schema}: check source_schema in the filter "
+                         f"workbook and the role's access (nothing was changed)")
     if not db_rules.list_tables(target_db, args.target_schema, prefix=f"{args.target_database}."):
         raise ValueError(f"no tables visible in Snowflake schema {args.target_database}.{args.target_schema}: check "
-                         f"--target_schema and the role's access (nothing was changed)")
+                         f"target_database and target_schema in the filter workbook, and the role's access (nothing was changed)")
     results = []
     count_entries = {}
     counted = count_table_names(config_dir, layer) if create_only else set()
 
-    if "all" in args.tables:
-        # A YAML this generator wrote for a table that is no longer in the source is left as it is, and not validated.
-        left = sorted(generated_tables(config_dir, layer, args.target_template, args.source_schema) - set(tables))
-        if left:
-            log.warning("Generated YAML for %s is not in the table list (filter workbooks) for %s. It is left unchanged and not validated.",
-                        ", ".join(left), layer)
-
-    for table in tables:
+    for table in args.tables:
         rule = table_rules.get(table, settings.TableRule())
         # The rules workbook wins for a side it sets. The filter workbook fills in the other side.
         file_source, file_target = (file_filters or {}).get(table, (None, None))
@@ -266,52 +246,104 @@ def tables_missing_yaml(layer_type: str, run_type: str, tables, data_validation:
             or (count_validation == "yes" and table not in counted)]
 
 
-def run_for_validation(layer_type, tables, environment, run_type, data_validation, count_validation,
-                       source_schema=None, target_database=None, target_schema=None, rules_file=None,
-                       use_filter_files=False, create_only=False, log=None):
+def workbook_spelling(layer_type, run_type, tables) -> list:
+    """The table names as the layer's filter workbook writes them (case is ignored), for main.py before anything runs.
+
+    'all', a name not in the workbook, and a workbook that cannot be read leave the names as typed: run_for_validation()
+    reports those.
+    """
+    try:
+        return filter_files.spelled(tables, filter_files.read(layer_type.replace("bronze_", "", 1), run_type))
+    except (ValueError, KeyError):  # KeyError: a layer with no engine in db_rules.RULES
+        return list(tables)
+
+
+def run_for_validation(layer_type, tables, environment, run_type, data_validation, count_validation, rules_file=None,
+                       use_filter_files=True, create_only=False, log=None):
     """Check and update the YAML for one main.py run. Returns (results, ready_tables).
 
+    Where each table lives comes from its row in the filter workbooks (filter_files.read()), not from arguments. The tables
+    are grouped by that location (application, schemas, Snowflake database) and generated one group at a time.
+    use_filter_files  True applies the rows' filter cells; False reads only the locations and compares whole tables.
+
     results       (table, kind, status, detail) for every table and kind, as in generate(). The per-column comparison
-                  is written to the log only.
-    ready_tables  the tables that can be validated now: no table-level FAILED (not in the source or Snowflake, or an error),
-                  and at least one result NEW, UPDATED, UNCHANGED or PRESENT. A FAILED data result does not block the
-                  count. The validators run on these tables only.
-    Raises ValueError, with nothing written, when the run cannot start: a bad argument, a settings problem, or a
-    connection that cannot be opened. main.py reports it and does not validate.
+                  is written to the log only. A named table with no workbook row is FAILED. A location whose schema lists no
+                  table FAILS its own tables, and the other locations go on.
+    ready_tables  the tables that can be validated now: no table-level FAILED (no workbook row, not in the source or
+                  Snowflake, or an error), and at least one result NEW, UPDATED, UNCHANGED or PRESENT. A FAILED data result
+                  does not block the count. The validators run on these tables only.
+    Raises ValueError, with nothing written, when the run cannot start: a bad argument, a bad workbook row, a settings
+    problem, or a connection that cannot be opened. main.py reports it and does not validate.
     """
+    source_type = layer_type.replace("bronze_", "", 1)
+    if source_type not in db_rules.SOURCE_TYPES:
+        raise ValueError(f"--layer_type {layer_type} has no YAML generation: db_rules.RULES has no engine '{source_type}'")
     args = resolve_args(SimpleNamespace(
-        source_type=layer_type.replace("bronze_", "", 1), tables=tables, environment=environment,
-        data_validation=data_validation, count_validation=count_validation, source_schema=source_schema,
-        target_database=target_database, target_schema=target_schema, run_type=run_type))
-    layer = f"bronze_{args.source_type}"
+        source_type=source_type, tables=tables, environment=environment, data_validation=data_validation,
+        count_validation=count_validation, run_type=run_type, source_schema=None, target_template=None, target_schema=None))
+    label = RULES[source_type]["label"]
+    layer = f"bronze_{source_type}"
     config_dir = config_dir_for(layer, run_type)
+
+    # The workbooks first: they say where every table lives. A bad row stops the run before anything is read or written.
+    try:
+        rows = filter_files.read(source_type, run_type, log=log)
+    except ValueError as exc:
+        raise ValueError(f"Filter workbook problem: {exc}") from exc
+    if not rows:
+        raise ValueError(f"no table in the filter workbook {filter_files.WORKBOOKS[source_type]}: add one row per table, with "
+                         f"source_database {label} and its source and target columns")
+    # A name is matched without regard to case, and the workbook's spelling is used from here on (--tables addresses is Addresses).
+    requested = list(rows) if "all" in tables else filter_files.spelled(tables, rows)
+    results = [(table, "table", "FAILED", f"no row in the filter workbooks for {label}, so its schema is not known; "
+                                          f"nothing was changed") for table in requested if table not in rows]
+    by_location = {}
+    for table in requested:
+        if table in rows:
+            by_location.setdefault(rows[table].location, []).append(table)
 
     try:
         rules_path = settings.pick_rules_file(rules_file)
-        table_rules = settings.load_table_rules(rules_path, args.source_type, args.source_schema) if rules_path else {}
+        table_rules = {where: settings.load_table_rules(rules_path, source_type, where.source_schema) if rules_path else {}
+                       for where in by_location}
     except (FileNotFoundError, ValueError) as exc:
         raise ValueError(f"Settings problem: {exc}") from exc
-    global_excluded = settings.load_exclusions(source_type=args.source_type)
-    log.info("Rules workbook: %s (%d table rule(s) for %s.%s); exclusions for %s and snowflake: %d",
-             rules_path or "none", len(table_rules), args.source_type, args.source_schema, args.source_type, len(global_excluded))
+    global_excluded = settings.load_exclusions(source_type=source_type)
+    log.info("Rules workbook: %s; exclusions for %s and snowflake: %d", rules_path or "none", source_type, len(global_excluded))
 
     try:
         # The same cached connections the validators use. They are closed by main.py, not here.
-        source_db = get_database(args.source_type, str(FRAMEWORK_ROOT), args.environment)
-        target_db = get_database("snowflake", str(FRAMEWORK_ROOT), args.environment)
+        source_db = get_database(source_type, str(FRAMEWORK_ROOT), environment)
+        target_db = get_database("snowflake", str(FRAMEWORK_ROOT), environment)
     except (FileNotFoundError, KeyError) as exc:
         # Missing creds/<env>.yaml (FileNotFoundError) or a missing block in it, e.g. no 'snowflake' key (KeyError).
-        raise ValueError(f"Cannot open the connections for --environment {args.environment}: {exc}. "
-                         f"Check creds/{args.environment}.yaml.") from exc
+        raise ValueError(f"Cannot open the connections for --environment {environment}: {exc}. "
+                         f"Check creds/{environment}.yaml.") from exc
 
-    # Row filters from yaml_generation/Filter-files-excel/, for this run type. Read only when asked for.
-    file_filters = (filter_files.load(args.source_type, args.source_schema, args.target_template, args.target_schema,
-                                      run_type, log=log) if use_filter_files else None)
+    # Row filters from the same rows, for this run type. Only the requested tables, so the log names no other table.
+    file_filters = (filter_files.filters({table: rows[table] for group in by_location.values() for table in group}, log=log)
+                    if use_filter_files else None)
 
     stamp = datetime.now().isoformat(timespec="seconds")
     log.info("YAML generation into %s", config_dir)
-    results = generate(args, source_db, target_db, config_dir, global_excluded,
-                       table_rules, log, stamp, file_filters=file_filters, create_only=create_only)
+    for where, names in by_location.items():
+        group = resolve_args(SimpleNamespace(**{**vars(args), "tables": names, "source_schema": where.source_schema,
+                                                "target_template": where.target_database, "target_schema": where.target_schema}))
+        log.info("%s: %d table(s), %s schema %s -> Snowflake %s.%s, %d table rule(s)", where.application, len(names), label,
+                 where.source_schema, group.target_database, where.target_schema, len(table_rules[where]))
+        try:
+            results += generate(group, source_db, target_db, config_dir, global_excluded, table_rules[where], log, stamp,
+                                file_filters=file_filters, create_only=create_only)
+        except ValueError as exc:
+            # A schema that lists no table. Its tables FAIL; the next location still runs.
+            log.error("%s: %s", where.application, exc)
+            results += [(table, "table", "FAILED", str(exc)) for table in names]
+        if "all" in tables:
+            # A YAML this generator wrote for a table that is no longer in the workbooks is left as it is, and not validated.
+            left = sorted(generated_tables(config_dir, layer, where.target_database, where.source_schema) - set(rows))
+            if left:
+                log.warning("Generated YAML for %s is not in the filter workbooks for %s. It is left unchanged and not validated.",
+                            ", ".join(left), where.application)
     for table, kind, status, detail in results:
         log.info("YAML %-9s %-35s %-17s %s", status, table, kind, detail)
 

@@ -30,6 +30,10 @@ Exclusions come from two places. `settings/exclusions.yaml` lists columns per da
 | PG-18 | PostgreSQL | Is --from_date (removed) refused with exit 2, before any folder or YAML is created? | Works | `test_pg_18_a_misspelt_argument_is_refused_before_anything_is_written` |
 | PG-19 | PostgreSQL | With legacy_code excluded under postgres, is it left out of the postgres side AND the Snowflake side? | Works | `test_pg_19_a_postgres_exclusion_leaves_the_column_out_of_both_sides` |
 | PG-20 | PostgreSQL | With legacy_code excluded under snowflake, is it left out of a postgres run on both sides? | Works | `test_pg_20_a_snowflake_exclusion_applies_to_a_postgres_run_on_both_sides` |
+| PG-21 | PostgreSQL | With neither --yaml_generation nor --filter_files given, are both yes on a bronze run (YAML written, filter in it)? | Works | `test_pg_21_without_the_flags_the_yaml_is_generated_and_the_filter_applied` |
+| PG-22 | PostgreSQL | On a second default run with nothing changed, is the YAML left alone (UNCHANGED, same text)? | Works | `test_pg_22_an_unchanged_table_is_not_rewritten_by_the_default_run` |
+| PG-23 | PostgreSQL | Is --source_schema (now read from the workbook) refused as an unknown argument, before anything is written? | Works | `test_pg_23_the_location_arguments_are_gone` |
+| PG-24 | PostgreSQL | Is a source table with no workbook row (extra) FAILED with the reason, while units is still validated? | Works | `test_pg_24_a_table_named_but_not_in_the_workbook_fails_and_the_others_validate` |
 | MS-01 | SQL Server | With --filter_files yes, is a SiteLink filter without a bind parameter (Units: UnitID > 100) written into the YAML? | Works | `test_ms_01_filter_yes_applies_a_plain_sitelink_filter` |
 | MS-02 | SQL Server | With --filter_files yes, does Addresses (filter uses :scorpcode, no value) load in full with a warning, and still generate? | Works | `test_ms_02_a_bind_parameter_filter_loads_its_table_in_full` |
 | MS-03 | SQL Server | With --filter_files no, is Units' SiteLink filter ignored? | Works | `test_ms_03_filter_no_writes_the_whole_table` |
@@ -41,8 +45,10 @@ Exclusions come from two places. `settings/exclusions.yaml` lists columns per da
 | MS-09 | SQL Server | On an incremental run, is Addresses (no dUpdated on either side) written with the window by name on both sides, with a WARNING for each side, and exit 0? | Works | `test_ms_09_an_incremental_table_without_dupdated_is_written_with_the_window_by_name` |
 | MS-10 | SQL Server | Does Lookup (no primary key) fail its data with exit 1, with its count still written? | Works | `test_ms_10_a_table_without_a_primary_key_fails_its_data_and_still_counts` |
 | MS-11 | SQL Server | With --tables all, are the tables Units, Addresses and Lookup (the SiteLink workbook), and not Charges (in the source only)? | Works | `test_ms_11_tables_all_takes_the_names_from_the_sitelink_workbook` |
-| MS-12 | SQL Server | With a target schema that does not exist, does the run stop with exit 1 and write no YAML? | Works | `test_ms_12_a_wrong_target_schema_writes_nothing` |
+| MS-12 | SQL Server | With a target_schema in the workbook that does not exist in Snowflake, does Units fail with exit 1 and no YAML? | Works | `test_ms_12_a_wrong_target_schema_writes_nothing` |
 | MS-13 | SQL Server | With dcwidth excluded under snowflake, is it left out of a SQL Server run on both sides? | Works | `test_ms_13_a_snowflake_exclusion_applies_to_a_sql_server_run_on_both_sides` |
+| MS-14 | SQL Server | Does a SQL Server run read schema dbo and Snowflake {env}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO from the SiteLink rows? | Works | `test_ms_14_the_sql_server_location_comes_from_its_workbook` |
+| ALL-01 | Any | Does a silver run, which has no generator, still default --yaml_generation and --filter_files to no? | Works | `test_other_layers_keep_both_flags_off_by_default` |
 
 ## Not covered by these cases
 

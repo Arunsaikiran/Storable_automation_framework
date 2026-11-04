@@ -55,7 +55,10 @@ def validate_schema(ctx):
     if tables[0] == 'all':
         table_list = list(table_config.keys())
     else:
-        table_list = tables
+        # CHANGE: YAML generation. A table name is matched to the config keys without regard to case (--tables Addresses finds
+        # the key addresses), as the filter workbook is. A name with no key in any case is still refused below.
+        config_keys = {str(key).lower(): key for key in table_config}
+        table_list = [config_keys.get(str(table).lower(), table) for table in tables]
         invalid_tables = list(set(table_list) - set(list(table_config.keys())))
         if invalid_tables:
             raise ValueError(f"Invalid table name(s) in configuration: {', '.join(invalid_tables)}")

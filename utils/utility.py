@@ -498,48 +498,31 @@ def parse_arguments():
         choices=['yes','no']
     )
 
-    # CHANGE: YAML generation. 'yes' writes or refreshes the YAML for the requested tables from the live source and Snowflake
-    # structure before the validators run (main.py calls yaml_generation/generate_yaml.py). 'no' (default) validates the YAML
-    # already in config/, as before.
+    # CHANGE: YAML generation. 'yes' checks the YAML for the requested tables against the live source and Snowflake structure
+    # before the validators run, and rewrites only a YAML whose content changed (UNCHANGED is left alone). 'no' validates the YAML
+    # already in config/, and only creates a missing one. The default is 'yes' for bronze_postgres and bronze_mssql, and 'no'
+    # for every other layer (they have no generator); it is filled in after parsing, below.
     parser.add_argument(
         "--yaml_generation",
         nargs=1,
         required=False,
-        default=['no'],
+        default=None,
         choices=['yes','no']
     )
 
-    # CHANGE: YAML generation. Used only with --yaml_generation 'yes'. The defaults are set in yaml_generation/db_rules.py and
-    # yaml_generation/generate_yaml.py: --source_schema is the schema in the source database, --target_database the Snowflake
-    # database (default follows --environment), --target_schema the Snowflake schema under it.
-    parser.add_argument(
-        "--source_schema",
-        required=False,
-        default=None
-    )
+    # CHANGE: YAML generation. --source_schema, --target_database and --target_schema were removed. Each table's application,
+    # source schema, Snowflake database and Snowflake schema are read from its row in the filter workbook
+    # (yaml_generation/Filter-files-excel/), the one source of truth, so a run needs fewer arguments.
 
-    # CHANGE: YAML generation. See --source_schema.
-    parser.add_argument(
-        "--target_database",
-        required=False,
-        default=None
-    )
-
-    # CHANGE: YAML generation. See --source_schema.
-    parser.add_argument(
-        "--target_schema",
-        required=False,
-        default=None
-    )
-
-    # CHANGE: YAML generation. 'yes' applies the row filters in yaml_generation/Filter-files-excel/ to the generated YAML: the
-    # historical column for --run_type historical, the incremental column for --run_type incremental. A filtered table is then
-    # a part of the big table, so it fits in memory. 'no' (default) loads every row. Used only with --yaml_generation 'yes'.
+    # CHANGE: YAML generation. 'yes' applies the row filters in the filter workbooks to the generated YAML: the historical column
+    # for --run_type historical, the incremental column for --run_type incremental. A filtered table is then a part of the big
+    # table, so it fits in memory. 'no' loads every row (the workbook is still read for where each table lives). The default is
+    # 'yes' for the two bronze layers and 'no' for the others, like --yaml_generation.
     parser.add_argument(
         "--filter_files",
         nargs=1,
         required=False,
-        default=['no'],
+        default=None,
         choices=['yes','no']
     )
 
@@ -576,14 +559,20 @@ def parse_arguments():
     # because the generated YAML had no window. The generated queries now hold the incremental window (:start_time, :end_time),
     # so an incremental run no longer needs the filter workbook.
 
+    # CHANGE: YAML generation. The defaults of --yaml_generation and --filter_files: 'yes' for the two bronze layers, which have a
+    # generator and filter workbooks, and 'no' for every other layer, so a silver, reports or sanity run is unchanged. A value
+    # given on the command line is kept, so the checks below still refuse an explicit 'yes' on another layer.
+    for flag in ("yaml_generation", "filter_files"):
+        if getattr(args, flag) is None:
+            setattr(args, flag, ['yes' if layer_type[0] in ("bronze_postgres", "bronze_mssql") else 'no'])
+
     # CHANGE: YAML generation. The generator reads the source and Snowflake catalogues of the layer's own database. Only the two
     # bronze layers have a generator (yaml_generation/db_rules.py).
     if args.yaml_generation[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
         parser.error("--yaml_generation 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql'.")
 
-    # CHANGE: YAML generation. The filter workbooks hold statements for PostgreSQL and SQL Server only, each read for its own
-    # database (LAYOUTS in yaml_generation/filter_files.py). Any other layer would get no filter, so an incremental run would
-    # compare whole tables.
+    # CHANGE: YAML generation. The filter workbooks hold rows for the bronze engines only (the source_database column in
+    # yaml_generation/filter_files.py). Any other layer would get no filter, so an incremental run would compare whole tables.
     if args.filter_files[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
         parser.error("--filter_files 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql' (the filter workbooks are for those two).")
 
