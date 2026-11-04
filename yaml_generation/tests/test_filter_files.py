@@ -72,7 +72,7 @@ def test_quoted_text_is_read_as_text_not_as_sql():
     "select count(*) from events j join facilities f on j.facility_id=f.id where f.company_id = 1 or j.created_at > '2025-01-01'",
     "select count(*) from events j left join facilities f on j.facility_id=f.id where f.company_id = 1",
     "select count(*) from events j join facilities f on j.facility_id=f.id where j.created_at > f.created_at",
-    "select count(*) from events j join facilities f on j.facility_id=f.name where f.company_id = 1",
+    "select count(*) from events j join facilities f on j.facility_id=j.id where f.company_id = 1",
     "select count(*) from events where status between 'a' and 'b'",
     "select count(*) from events where id in (select id from other)",
     "select count(*) from events e join events e on e.id=e.id",
@@ -298,6 +298,13 @@ MS_ARGS = ("mssql", "dbo", "DEV_SITELINK_BRONZE", "SITELINK")
 def test_sql_server_joins_are_written_with_brackets():
     src, _ = ff.convert("select count(*) from AcctTypes j join Promotions p on j.promo_id=p.id where p.active = 1", *MS_ARGS)
     assert src == "promo_id IN (SELECT id FROM [dbo].[Promotions] WHERE active = 1)"
+
+
+def test_sitelink_joins_on_its_own_keys_through_sites_to_owners():
+    src, _ = ff.convert("select count(*) from Units t join Sites s on t.SiteID = s.SiteID join Owners o on s.OwnerID = o.OwnerID "
+                        "where o.sCorpCode in ('SLQA', 'CVIJAY')", *MS_ARGS)
+    assert src == ("SiteID IN (SELECT SiteID FROM [dbo].[Sites] WHERE OwnerID IN "
+                   "(SELECT OwnerID FROM [dbo].[Owners] WHERE sCorpCode in ('SLQA', 'CVIJAY')))")
 
 
 def test_a_bind_parameter_is_refused_because_it_has_no_value():
