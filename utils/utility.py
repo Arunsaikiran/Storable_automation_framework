@@ -672,7 +672,7 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
 
     control_df = pd.read_csv(control_file)
     rows = (control_df[(control_df['table'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
-
+s
     if rows.empty:
         raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
     previous_sync_date = rows.iloc[0]
@@ -701,7 +701,7 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
     target_df =  target_conn.execute_query(target_query)
     if pd.isna(target_df['MIN_FIVETRAN_START'].iloc[0]) or pd.isna(target_df['MAX_FIVETRAN_START'].iloc[0]):
         logger.info(f"No new data has been ingested for this time period: table '{table_name.lower()}' ({layer}), {previous_sync_date} to {sync_date}")
-        update_control_table(control_file, table_name, layer, validation, sync_date)
+        #update_control_table(control_file, table_name, layer, validation, sync_date)
         raise NoNewDataError(f"No new data for {table_name.lower()} ({layer}) between {previous_sync_date} and {sync_date}")
     min_ts = pd.Timestamp(target_df['MIN_FIVETRAN_START'].iloc[0])
     max_ts = pd.Timestamp(target_df['MAX_FIVETRAN_START'].iloc[0])
@@ -731,11 +731,6 @@ def update_control_table(file_location, table_name, layer, validation, sync_date
         if validation == 'data'
         else 'count_validation_last_run_date'
     )
-    print("-"*100)
-    print(layer)
-    print(table_name)
-    print(table_name.lower())
-    print("-"*100)
     control_df = pd.read_csv(file_location, dtype=str)
     mask = (
         (control_df['table'] == table_name.lower()) &
