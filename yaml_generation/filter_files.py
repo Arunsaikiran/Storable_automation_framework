@@ -35,15 +35,25 @@ The filter cell
   The cell does not start with "select count(*) from": the framework adds it. A cell that does start with "select"
   is read as it is.
 
-  It becomes one condition per side. Each join becomes a sub-select on the foreign key:
+  It becomes one condition per side. Each join becomes a sub-select on the joined column:
 
       created_at >= '2024-08-01' AND facility_id IN (SELECT id FROM "public"."facilities" WHERE company_id IN (137,9088,501))
 
-  The Snowflake side is built from the same cell, so both sides keep the same rows.
+  The key need not be id. SiteLink joins on its own keys, through Sites to Owners:
+
+      Units t
+      join Sites s on t.SiteID = s.SiteID
+      join Owners o on s.OwnerID = o.OwnerID
+      where o.sCorpCode in ('SLQA', 'STP2DEV')
+
+  becomes  SiteID IN (SELECT SiteID FROM [dbo].[Sites] WHERE OwnerID IN (SELECT OwnerID FROM [dbo].[Owners] WHERE sCorpCode in (...)))
+
+  The Snowflake side is built from the same cell, so both sides keep the same rows. A sub-select keeps each row once, as
+  a filter should, even where an inner join on a key that is not unique would repeat it.
 
 Shapes read
   - select count(*) from <table> [alias], then inner joins, then an optional where clause joined with AND.
-  - Each join is  <table> [alias] on <a>.<column> = <alias>.id, where <a> is already in the statement.
+  - Each join is  <table> [alias] on <a>.<column> = <alias>.<key>, where <a> is already in the statement.
   - A condition uses one table. A bare column belongs to the first table. Joins chain (a table joined to a joined table).
   - A cell with only conditions, no table line and no join (e.g. created_at >= '2026-08-01'), is about the row's table.
 
@@ -129,7 +139,7 @@ class _Plan:
     base: str                                          # alias of the first table
     tables: dict = field(default_factory=dict)         # alias -> table name, as written
     own: dict = field(default_factory=dict)            # alias -> conditions that use only that table
-    joins: dict = field(default_factory=dict)          # alias -> [(column, parent alias)], one sub-select each
+    joins: dict = field(default_factory=dict)          # alias -> [(column, parent alias, parent key)], one sub-select each
 
 
 @dataclass
@@ -201,21 +211,22 @@ def _plan(statement) -> _Plan:
     for piece in join_parts[1:]:
         join = JOIN_ON.match(piece.strip())
         if not join:
-            raise Refused(f"join not read: '{piece.strip()}'. Write it as: join <table> <alias> on <alias>.<column> = <alias>.id")
+            raise Refused(f"join not read: '{piece.strip()}'. Write it as: join <table> <alias> on <alias>.<column> = <alias>.<key>")
         new_table, new_alias = join.group(1), (join.group(2) or join.group(1)).lower()
-        a_alias, a_col, b_alias, b_col = (join.group(i).lower() for i in (3, 4, 5, 6))
+        # Aliases are matched in lower case; column names are kept as written (SiteID stays SiteID).
+        a_alias, a_col, b_alias, b_col = join.group(3).lower(), join.group(4), join.group(5).lower(), join.group(6)
         if new_alias in plan.tables:
             raise Refused(f"alias '{new_alias}' is used twice")
-        # The joined table must be the one with the id. The other side is a table already in the statement.
-        if a_alias == new_alias and a_col == "id" and b_alias in plan.tables:
-            old, column = b_alias, b_col
-        elif b_alias == new_alias and b_col == "id" and a_alias in plan.tables:
-            old, column = a_alias, a_col
+        # One side is the joined table's key column (id, SiteID, OwnerID ...); the other is a table already in the statement.
+        if a_alias == new_alias and b_alias in plan.tables:
+            old, column, key = b_alias, b_col, a_col
+        elif b_alias == new_alias and a_alias in plan.tables:
+            old, column, key = a_alias, a_col, b_col
         else:
-            raise Refused(f"join '{piece.strip()}' must link a table already in the statement to {new_table}.id")
+            raise Refused(f"join '{piece.strip()}' must link a table already in the statement to a column of {new_table}")
         plan.tables[new_alias] = new_table
         plan.own[new_alias] = []
-        plan.joins.setdefault(old, []).append((column, new_alias))
+        plan.joins.setdefault(old, []).append((column, new_alias, key))
 
     for condition in (_split_and(where_text) if where_text else []):
         if not condition:
@@ -239,11 +250,11 @@ def _plan(statement) -> _Plan:
 def _where(plan: _Plan, alias: str, side: _Side) -> list:
     """The conditions for one table: its own, then one sub-select for each join from it to a parent table."""
     parts = list(plan.own[alias])
-    for column, parent in plan.joins.get(alias, []):
+    for column, parent, key in plan.joins.get(alias, []):
         inner = _where(plan, parent, side)
         if side.active:
             inner.append(side.active)
-        sub = f"SELECT id FROM {side.ref(plan.tables[parent])}"
+        sub = f"SELECT {key} FROM {side.ref(plan.tables[parent])}"
         if inner:
             sub += " WHERE " + " AND ".join(inner)
         parts.append(f"{column} IN ({sub})")
@@ -438,6 +449,15 @@ if __name__ == "__main__":
     assert src == ("created_at >= '2026-08-01' AND discount_plan_ledger_instance_id IN "
                    '(SELECT id FROM "public"."discount_plan_ledger_instances")'), src
 
+    # A join on a named key (SiteLink: Sites by SiteID, Owners by OwnerID). Column case is kept.
+    src, tgt = convert("select count(*) from Units t join Sites s on t.SiteID = s.SiteID join Owners o on s.OwnerID = o.OwnerID "
+                       "where o.sCorpCode in ('SLQA')", "mssql", "dbo", "{env}_SITELINK_BRONZE", "AWSDEV_DEVT5000_DBO")
+    assert src == ("SiteID IN (SELECT SiteID FROM [dbo].[Sites] WHERE "
+                   "OwnerID IN (SELECT OwnerID FROM [dbo].[Owners] WHERE sCorpCode in ('SLQA')))"), src
+    assert tgt == ('SiteID IN (SELECT SiteID FROM {env}_SITELINK_BRONZE."AWSDEV_DEVT5000_DBO"."SITES" WHERE '
+                   'OwnerID IN (SELECT OwnerID FROM {env}_SITELINK_BRONZE."AWSDEV_DEVT5000_DBO"."OWNERS" '
+                   "WHERE sCorpCode in ('SLQA') AND _FIVETRAN_ACTIVE = TRUE) AND _FIVETRAN_ACTIVE = TRUE)"), tgt
+
     # Refused: each one names the reason. The table is then loaded in full.
     for bad in [
         "select count(*) from transactions  j join facilities f on j.facility_id=f.id where f.company_id in (137) "
@@ -445,7 +465,7 @@ if __name__ == "__main__":
         "select count(*) from events j join facilities f on j.facility_id=f.id where f.company_id = 1 or j.created_at > '2025-01-01'",
         "select count(*) from events j left join facilities f on j.facility_id=f.id where f.company_id = 1",
         "select count(*) from events j join facilities f on j.facility_id=f.id where j.created_at > f.created_at",
-        "select count(*) from events j join facilities f on j.facility_id=f.name where f.company_id = 1",
+        "select count(*) from events j join facilities f on j.facility_id=j.id where f.company_id = 1",  # does not reach f
         "delete from events where created_at > '2025-01-01'",
     ]:
         try:
