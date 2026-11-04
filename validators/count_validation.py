@@ -1,6 +1,7 @@
 import yaml
 from db.factory import get_database, close_all_databases
 from utils.utility import get_logger,get_incremental_dates,update_control_table
+from utils.exceptions import NoNewDataError,NoNewSyncError
 from datetime import datetime,timedelta
 import time
 import pyodbc
@@ -99,7 +100,7 @@ def validate_count(ctx):
                 source_table_name = validation_config.get("source_table_name",'')
                 target_table_name = validation_config.get("target_table_name",'')
             
-                max_fivetran_start = None
+                sync_date = None
                 try:
                     batch_start_time = datetime.now()
                     source_df = pd.DataFrame()
@@ -123,7 +124,7 @@ def validate_count(ctx):
                         # CHANGE: YAML generation. The freshness check also runs for a generated YAML: its queries hold the
                         # same :start_time and :end_time placeholders as a hand-written one.
                         #Check freshness, then get the latest sync date (fivetran) and previous sync date (control table)
-                        max_fivetran_start,min_fivetran_start = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'count')
+                        max_fivetran_start,min_fivetran_start,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'count')
                         for key, value in {
                             "start_time": min_fivetran_start,
                             "end_time": max_fivetran_start
@@ -166,9 +167,9 @@ def validate_count(ctx):
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
                         create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0])
-                        if max_fivetran_start is not None:
+                        if sync_date is not None:
                             logger.info("Updating control table")
-                            update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start)
+                            update_control_table(control_table_path,target_table_name,layer[0],'count',sync_date)
 
                     else:
                         logger.info("Match/Mismatch: Mismatch")
@@ -188,12 +189,16 @@ def validate_count(ctx):
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
                         create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0])
-                        # CHANGE: YAML generation. As on PASS, the control table is updated only when there is a freshness watermark.
-                        # A historical run has no sync date, and writing it would store 'None' as the watermark.
-                        if max_fivetran_start is not None:
+                        if sync_date is not None:
                             logger.info("Updating control table")
-                            update_control_table(control_table_path,target_table_name,layer[0],'count',max_fivetran_start)
+                            update_control_table(control_table_path,target_table_name,layer[0],'count',sync_date)
                         print("+"*100)
+
+                except NoNewSyncError:
+                    continue
+            
+                except NoNewDataError:
+                    continue
 
                 except (pyodbc.Error, psycopg2.Error):
                     error_message = (f"Database/network error for table={table_name} for validation={validation_name}\n {traceback.format_exc()}")

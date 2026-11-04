@@ -9,6 +9,7 @@ import argparse
 from dataclasses import dataclass
 import yaml
 import requests
+from utils.exceptions import NoNewDataError,NoNewSyncError
 
 
 #Generating runids
@@ -408,10 +409,14 @@ def add_file_handler(
 
     log_file = Path(os.path.join(log_directory,log_filename))
 
+    # Every module has its own logger (get_logger(__name__)), so the file handler goes on the root logger;
+    # their records propagate to it and all land in the same file.
+    root_logger = logging.getLogger()
+
     # Prevent the same file handler from being added more than once.
     existing_files = {
         Path(handler.baseFilename).resolve()
-        for handler in logger.handlers
+        for handler in root_logger.handlers
         if isinstance(handler, logging.FileHandler)
     }
 
@@ -431,7 +436,7 @@ def add_file_handler(
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
 
-    logger.addHandler(file_handler) 
+    root_logger.addHandler(file_handler)
 
     logger.info("Log file location: %s", log_file.resolve())
 
@@ -616,26 +621,35 @@ def check_freshness(source_conn,target_conn,source_table_name,target_table_name,
         SELECT max(updated_at) as max_date from {source_table_name}
             """
         target_query = f"""
-            SELECT max(updated_at) as max_date from storedge_fms_public.{target_table_name}
+            SELECT max(updated_at) as max_date from DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
             """
     elif layer_type == "bronze_mssql":
         source_query = f"""
-        SELECT max(dupdated) as max_date from {source_table_name}
+        SELECT max(dUpdated) as max_date from {source_table_name}
             """
         target_query = f"""
-            SELECT max(dupdated) as max_date from storedge_fms_public.{target_table_name}-
+            SELECT max(dUpdated) as max_date from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
             """
-    target_df = source_conn.execute_query(source_query)
-    source_df = target_conn.execute_query(target_query)
+    print(source_query)
+    source_df = source_conn.execute_query(source_query)
+    print(target_query)
+    target_df = target_conn.execute_query(target_query)
 
-    hours = (target_df['max_date'] - source_df['MAX_DATE']).dt.total_seconds() / 3600
-    value = int(hours.iloc[0])
+    print("Source date",source_df['max_date'])
+    print("Target date",target_df['MAX_DATE'])
+    hours = (source_df['max_date'] - target_df['MAX_DATE']).dt.total_seconds() / 3600
+    print("Hours:",hours)
+    value = hours.iloc[0]
 
-    if value > threshold:
+    if pd.isna(value) or value > threshold:
         freshness_check = 'Fail'
     return freshness_check
 
 def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name):
+    print('-'*100)
+    print('validation:',validation)
+    print('-'*100)
+
 
     yaml_path = os.path.join(base_dir,"creds","api.yaml")
     control_file = os.path.join(base_dir,'control_table.csv')
@@ -652,6 +666,10 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
     dt = datetime.fromisoformat(d['data']['succeeded_at'])
     sync_date = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + dt.strftime('%z')
     date_column = 'data_validation_last_run_date' if validation == 'data' else 'count_validation_last_run_date'
+    print('-'*100)
+    print('date_column',date_column)
+    print('-'*100)
+
     control_df = pd.read_csv(control_file)
     rows = (control_df[(control_df['table'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
 
@@ -660,23 +678,52 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
     previous_sync_date = rows.iloc[0]
     logger.info(f"Table '{table_name.lower()}' ({layer}): sync_date={sync_date}, previous_sync_date={previous_sync_date}")
 
-    target_query = f"""
-    SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
-    FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
-    WHERE _FIVETRAN_ACTIVE = TRUE
-    and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
-    """
+    if sync_date == previous_sync_date:
+        raise NoNewSyncError(f"No new sync for {table_name.lower()} ({layer}): sync_date {sync_date} equals previous_sync_date")
 
+    if layer == 'bronze_postgres':
+        target_query = f"""
+        SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
+        FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
+        WHERE _FIVETRAN_ACTIVE = TRUE
+        and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
+        """
+    elif layer == 'bronze_mssql':
+        target_query = f"""
+        SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
+        FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
+        WHERE _FIVETRAN_ACTIVE = TRUE
+        and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
+        """
+    print("-"*100)
+    print(target_query)
+    print("-"*100)
     target_df =  target_conn.execute_query(target_query)
+    if pd.isna(target_df['MIN_FIVETRAN_START'].iloc[0]) or pd.isna(target_df['MAX_FIVETRAN_START'].iloc[0]):
+        logger.info(f"No new data has been ingested for this time period: table '{table_name.lower()}' ({layer}), {previous_sync_date} to {sync_date}")
+        update_control_table(control_file, table_name, layer, validation, sync_date)
+        raise NoNewDataError(f"No new data for {table_name.lower()} ({layer}) between {previous_sync_date} and {sync_date}")
     min_ts = pd.Timestamp(target_df['MIN_FIVETRAN_START'].iloc[0])
     max_ts = pd.Timestamp(target_df['MAX_FIVETRAN_START'].iloc[0])
 
+    # print("-"*100)
+    # print(target_df['MIN_FIVETRAN_START'])
+    # print(target_df['MAX_FIVETRAN_START'])
+    # print(min_ts)
+    # print(max_ts)
+    # print("-"*100)
+
     min_fivetran_start = (min_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + min_ts.strftime('%z'))
     max_fivetran_start = (max_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + max_ts.strftime('%z'))
+    if layer == 'bronze_mssql':
+        # print("Hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
+        import re
+        max_fivetran_start = re.sub(r'\+0000$', '', max_fivetran_start)
+        min_fivetran_start = re.sub(r'\+0000$', '', min_fivetran_start)
 
-    logger.info(f"Table '{table_name.lower()}' ({layer}): max_fivetran_start={max_fivetran_start}, min_fivetran_start={min_fivetran_start}")
+    logger.info(f"Table '{table_name}' ({layer}): max_fivetran_start={max_fivetran_start}, min_fivetran_start={min_fivetran_start}")
     
-    return max_fivetran_start,min_fivetran_start
+    return max_fivetran_start,min_fivetran_start,sync_date
 
 def update_control_table(file_location, table_name, layer, validation, sync_date):
     date_column = (
@@ -684,6 +731,11 @@ def update_control_table(file_location, table_name, layer, validation, sync_date
         if validation == 'data'
         else 'count_validation_last_run_date'
     )
+    print("-"*100)
+    print(layer)
+    print(table_name)
+    print(table_name.lower())
+    print("-"*100)
     control_df = pd.read_csv(file_location, dtype=str)
     mask = (
         (control_df['table'] == table_name.lower()) &
@@ -691,7 +743,7 @@ def update_control_table(file_location, table_name, layer, validation, sync_date
     )
 
     if not mask.any():
-        print(f"No control table row for {table_name.lower()} / {layer}; nothing updated")
+        print(f"No control table row for {table_name.lower()}-{layer}; nothing updated")
         return
 
     updates = {date_column: sync_date}
