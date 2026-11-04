@@ -33,31 +33,39 @@ def detail_of(results, table, kind):
     return next(detail for t, k, _, detail in results if t == table and k == kind)
 
 
-@pytest.fixture(autouse=True)
-def workbook_folder(monkeypatch, tmp_path_factory):
-    """--tables all reads its table names from the filter workbooks. This folder lists the fake tables, so 'all' means
-    units, notes and lookup in these tests, as the fake source holds them."""
-    folder = tmp_path_factory.mktemp("workbooks")
+LOCATION = ["Edge", "PostgreSQL", SOURCE_SCHEMA, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA]
+WORKBOOK_HEADER = ["Target Table Name", "Historical Filter to apply.", "Incremental filters to apply",
+                   *filter_files.LOCATION_HEADERS]
+
+
+def write_filter_workbook(path, rows):
+    """rows: [table, historical filter, incremental filter] (+ location, default LOCATION). Returns the path."""
     book = Workbook()
     ws = book.active
     ws.title = "filters"
-    for row in [["Target Table Name", "Historical Filter to apply.", "Incremental filters to apply"],
-                ["units"], ["notes"], ["lookup"]]:
-        ws.append(row)
-    book.save(folder / "postgres_tables.xlsx")
+    ws.append(WORKBOOK_HEADER)
+    for row in rows:
+        ws.append(list(row[:3]) + [None] * (3 - len(row[:3])) + (list(row[3:]) or LOCATION))
+    book.save(path)
+    return path
+
+
+@pytest.fixture(autouse=True)
+def workbook_folder(monkeypatch, tmp_path_factory):
+    """The filter workbook is where each table lives. This one lists the fake tables at the fake location, so 'all' means
+    units, notes and lookup in these tests, as the fake source holds them."""
+    folder = tmp_path_factory.mktemp("workbooks")
+    write_filter_workbook(folder / "edge_bronze_filters.xlsx", [["units"], ["notes"], ["lookup"]])
     monkeypatch.setattr(filter_files, "FOLDER", folder)
     return folder
 
 
 # --- resolving the arguments -----------------------------------------------------------------------------------
 
-def test_defaults_come_from_the_rules_and_the_environment():
-    args = generate_yaml.resolve_args(SimpleNamespace(source_type="postgres", tables=["units"], environment="dev",
-                                                      data_validation="yes", count_validation="yes", source_schema=None,
-                                                      target_database=None, target_schema=None))
-    assert (args.source_schema, args.target_schema, args.target_database) == \
-        ("public", "STOREDGE_FMS_PUBLIC", "DEV_EDGE_BRONZE")
-    assert args.target_template == "{env}_EDGE_BRONZE"
+def test_the_env_placeholder_is_filled_in_to_read_and_kept_to_write():
+    args = make_args()
+    assert (args.target_database, args.target_template) == ("DEV_EDGE_BRONZE", "{env}_EDGE_BRONZE")
+    assert make_args(environment="prod").target_database == "PRD_EDGE_BRONZE"
 
 
 def test_local_reads_the_dev_database_and_writes_the_placeholder():
@@ -65,26 +73,20 @@ def test_local_reads_the_dev_database_and_writes_the_placeholder():
     assert (args.target_database, args.target_template) == ("DEV_EDGE_BRONZE", "{env}_EDGE_BRONZE")
 
 
+def test_a_target_database_without_the_placeholder_is_read_and_written_as_it_is():
+    args = make_args(target_template="ANALYTICS_DB")
+    assert (args.target_database, args.target_template) == ("ANALYTICS_DB", "ANALYTICS_DB")
+
+
+def test_no_location_is_a_default():
+    """The flags are checked before any workbook is read: no schema or Snowflake name comes from a default."""
+    args = make_args(target_template=None, source_schema=None, target_schema=None)
+    assert (args.source_schema, args.target_schema, args.target_database) == (None, None, None)
+
+
 def test_an_unknown_environment_is_refused():
     with pytest.raises(ValueError, match="unknown --environment uat"):
         make_args(environment="uat")
-
-
-def test_a_target_database_equal_to_the_environment_name_is_accepted():
-    assert make_args(target_database="DEV_EDGE_BRONZE").target_database == "DEV_EDGE_BRONZE"
-
-
-def test_a_target_database_of_another_environment_is_refused():
-    with pytest.raises(ValueError, match="does not match --environment"):
-        make_args(target_database="PRD_EDGE_BRONZE")
-
-
-def test_athena_needs_a_target_database_and_writes_it_as_given():
-    """Athena and Redshift have no Snowflake name of their own, so --target_database gives it, unchanged."""
-    with pytest.raises(ValueError, match="--target_database is required for Athena"):
-        make_args(source_type="athena", source_schema="glue_db")
-    args = make_args(source_type="athena", source_schema="glue_db", target_database="ANY_DB")
-    assert (args.target_database, args.target_template) == ("ANY_DB", "ANY_DB")
 
 
 def test_all_cannot_be_combined_with_table_names():
@@ -95,15 +97,6 @@ def test_all_cannot_be_combined_with_table_names():
 def test_nothing_to_generate_is_refused():
     with pytest.raises(ValueError, match="nothing to generate"):
         make_args(data="no", count="no")
-
-
-@pytest.mark.xfail(strict=True, reason="ISSUE-02: athena with no --source_schema is accepted; the run then reports every table as missing from schema None")
-def test_athena_without_a_schema_is_refused_before_any_table_is_read():
-    args = SimpleNamespace(source_type="athena", tables=["all"], environment="dev", data_validation="yes",
-                           count_validation="yes", source_schema=None, target_database="DEV_X_BRONZE",
-                           target_schema=None, run_type="historical")
-    with pytest.raises(ValueError):
-        generate_yaml.resolve_args(args)
 
 
 # --- a historical run ------------------------------------------------------------------------------------------
@@ -275,27 +268,12 @@ def test_all_never_deletes_a_file_the_generator_did_not_write(tmp_path):
     assert manual.exists()
 
 
-def test_all_takes_the_table_names_from_the_workbook_not_the_source(tmp_path):
-    source = FakeDB({**SOURCE_TABLES, ("edge", "extra"): [("id", "integer")]}, PRIMARY_KEYS)
-    results = run_generate(make_args("historical"), config_dir_for(tmp_path, "historical"), source=source)
-    assert not any(table == "extra" for table, *_ in results), "a source table that no workbook lists is not generated"
-    assert statuses(results)[("units", "data_validation")] == "NEW"
-
-
-def test_all_with_no_table_names_in_the_workbooks_is_refused(tmp_path, monkeypatch):
-    empty = tmp_path / "empty"
-    empty.mkdir()
-    monkeypatch.setattr(filter_files, "FOLDER", empty)
-    with pytest.raises(ValueError, match="no table names in the filter workbooks"):
-        run_generate(make_args("historical"), config_dir_for(tmp_path, "historical"))
-
-
 # --- an incremental run writes to its own folder -----------------------------------------------------------------
 
 def test_an_incremental_run_does_not_touch_the_historical_folder(tmp_path):
     run_generate(make_args("historical"), config_dir_for(tmp_path, "historical"))
     before = (config_dir_for(tmp_path, "historical") / "data_validation" / "units.yaml").read_text(encoding="utf-8")
-    run_generate(make_args("incremental", tables=("all",)), config_dir_for(tmp_path, "incremental"))
+    run_generate(make_args("incremental"), config_dir_for(tmp_path, "incremental"))
     assert (config_dir_for(tmp_path, "historical") / "data_validation" / "units.yaml").read_text(encoding="utf-8") == before
 
 
@@ -319,14 +297,9 @@ def test_a_rules_target_where_with_the_env_placeholder_is_written_as_it_is(tmp_p
 
 def test_a_file_filter_with_the_env_placeholder_on_the_target_side_is_written_and_checked(tmp_path):
     """The filter workbook keeps {env} on the Snowflake side. The target query holds it, and _checked() accepts it."""
-    book = Workbook()
-    ws = book.active
-    ws.title = "filters"
-    ws.append(["Target Table Name", "Historical Filter to apply."])
-    ws.append(["units", "units j\njoin notes n on j.note_id = n.id\nwhere n.body is not null"])
-    book.save(tmp_path / "postgres_filters.xlsx")
-    file_filters = filter_files.load("postgres", SOURCE_SCHEMA, "{env}_EDGE_BRONZE", "EDGE", "historical",
-                                     folder=tmp_path, log=LOG)
+    write_filter_workbook(tmp_path / "edge_bronze_filters.xlsx",
+                          [["units", "units j\njoin notes n on j.note_id = n.id\nwhere n.body is not null"]])
+    file_filters = filter_files.filters(filter_files.read("postgres", "historical", folder=tmp_path, log=LOG), log=LOG)
     config = config_dir_for(tmp_path, "historical")
     results = run_generate(make_args("historical", tables=("units",)), config, file_filters=file_filters)
     assert statuses(results)[("units", "data_validation")] == "NEW", "a target query that fails _checked() would be FAILED"
@@ -343,7 +316,7 @@ def run_env(monkeypatch, tmp_path):
     dbs ={"source": FakeDB(SOURCE_TABLES, PRIMARY_KEYS), "target": FakeDB(TARGET_TABLES)}
     monkeypatch.setattr(generate_yaml, "get_database",
                         lambda db_type, root, env: dbs["source"] if db_type == "postgres" else dbs["target"])
-    monkeypatch.setattr(filter_files, "load", lambda *a, **k: {})
+    monkeypatch.setattr(filter_files, "filters", lambda *a, **k: {})
     rules = tmp_path / "rules.xlsx"
     book = Workbook()
     ws = book.active
@@ -356,10 +329,78 @@ def run_env(monkeypatch, tmp_path):
 
 def _run(env, **overrides):
     options = dict(layer_type="bronze_postgres", tables=["all"], environment="dev", run_type="historical",
-                   data_validation="yes", count_validation="yes", source_schema=SOURCE_SCHEMA, target_schema=TARGET_SCHEMA,
-                   rules_file=env.rules, use_filter_files=False, log=LOG)
+                   data_validation="yes", count_validation="yes", rules_file=env.rules, use_filter_files=False, log=LOG)
     options.update(overrides)
     return generate_yaml.run_for_validation(**options)
+
+
+def test_all_takes_the_table_names_from_the_workbook_not_the_source(run_env):
+    run_env.dbs["source"].tables[("edge", "extra")] = [("id", "integer")]
+    results, _ = _run(run_env)
+    assert not any(table == "extra" for table, *_ in results), "a source table that no workbook lists is not generated"
+    assert statuses(results)[("units", "data_validation")] == "NEW"
+
+
+def test_no_table_in_the_workbooks_is_refused_before_anything_is_read(run_env, monkeypatch, tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.setattr(filter_files, "FOLDER", empty)
+    with pytest.raises(ValueError, match="the filter workbook for --layer_type bronze_postgres is missing"):
+        _run(run_env)
+    assert run_env.dbs["source"].queries == [], "no catalogue is read without a workbook row"
+
+
+def test_a_table_name_in_another_case_is_the_workbooks_table(run_env):
+    results, ready = _run(run_env, tables=["UNITS"])
+    assert ready == ["units"] and statuses(results)[("units", "data_validation")] == "NEW"
+
+
+def test_a_named_table_with_no_workbook_row_fails_and_the_others_go_on(run_env):
+    results, ready = _run(run_env, tables=["units", "orders"])
+    assert statuses(results)[("orders", "table")] == "FAILED"
+    assert detail_of(results, "orders", "table").startswith("no row in the filter workbooks for PostgreSQL")
+    assert ready == ["units"]
+
+
+def test_the_schemas_and_the_snowflake_name_come_from_the_workbook_row(run_env):
+    _run(run_env, tables=["units"])
+    block = data_block(config_dir_for(run_env.root, "historical"), "units")
+    assert (block["source_schema"], block["target_database"], block["target_schema"]) == \
+        (SOURCE_SCHEMA, "{env}_EDGE_BRONZE", TARGET_SCHEMA)
+    assert any("DEV_EDGE_BRONZE.INFORMATION_SCHEMA" in sql for sql in run_env.dbs["target"].queries), \
+        "the dev run reads the Snowflake catalogue with {env} filled in"
+
+
+def test_two_applications_on_one_engine_are_generated_each_at_its_own_location(run_env, workbook_folder):
+    """Edge and Payments are both PostgreSQL. One run reads each table from its own row's schema and Snowflake database."""
+    run_env.dbs["source"].tables[("payments", "charges")] = [("id", "integer"), ("amount", "integer")]
+    run_env.dbs["source"].primary_keys[("payments", "charges")] = ["id"]
+    run_env.dbs["target"].tables[("PAYMENTS", "CHARGES")] = [("ID", "NUMBER"), ("AMOUNT", "NUMBER")]
+    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx",
+                          [["units"], ["charges", None, None, "Payments", "PostgreSQL", "payments", "Snowflake",
+                                       "{env}_PAYMENTS_BRONZE", "PAYMENTS"]])
+    results, ready = _run(run_env, tables=["units", "charges"])
+    assert set(ready) == {"units", "charges"}
+    block = data_block(config_dir_for(run_env.root, "historical"), "charges")
+    assert (block["source_schema"], block["target_database"], block["target_schema"]) == \
+        ("payments", "{env}_PAYMENTS_BRONZE", "PAYMENTS")
+
+
+def test_a_schema_that_lists_no_table_fails_its_own_tables_and_the_other_location_goes_on(run_env, workbook_folder):
+    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx",
+                          [["units"], ["charges", None, None, "Payments", "PostgreSQL", "nosuch", "Snowflake",
+                                       "{env}_PAYMENTS_BRONZE", "PAYMENTS"]])
+    results, ready = _run(run_env, tables=["units", "charges"])
+    assert statuses(results)[("charges", "table")] == "FAILED"
+    assert "no tables visible in source schema nosuch" in detail_of(results, "charges", "table")
+    assert ready == ["units"]
+
+
+def test_a_workbook_row_with_an_empty_location_cell_stops_the_run(run_env, workbook_folder):
+    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx",
+                          [["units", None, None, "Edge", "PostgreSQL", None, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA]])
+    with pytest.raises(ValueError, match=r"Filter workbook problem: .*row 2 \(units\): source_schema is empty"):
+        _run(run_env, tables=["units"])
 
 
 def test_run_for_validation_returns_results_and_the_tables_ready_to_validate(run_env):
@@ -421,7 +462,7 @@ def test_a_bad_rules_workbook_is_a_settings_problem(run_env):
 
 
 def test_a_file_filter_is_used_only_where_the_rules_workbook_has_none(run_env, monkeypatch):
-    monkeypatch.setattr(filter_files, "load", lambda *a, **k: {"units": ("id > 0", "ID > 1")})
+    monkeypatch.setattr(filter_files, "filters", lambda *a, **k: {"units": ("id > 0", "ID > 1")})
     _run(run_env, use_filter_files=True)
     block = data_block(config_dir_for(run_env.root, "historical"), "units")
     assert "(id > 0)" in block["sourcequery"], "no rule for the source side, so the file's filter is used"
@@ -430,14 +471,14 @@ def test_a_file_filter_is_used_only_where_the_rules_workbook_has_none(run_env, m
 
 def test_filter_files_are_not_read_without_the_flag(run_env, monkeypatch):
     def must_not_run(*a, **k):
-        raise AssertionError("filter files read without --filter_files yes")
-    monkeypatch.setattr(filter_files, "load", must_not_run)
+        raise AssertionError("filters read with --filter_files no")
+    monkeypatch.setattr(filter_files, "filters", must_not_run)
     _run(run_env, use_filter_files=False)
 
 
-@pytest.mark.xfail(strict=True, reason="ISSUE-03: an unsupported layer raises KeyError, which main.py does not catch as a settings problem")
 def test_an_unsupported_layer_is_a_value_error(run_env):
-    with pytest.raises(ValueError):
+    """ISSUE-03, fixed: an engine with no db_rules.RULES block is refused by name, before any workbook is read."""
+    with pytest.raises(ValueError, match="no engine 'silver'"):
         _run(run_env, layer_type="bronze_silver")
 
 

@@ -30,6 +30,12 @@ def main():
     tables = args.tables
     environment = args.environment[0]
     run_type = args.run_type
+    # CHANGE: YAML generation. A table name is matched to the layer's filter workbook without regard to case (--tables addresses
+    # becomes the workbook's Addresses), so the generator, every validator and the reports use the workbook's spelling. A name
+    # not in the workbook is kept as typed, and the generation step reports it.
+    if layer[0] in ("bronze_postgres", "bronze_mssql") and "all" not in tables:
+        from yaml_generation.generate_yaml import workbook_spelling
+        tables = workbook_spelling(layer[0], run_type, tables)
 
     if run_type == "historical":
         config_path = os.path.join(base_config_path,"historical")
@@ -100,10 +106,8 @@ def main():
                 run_type=run_type,
                 data_validation='yes' if generate_only else args.data_validation[0],
                 count_validation='yes' if generate_only else args.count_validation[0],
-                source_schema=args.source_schema,
-                target_database=args.target_database,
-                target_schema=args.target_schema,
-                # CHANGE: YAML generation. --filter_files 'yes' applies the row filters from yaml_generation/Filter-files-excel/.
+                # CHANGE: YAML generation. No schema or Snowflake database is passed: each table's row in the filter workbook
+                # (yaml_generation/Filter-files-excel/) gives them. --filter_files 'yes' (the default) applies that row's filter.
                 use_filter_files=args.filter_files[0] == 'yes',
                 log=logger,
             )
@@ -150,9 +154,7 @@ def main():
                     run_type=run_type,
                     data_validation=args.data_validation[0],
                     count_validation=args.count_validation[0],
-                    source_schema=args.source_schema,
-                    target_database=args.target_database,
-                    target_schema=args.target_schema,
+                    # CHANGE: YAML generation. The location comes from the filter workbook row, as above.
                     use_filter_files=args.filter_files[0] == 'yes',
                     create_only=True,
                     log=logger,

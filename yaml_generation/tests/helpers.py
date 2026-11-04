@@ -80,14 +80,19 @@ def _first(sql, pattern):
     return found.group(1) if found else None
 
 
-def make_args(run_type="historical", tables=("all",), data="yes", count="yes", environment="dev", **overrides):
-    """The arguments run_for_validation() builds, through resolve_args(), so defaults match a real run.
+# The tables of the fake source, as the test filter workbook lists them (test_generate_yaml.workbook_folder).
+ALL_TABLES = ("units", "notes", "lookup")
 
-    Any attribute can be overridden by keyword, e.g. make_args(source_schema=None) to get the connector's default schema.
+
+def make_args(run_type="historical", tables=ALL_TABLES, data="yes", count="yes", environment="dev", **overrides):
+    """The arguments run_for_validation() builds for one location, through resolve_args(), so they match a real run.
+
+    The location is the test workbook row's: schema edge, Snowflake {env}_EDGE_BRONZE.EDGE. generate() takes table names
+    ('all' is turned into names by run_for_validation()). Any attribute can be overridden by keyword, e.g. source_schema="sales".
     """
     args = SimpleNamespace(source_type="postgres", tables=list(tables), environment=environment,
                            data_validation=data, count_validation=count, source_schema=SOURCE_SCHEMA,
-                           target_database=None, target_schema=TARGET_SCHEMA, run_type=run_type)
+                           target_template="{env}_EDGE_BRONZE", target_schema=TARGET_SCHEMA, run_type=run_type)
     for name, value in overrides.items():
         setattr(args, name, value)
     return generate_yaml.resolve_args(args)

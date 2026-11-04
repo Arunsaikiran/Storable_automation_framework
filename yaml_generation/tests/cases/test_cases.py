@@ -16,12 +16,10 @@ def pg_run(world, *tables, run_type="historical", yaml="no", count="yes", data="
                      "--run_type", run_type, "--yaml_generation", yaml, "--filter_files", filters)
 
 
-def ms_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no",
-           target="AWSDEV_DEVT5000_DBO"):
+def ms_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no"):
     return world.run("--layer_type", "bronze_mssql", "--tables", *tables, "--schema_validation", "no",
                      "--count_validation", count, "--data_validation", data, "--environment", "dev",
-                     "--run_type", run_type, "--yaml_generation", yaml, "--filter_files", filters,
-                     "--target_schema", target)
+                     "--run_type", run_type, "--yaml_generation", yaml, "--filter_files", filters)
 
 
 def status(world, table, kind="data_validation"):
@@ -42,7 +40,7 @@ def test_pg_01_filter_yes_historical_writes_the_filter_into_the_yaml(postgres_fi
     assert pg_run(world, "units", yaml="yes", filters="yes") == 0
     text = read(world.yaml("historical", "bronze_postgres", "units"))
     assert "(id > 1)" in text
-    assert "1 table filter(s) read for run type historical" in world.log()
+    assert "Filter files: 1 table filter(s) read" in world.log()
 
 
 def test_pg_02_filter_no_writes_the_whole_table(postgres_filter_files):
@@ -142,8 +140,9 @@ def test_pg_12_tables_all_takes_the_names_from_the_postgres_workbook(postgres_fi
 
 def test_pg_13_tables_all_without_workbook_names_is_refused(world):
     """Q: With --tables all and no workbook for postgres, does the run stop with exit 1 and write nothing?"""
+    (world.filters / "edge_bronze_filters.xlsx").unlink()
     assert pg_run(world, "all", yaml="yes", count="no", data="no") == 1
-    assert "no table names in the filter workbooks" in world.log()
+    assert "the filter workbook for --layer_type bronze_postgres is missing" in world.log()
     assert not (world.root / "config").exists() or not any((world.root / "config").rglob("*.yaml"))
 
 
@@ -302,8 +301,10 @@ def test_ms_11_tables_all_takes_the_names_from_the_sitelink_workbook(sitelink_fi
 
 
 def test_ms_12_a_wrong_target_schema_writes_nothing(world):
-    """Q: With a target schema that does not exist, does the run stop with exit 1 and write no YAML?"""
-    assert ms_run(world, "Units", yaml="yes", target="NOPE") == 1
+    """Q: With a target_schema in the workbook that does not exist in Snowflake, does Units fail with exit 1 and no YAML?"""
+    from conftest import SITELINK, sitelink_filters
+    world.write_filters("sitelink_bronze_filters.xlsx", sitelink_filters(SITELINK[:5] + ["NOPE"]))
+    assert ms_run(world, "Units", yaml="yes") == 1
     assert "no tables visible in Snowflake schema" in world.log()
     assert not world.exists("historical", "bronze_mssql", "Units")
 
@@ -318,3 +319,56 @@ def test_ms_13_a_snowflake_exclusion_applies_to_a_sql_server_run_on_both_sides(w
     text = read(world.yaml("historical", "bronze_mssql", "Units"))
     assert "[dcWidth]" not in text and '"DCWIDTH"' not in text
     assert re.search(r"Excluded \(exclusions file\):.*dcWidth", text)
+
+
+# --- the defaults and the arguments: the workbook replaces --source_schema, --target_database, --target_schema ---------
+
+DEFAULT_RUN = ("--layer_type", "bronze_postgres", "--tables", "units", "--schema_validation", "no", "--count_validation", "yes",
+               "--data_validation", "yes", "--environment", "dev")
+
+
+def test_pg_21_without_the_flags_the_yaml_is_generated_and_the_filter_applied(world):
+    """Q: With neither --yaml_generation nor --filter_files given, are both yes on a bronze run (YAML written, filter in it)?"""
+    assert world.run(*DEFAULT_RUN) == 0
+    assert status(world, "units") == "NEW"
+    assert "(id > 1)" in read(world.yaml("historical", "bronze_postgres", "units"))
+
+
+def test_pg_22_an_unchanged_table_is_not_rewritten_by_the_default_run(world):
+    """Q: On a second default run with nothing changed, is the YAML left alone (UNCHANGED, same text)?"""
+    assert world.run(*DEFAULT_RUN) == 0
+    before = read(world.yaml("historical", "bronze_postgres", "units"))
+    assert world.run(*DEFAULT_RUN) == 0
+    assert status(world, "units") == "UNCHANGED"
+    assert read(world.yaml("historical", "bronze_postgres", "units")) == before
+
+
+def test_pg_23_the_location_arguments_are_gone(world):
+    """Q: Is --source_schema (now read from the workbook) refused as an unknown argument, before anything is written?"""
+    assert world.run(*DEFAULT_RUN, "--source_schema", "public") == 2
+    assert not (world.root / "config").exists()
+
+
+def test_pg_24_a_table_named_but_not_in_the_workbook_fails_and_the_others_validate(world):
+    """Q: Is a source table with no workbook row (extra) FAILED with the reason, while units is still validated?"""
+    assert pg_run(world, "units", "extra", yaml="yes") == 1
+    assert status(world, "extra", kind="table") == "FAILED"
+    assert "no row in the filter workbooks for PostgreSQL" in world.log()
+    assert world.validated[-1] == ("data", ["units.yaml"])
+
+
+def test_ms_14_the_sql_server_location_comes_from_its_workbook(world):
+    """Q: Does a SQL Server run read schema dbo and Snowflake {env}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO from the SiteLink rows?"""
+    assert ms_run(world, "Units", yaml="yes") == 0
+    text = read(world.yaml("historical", "bronze_mssql", "Units"))
+    assert "source_schema: dbo" in text and "{env}_SITELINK_BRONZE" in text and "AWSDEV_DEVT5000_DBO" in text
+
+
+def test_other_layers_keep_both_flags_off_by_default(monkeypatch):
+    """Q: Does a silver run, which has no generator, still default --yaml_generation and --filter_files to no?"""
+    import sys
+
+    from utils.utility import parse_arguments
+    monkeypatch.setattr(sys, "argv", ["main.py", "--layer_type", "silver", "--tables", "all", "--schema_validation", "no",
+                                      "--count_validation", "yes", "--data_validation", "yes", "--environment", "dev"])
+    assert [parse_arguments().__dict__[flag] for flag in ("yaml_generation", "filter_files")] == [["no"], ["no"]]
