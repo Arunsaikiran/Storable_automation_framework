@@ -20,6 +20,9 @@ Every row's source_database must be the layer's engine (bronze_postgres: Postgre
 table with no row FAILS: without a row there is no schema to read it from. Table names are matched without regard to case
 (--tables addresses is the row Addresses), and the workbook's spelling is used from then on.
 
+The type mapping sheet (SCHEMA_SHEETS: 'MSSQL schema mapping', 'Postgres schema mapping') is read by schema_mapping() for
+the schema validation YAML only. One row per source type: source_data_type, target_data_type, precision_check, notes.
+
 Why filters: a filter keeps part of a large table, so the framework does not load the whole table into RAM. The filter is
 applied to the source and to Snowflake, for the count and the data, the same way as a filter in the rules workbook
 (settings.py). When the rules workbook sets a filter for the same side, that one is used. --filter_files no reads the
@@ -90,6 +93,10 @@ TABLE_HEADER = "target table name"
 LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
                     "target_application", "target_database", "target_schema"]
 FILTER_HEADERS = {"historical": "historical filter to apply", "incremental": "incremental filters to apply"}
+# The type mapping sheet of each workbook, read for the schema validation YAML (schema_mapping()). Matched without regard to case.
+SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping"}
+MAPPING_HEADERS = ["source_data_type", "target_data_type"]          # required; precision_check and notes are optional
+PRECISION_CHECKS = ("datetime", "numeric", "character")
 
 
 @dataclass(frozen=True)
@@ -378,6 +385,64 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
         found[table] = Row(table, location, str(statement) if statement else "", label)
     log.info("Filter workbook %s: %d table(s) for %s", name, len(found), label_of)
     return found
+
+
+def schema_mapping(source_type, folder=None, log=None):
+    """(datatype_map, precision_checks) from the layer workbook's type mapping sheet (SCHEMA_SHEETS), for the schema YAML.
+
+    datatype_map      {source_data_type: target_data_type}. The source type is kept as written: the validator looks up the
+                      catalogue's DATA_TYPE exactly. The Snowflake type is written in lower case, as the validator compares it.
+    precision_checks  {datetime | numeric | character: [source types]}, from the precision_check column (read in phase 2).
+    Raises ValueError naming the file and row: no workbook, no sheet, a missing header, an empty source_data_type or
+    target_data_type, or an unknown precision_check. A source type listed twice (in any case) keeps its first row.
+    """
+    log = log or logging.getLogger(__name__)
+    name, sheet_name = WORKBOOKS.get(source_type), SCHEMA_SHEETS.get(source_type)
+    if name is None or sheet_name is None:
+        raise ValueError(f"--layer_type bronze_{source_type} has no type mapping sheet: add it to filter_files.SCHEMA_SHEETS")
+    path = Path(folder or FOLDER) / name
+    if not path.is_file():
+        raise ValueError(f"the filter workbook for --layer_type bronze_{source_type} is missing: {path}")
+    workbook = load_workbook(path, read_only=True, data_only=True)
+    try:
+        sheet = next((ws for ws in workbook.worksheets if ws.title.strip().lower() == sheet_name.lower()), None)
+        if sheet is None:
+            raise ValueError(f"{name} has no sheet '{sheet_name}' (the source to Snowflake type mapping)")
+        rows = sheet.iter_rows(values_only=True)
+        header = [_header(cell) for cell in (next(rows, None) or ())]
+        missing = [column for column in MAPPING_HEADERS if column not in header]
+        if missing:
+            raise ValueError(f"{name}, sheet '{sheet.title}': no {', '.join(missing)} column")
+        at = {column: header.index(column) for column in MAPPING_HEADERS + ["precision_check"] if column in header}
+        datatype_map, precision_checks, first = {}, {}, {}
+        for number, values in enumerate(rows, start=2):
+            def cell(column):
+                index = at.get(column)
+                value = values[index] if index is not None and index < len(values) else None
+                return str(value).strip() if value is not None else ""
+
+            source, target, check = cell("source_data_type"), cell("target_data_type").lower(), cell("precision_check").lower()
+            if not (source or target or check):
+                continue
+            label = f"{name}, sheet '{sheet.title}' row {number}"
+            if not source or not target:
+                raise ValueError(f"{label}: source_data_type and target_data_type must both be filled")
+            if check and check not in PRECISION_CHECKS:
+                raise ValueError(f"{label}: precision_check is {check!r}; expected one of {', '.join(PRECISION_CHECKS)} or empty")
+            if source.lower() in first:
+                log.warning("%s: type %s is listed twice, so this row is not used (the first is row %d)",
+                            label, source, first[source.lower()])
+                continue
+            first[source.lower()] = number
+            datatype_map[source] = target
+            if check:
+                precision_checks.setdefault(check, []).append(source)
+    finally:
+        workbook.close()
+    if not datatype_map:
+        raise ValueError(f"{name}, sheet '{sheet_name}': no type mapping row")
+    log.info("Type mapping %s / %s: %d type(s)", name, sheet_name, len(datatype_map))
+    return datatype_map, precision_checks
 
 
 def spelled(tables, rows) -> list:

@@ -38,14 +38,26 @@ WORKBOOK_HEADER = ["Target Table Name", "Historical Filter to apply.", "Incremen
                    *filter_files.LOCATION_HEADERS]
 
 
-def write_filter_workbook(path, rows):
-    """rows: [table, historical filter, incremental filter] (+ location, default LOCATION). Returns the path."""
+# The type mapping of the fake source, as the 'Postgres schema mapping' sheet lists it.
+TYPE_MAPPING = [["integer", "number", "numeric"], ["character varying", "text", "character"], ["text", "text"],
+                ["timestamp without time zone", "timestamp_ntz", "datetime"], ["timestamp with time zone", "timestamp_tz"],
+                ["boolean", "boolean"]]
+
+
+def write_filter_workbook(path, rows, mapping=TYPE_MAPPING):
+    """rows: [table, historical filter, incremental filter] (+ location, default LOCATION). mapping: the type mapping sheet
+    rows (None: no sheet). Returns the path."""
     book = Workbook()
     ws = book.active
     ws.title = "filters"
     ws.append(WORKBOOK_HEADER)
     for row in rows:
         ws.append(list(row[:3]) + [None] * (3 - len(row[:3])) + (list(row[3:]) or LOCATION))
+    if mapping is not None:
+        types = book.create_sheet(filter_files.SCHEMA_SHEETS["postgres"])
+        types.append(["source_data_type", "target_data_type", "precision_check", "notes"])
+        for row in mapping:
+            types.append(list(row))
     book.save(path)
     return path
 
@@ -632,3 +644,173 @@ def test_jsonb_and_hstore_columns_are_listed_for_the_validator_and_selected_as_t
     assert 'CAST("META" AS STRING)' in block["targetquery"]
     assert "# Compared as flattened JSON text (json_columns, both sides): meta_normalized, tags_normalized" in \
         (config / "data_validation" / "docs.yaml").read_text(encoding="utf-8")
+
+
+# --- the schema validation YAML (--schema_validation yes) --------------------------------------------------------
+
+def schema_doc(root, run_type="historical"):
+    path = config_dir_for(root, run_type) / "schema_validation" / "schema_validation.yaml"
+    return read_yaml(path)["validations"]["schema_validation"]
+
+
+def _schema_only(env, **overrides):
+    return _run(env, data_validation="no", count_validation="no", schema_validation="yes", **overrides)
+
+
+def test_a_schema_only_run_writes_the_schema_file_and_no_data_or_count(run_env):
+    results, ready = _schema_only(run_env)
+    assert statuses(results) == {(t, "schema_validation"): "NEW" for t in ("units", "notes", "lookup")}
+    assert set(ready) == {"units", "notes", "lookup"}, "lookup has no primary key, which schema validation does not need"
+    config = config_dir_for(run_env.root, "historical")
+    assert not (config / "data_validation").exists() and not (config / "count_validation").exists()
+    doc = schema_doc(run_env.root)
+    assert list(doc["tables"]) == ["units", "notes", "lookup"]
+    assert (doc["source"], doc["target"]) == ("postgres", "snowflake")
+    assert "where table_schema = 'edge' and table_name = '{table_name}'" in doc["sourcequery"]
+    assert "FROM {env}_EDGE_BRONZE.information_schema.columns" in doc["targetquery"], "the validator fills {env} for its run"
+    assert "table_schema = 'EDGE' AND TABLE_NAME = '{table_name}'" in doc["targetquery"]
+    assert doc["datatype_map"]["timestamp without time zone"] == "timestamp_ntz"
+    assert doc["precision_checks"] == {"numeric": ["integer"], "character": ["character varying"],
+                                       "datetime": ["timestamp without time zone"]}
+
+
+def test_the_schema_file_holds_no_exclusions_and_an_excluded_column_needs_no_mapping(run_env, workbook_folder):
+    """Exclusions are kept only in the settings (the validator reads them), so the file lists table names only. units'
+    _fivetran_synced is timestamp with time zone; it is excluded, so that type needs no mapping row."""
+    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"]],
+                          mapping=[row for row in TYPE_MAPPING if row[0] != "timestamp with time zone"])
+    results, _ = _schema_only(run_env)
+    assert statuses(results) == {("units", "schema_validation"): "NEW"}
+    assert schema_doc(run_env.root)["tables"] == {"units": {}}
+
+
+def test_a_second_schema_run_is_unchanged_and_another_environment_too(run_env):
+    _schema_only(run_env, tables=["units"])
+    results, _ = _schema_only(run_env, tables=["units"])
+    assert statuses(results) == {("units", "schema_validation"): "UNCHANGED"}
+    results, _ = _schema_only(run_env, tables=["units"], environment="stg")
+    assert statuses(results) == {("units", "schema_validation"): "UNCHANGED"}, "one file serves every environment"
+
+
+def test_a_source_type_with_no_mapping_row_fails_that_tables_schema_and_names_it(run_env, workbook_folder, caplog):
+    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"], ["notes"], ["lookup"]],
+                          mapping=[row for row in TYPE_MAPPING if row[0] != "text"])
+    with caplog.at_level(logging.ERROR):
+        results, ready = _run(run_env, schema_validation="yes")
+    assert statuses(results)[("notes", "schema_validation")] == "FAILED"
+    assert "no row in the 'Postgres schema mapping' sheet: body (text)" in detail_of(results, "notes", "schema_validation")
+    assert "notes: schema YAML not written" in caplog.text
+    assert statuses(results)[("units", "schema_validation")] == "NEW"
+    assert "notes" not in schema_doc(run_env.root)["tables"]
+    assert "notes" in ready, "a schema FAILED does not stop the data and count of the table"
+
+
+def test_a_table_the_schema_query_cannot_see_fails_its_schema(run_env):
+    source = run_env.dbs["source"]
+    real = source.execute_query
+    source.execute_query = lambda sql: real(sql).iloc[0:0] if "character_maximum_length" in sql else real(sql)
+    results, _ = _schema_only(run_env, tables=["units"])
+    assert statuses(results) == {("units", "schema_validation"): "FAILED"}
+    assert "returns no column for edge.units" in detail_of(results, "units", "schema_validation")
+
+
+def test_a_missing_mapping_sheet_stops_the_run_before_anything_is_written(run_env, workbook_folder):
+    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"]], mapping=None)
+    with pytest.raises(ValueError, match="Filter workbook problem: .*no sheet 'Postgres schema mapping'"):
+        _run(run_env, schema_validation="yes")
+    assert not (run_env.root / "config").exists()
+
+
+def test_the_mapping_sheet_is_not_read_without_schema_validation(run_env, workbook_folder):
+    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"]], mapping=None)
+    results, _ = _run(run_env, tables=["units"])
+    assert statuses(results)[("units", "data_validation")] == "NEW"
+
+
+def test_a_table_at_a_second_location_fails_its_schema_and_keeps_its_data(run_env, workbook_folder):
+    run_env.dbs["source"].tables[("payments", "charges")] = [("id", "integer")]
+    run_env.dbs["source"].primary_keys[("payments", "charges")] = ["id"]
+    run_env.dbs["target"].tables[("PAYMENTS", "CHARGES")] = [("ID", "NUMBER")]
+    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx",
+                          [["units"], ["charges", None, None, "Payments", "PostgreSQL", "payments", "Snowflake",
+                                       "{env}_PAYMENTS_BRONZE", "PAYMENTS"]])
+    results, ready = _run(run_env, tables=["charges", "units"], schema_validation="yes")
+    assert statuses(results)[("charges", "schema_validation")] == "FAILED"
+    assert "the schema file holds one location (edge -> {env}_EDGE_BRONZE.EDGE)" in \
+        detail_of(results, "charges", "schema_validation")
+    assert statuses(results)[("charges", "data_validation")] == "NEW" and "charges" in ready
+    assert list(schema_doc(run_env.root)["tables"]) == ["units"]
+
+
+def test_an_incremental_schema_run_creates_the_incremental_file(run_env):
+    _schema_only(run_env, run_type="incremental")
+    assert set(schema_doc(run_env.root, "incremental")["tables"]) == {"units", "notes", "lookup"}
+    assert not (config_dir_for(run_env.root, "historical") / "schema_validation").exists()
+
+
+def test_create_only_adds_a_missing_schema_entry_and_leaves_the_others(run_env):
+    _schema_only(run_env, tables=["units"])
+    results, _ = _schema_only(run_env, tables=["units", "notes"], create_only=True)
+    assert statuses(results) == {("units", "schema_validation"): "PRESENT", ("notes", "schema_validation"): "NEW"}
+
+
+def test_tables_missing_yaml_checks_the_schema_file_when_asked(run_env):
+    _schema_only(run_env, tables=["units"])
+    assert generate_yaml.tables_missing_yaml("bronze_postgres", "historical", ["UNITS", "notes"], "no", "no", "yes") == ["notes"]
+    assert generate_yaml.tables_missing_yaml("bronze_postgres", "historical", ["notes"], "no", "no", "no") == []
+
+
+def test_all_warns_about_a_schema_entry_no_longer_in_the_workbook_and_keeps_it(run_env, workbook_folder, caplog):
+    _schema_only(run_env)
+    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"], ["notes"]])
+    with caplog.at_level(logging.WARNING):
+        _schema_only(run_env)
+    assert "The schema file holds lookup, which are not in the filter workbook" in caplog.text
+    assert "lookup" in schema_doc(run_env.root)["tables"]
+
+
+def test_the_unchanged_validator_reads_the_generated_file(run_env, monkeypatch, tmp_path):
+    """End to end: validators/schema_validation.py runs on the generated YAML against a fake catalogue. The excluded
+    Fivetran columns are not reported missing, and every type is in the map, so the table PASSES. _FIVETRAN_DELETED is not
+    in the validator's own hard-coded list, so only the settings (exclusions.yaml, snowflake section) leave it out."""
+    import pandas as pd
+    from utils.utility import data_context
+    from validators import schema_validation as sv
+
+    run_env.dbs["target"].tables[("EDGE", "UNITS")] = TARGET_TABLES[("EDGE", "UNITS")] + [("_FIVETRAN_DELETED", "BOOLEAN")]
+    _schema_only(run_env, tables=["units"])
+    monkeypatch.setattr(settings, "pick_rules_file", lambda *a, **k: run_env.rules)
+    names = ["table_name", "column_name", "data_type", "character_maximum_length", "character_octet_length",
+             "numeric_precision", "numeric_precision_radix", "numeric_scale", "datetime_precision"]
+    snow_type = {row[0]: row[1] for row in TYPE_MAPPING}
+
+    def row(table, column, dtype, source_type, precision):
+        return (table, column, dtype, 255 if source_type == "character varying" else None, None,
+                precision if source_type == "integer" else None, None, 0 if source_type == "integer" else None,
+                6 if "timestamp" in source_type else None)
+
+    class Catalogue:
+        def __init__(self, side):
+            self.side = side
+
+        def execute_query(self, sql):
+            assert "{" not in sql, "the validator fills every placeholder"
+            assert self.side == "source" or "DEV_EDGE_BRONZE.information_schema" in sql
+            source = SOURCE_TABLES[("edge", "units")]
+            if self.side == "source":
+                return pd.DataFrame([row("units", c, t, t, 32) for c, t in source], columns=names)
+            target = [row("UNITS", c, snow_type[t].upper(), t, 38) for (c, _), (_, t) in zip(TARGET_TABLES[("EDGE", "UNITS")], source)]
+            target.append(row("UNITS", "_FIVETRAN_DELETED", "BOOLEAN", "boolean", 38))
+            return pd.DataFrame(target, columns=[n.upper() for n in names])
+
+    monkeypatch.setattr(sv, "get_database", lambda db_type, *a: Catalogue("source" if db_type == "postgres" else "target"))
+    out = tmp_path / "out"
+    out.mkdir()
+    path = config_dir_for(run_env.root, "historical") / "schema_validation" / "schema_validation.yaml"
+    ctx = data_context()(run_id="r1", run_at="now", validation_dirs=["schema_validation"], layer_type=["bronze_postgres"],
+                         outputpaths={"schema_validation": str(out)}, configpaths={"schema_validation": [str(path)]},
+                         BASE_DIR=str(run_env.root), environment="dev", tables=["units"])
+    assert sv.validate_schema(ctx) == (0, False)
+    report = out / "schema_validation_result_summary.xlsx"
+    assert pd.read_excel(report).loc[0, "overall_status"] == "PASS"
+    assert "columns_missing_in_source" not in pd.ExcelFile(report).sheet_names

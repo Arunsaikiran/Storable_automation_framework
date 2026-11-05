@@ -348,3 +348,74 @@ def test_the_shipped_workbooks_give_every_table_a_location(run_type):
     assert {row.location.application for row in edge.values()} == {"Edge"}
     assert {row.location.application for row in sitelink.values()} == {"SiteLink"}
     assert isinstance(ff.filters(edge, log=LOG), dict)
+
+
+# --- the type mapping sheet: schema_mapping() gives the schema YAML its datatype_map --------------------------------
+
+MAPPING_HEADER = ["source_data_type", "target_data_type", "precision_check", "notes"]
+
+
+def _mapping_book(folder, sheet="MSSQL schema mapping", rows=(), name="sitelink_bronze_filters.xlsx"):
+    sheets = {"Sheet1": _rows(["Units"], location=SITELINK)}
+    if sheet:
+        sheets[sheet] = [MAPPING_HEADER, *rows]
+    return _workbook(folder / name, sheets)
+
+
+def test_schema_mapping_reads_the_types_and_the_precision_checks(tmp_path):
+    _mapping_book(tmp_path, rows=[["int", "NUMBER", "numeric", ""], ["nvarchar", "text", "Character", None],
+                                  ["bit", "boolean", None, "no check"], [None, None, None, None]])
+    datatype_map, checks = ff.schema_mapping("mssql", folder=tmp_path, log=LOG)
+    assert datatype_map == {"int": "number", "nvarchar": "text", "bit": "boolean"}   # Snowflake type in lower case
+    assert checks == {"numeric": ["int"], "character": ["nvarchar"]}
+
+
+def test_the_source_type_keeps_its_spelling_for_the_validators_exact_lookup(tmp_path):
+    _mapping_book(tmp_path, sheet="Postgres schema mapping", name="edge_bronze_filters.xlsx",
+                  rows=[["USER-DEFINED", "variant"], ["character varying", "text"]])
+    assert list(ff.schema_mapping("postgres", folder=tmp_path, log=LOG)[0]) == ["USER-DEFINED", "character varying"]
+
+
+def test_the_mapping_sheet_name_is_matched_without_regard_to_case(tmp_path):
+    _mapping_book(tmp_path, sheet="mssql SCHEMA mapping", rows=[["int", "number"]])
+    assert ff.schema_mapping("mssql", folder=tmp_path, log=LOG)[0] == {"int": "number"}
+
+
+def test_a_missing_mapping_sheet_stops_the_run(tmp_path):
+    _mapping_book(tmp_path, sheet=None)
+    with pytest.raises(ValueError, match="has no sheet 'MSSQL schema mapping'"):
+        ff.schema_mapping("mssql", folder=tmp_path, log=LOG)
+
+
+@pytest.mark.parametrize("row", [["int", None], [None, "number"]])
+def test_an_empty_type_cell_stops_the_run_and_names_the_row(tmp_path, row):
+    _mapping_book(tmp_path, rows=[["bit", "boolean"], row])
+    with pytest.raises(ValueError, match="row 3: source_data_type and target_data_type must both be filled"):
+        ff.schema_mapping("mssql", folder=tmp_path, log=LOG)
+
+
+def test_an_unknown_precision_check_stops_the_run(tmp_path):
+    _mapping_book(tmp_path, rows=[["int", "number", "length"]])
+    with pytest.raises(ValueError, match="precision_check is 'length'"):
+        ff.schema_mapping("mssql", folder=tmp_path, log=LOG)
+
+
+def test_a_type_listed_twice_keeps_its_first_row_with_a_warning(tmp_path, caplog):
+    _mapping_book(tmp_path, rows=[["int", "number"], ["INT", "float"]])
+    with caplog.at_level(logging.WARNING):
+        assert ff.schema_mapping("mssql", folder=tmp_path, log=LOG)[0] == {"int": "number"}
+    assert "row 3: type INT is listed twice" in caplog.text
+
+
+def test_a_mapping_sheet_with_no_row_stops_the_run(tmp_path):
+    _mapping_book(tmp_path)
+    with pytest.raises(ValueError, match="no type mapping row"):
+        ff.schema_mapping("mssql", folder=tmp_path, log=LOG)
+
+
+def test_the_shipped_workbooks_have_a_type_mapping_sheet():
+    """Seeded from the old hand-written datatype_map. config/ is not in git, so the check is on the workbooks only."""
+    postgres, _ = ff.schema_mapping("postgres", log=LOG)
+    mssql, _ = ff.schema_mapping("mssql", log=LOG)
+    assert (len(postgres), postgres["USER-DEFINED"], postgres["timestamp without time zone"]) == (16, "variant", "timestamp_ntz")
+    assert (len(mssql), mssql["nvarchar"], mssql["bit"]) == (9, "text", "boolean")

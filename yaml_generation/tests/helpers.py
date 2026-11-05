@@ -64,7 +64,10 @@ class FakeDB:
         self.queries.append(sql)
         schema = _first(sql, r"(?:table_schema|nspname) = '([^']*)'")
         table = _first(sql, r"(?:table_name|relname) = '([^']*)'")
-        if "PRIMARY KEY" in sql or "indisprimary" in sql:
+        if "character_maximum_length" in sql.lower():
+            # The schema validation query (db_rules schema_query): table_name, column_name, data_type, ... per column.
+            rows = [(table, column, dtype) for column, dtype in self.tables.get((schema, table), [])]
+        elif "PRIMARY KEY" in sql or "indisprimary" in sql:
             rows = [(column,) for column in self.primary_keys.get((schema, table), [])]
         elif "INFORMATION_SCHEMA.TABLES" in sql or "relkind" in sql:
             rows = [(name,) for s, name in sorted(self.tables) if s == schema]
@@ -76,7 +79,7 @@ class FakeDB:
 
 
 def _first(sql, pattern):
-    found = re.search(pattern, sql)
+    found = re.search(pattern, sql, re.IGNORECASE)  # the SQL Server schema query writes TABLE_SCHEMA, TABLE_NAME
     return found.group(1) if found else None
 
 
@@ -84,14 +87,14 @@ def _first(sql, pattern):
 ALL_TABLES = ("units", "notes", "lookup")
 
 
-def make_args(run_type="historical", tables=ALL_TABLES, data="yes", count="yes", environment="dev", **overrides):
+def make_args(run_type="historical", tables=ALL_TABLES, data="yes", count="yes", environment="dev", schema="no", **overrides):
     """The arguments run_for_validation() builds for one location, through resolve_args(), so they match a real run.
 
     The location is the test workbook row's: schema edge, Snowflake {env}_EDGE_BRONZE.EDGE. generate() takes table names
     ('all' is turned into names by run_for_validation()). Any attribute can be overridden by keyword, e.g. source_schema="sales".
     """
     args = SimpleNamespace(source_type="postgres", tables=list(tables), environment=environment,
-                           data_validation=data, count_validation=count, source_schema=SOURCE_SCHEMA,
+                           data_validation=data, count_validation=count, schema_validation=schema, source_schema=SOURCE_SCHEMA,
                            target_template="{env}_EDGE_BRONZE", target_schema=TARGET_SCHEMA, run_type=run_type)
     for name, value in overrides.items():
         setattr(args, name, value)

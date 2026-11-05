@@ -25,6 +25,13 @@ every environment.
 What it writes (the same tree main.py reads; the guide explains why run_type is in the path)
   config/<run_type>/bronze_<source_type>/data_validation/<table>.yaml     one file per table
   config/<run_type>/bronze_<source_type>/count_validation/bronze_<source_type>.yaml   one file for all tables
+  config/<run_type>/bronze_<source_type>/schema_validation/schema_validation.yaml    one file for all tables (--schema_validation yes)
+
+The schema file holds the table names (no exclusions: the validator reads exclusions.yaml and the rules workbook itself),
+the catalogue queries (db_rules.RULES schema_query, filled from the workbook row), and the type mapping from the
+workbook's '<engine> schema mapping' sheet. A source type with no mapping row FAILS that table's schema. The Snowflake
+database keeps {env} ({env}_EDGE_BRONZE); the validator fills it and {table_name}. The validator reads one query per file,
+so the tables of a second location in the workbook FAIL their schema.
 
 Nothing is ever deleted. A named table with no row in the filter workbooks is FAILED (its schema is not known). A table that
 is not in the source or not in Snowflake is FAILED, and the YAML it already
@@ -52,6 +59,7 @@ from yaml_generation import db_rules, filter_files, settings  # noqa: E402
 from yaml_generation.db_rules import RULES  # noqa: E402
 from yaml_generation.yaml_builder import (  # noqa: E402
     ENV_PLACEHOLDER,
+    GENERATED_MARK,
     Filters,
     TableSpec,
     build_count_entry,
@@ -66,8 +74,11 @@ from yaml_generation.yaml_builder import (  # noqa: E402
     other_environment_tables,
     plain_text_columns,
     reconcile,
+    schema_table_names,
+    unmapped_types,
     upsert_count_file,
     write_data_file,
+    write_schema_file,
 )
 
 ENV_TOKENS = {"dev": "DEV", "stg": "STG", "qat": "QAT", "prod": "PRD", "local": "DEV"}  # local is DEV, as in the validators
@@ -84,8 +95,8 @@ def resolve_args(args):
                             for dev). filter_files.read() refuses a row without {env}.
     run_for_validation() calls this once for the flags (no location yet: target_template None), then once per location.
     """
-    if args.data_validation == "no" and args.count_validation == "no":
-        raise ValueError("nothing to generate: both data and count validation are no")
+    if args.data_validation == "no" and args.count_validation == "no" and args.schema_validation == "no":
+        raise ValueError("nothing to generate: data, count and schema validation are all no")
     if "all" in args.tables and len(args.tables) > 1:
         raise ValueError("'all' cannot be combined with table names")
     token = ENV_TOKENS.get(args.environment)
@@ -96,7 +107,7 @@ def resolve_args(args):
 
 
 def generate(args, source_db, target_db, config_dir, global_excluded, table_rules, log, stamp, file_filters=None,
-             create_only=False):
+             create_only=False, schema_mapping=None):
     """Write the YAML for the tables of one location. Returns results.
 
     args          resolve_args() output for one location: args.tables are table names (run_for_validation() turns 'all'
@@ -110,6 +121,8 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                         Used for a side the rules workbook does not set.
     create_only         True for a run without --yaml_generation: a YAML that is already there is left alone (PRESENT),
                         and only a missing one is written.
+    schema_mapping      (datatype_map, precision_checks) from filter_files.schema_mapping() to write the schema file for
+                        these tables, or None for no schema file.
     """
     source = RULES[args.source_type]
     snow = RULES["snowflake"]
@@ -127,6 +140,13 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
     results = []
     count_entries = {}
     counted = count_table_names(config_dir, layer) if create_only else set()
+    want_schema = schema_mapping is not None
+    schema_entries = {}
+    if want_schema:
+        datatype_map, precision_checks = schema_mapping
+        schema_sql = db_rules.schema_query(source, args.source_schema)
+        sheet = filter_files.SCHEMA_SHEETS[args.source_type]
+        in_schema_file = {name.lower() for name in schema_table_names(config_dir)} if create_only else set()
 
     for table in args.tables:
         rule = table_rules.get(table, settings.TableRule())
@@ -137,11 +157,13 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
             log.info("%s: no filter in the filter workbook, so the whole table is compared", table)
         data_wanted = want_data and not (create_only and data_file_path(config_dir, table).exists())
         count_wanted = want_count and not (create_only and table in counted)
+        schema_wanted = want_schema and not (create_only and table.lower() in in_schema_file)
         for kind, asked, wanted in (("data_validation", want_data, data_wanted),
-                                    ("count_validation", want_count, count_wanted)):
+                                    ("count_validation", want_count, count_wanted),
+                                    ("schema_validation", want_schema, schema_wanted)):
             if asked and not wanted:
                 results.append((table, kind, "PRESENT", "YAML already there; not changed"))
-        if not (data_wanted or count_wanted):
+        if not (data_wanted or count_wanted or schema_wanted):
             continue
         spec = TableSpec(args.source_type, args.source_schema, table, args.target_template, args.target_schema)
         try:
@@ -172,7 +194,26 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                 log.warning("%s: %d column(s) compared as plain text, may FAIL on format: %s",
                             table, len(plain), ", ".join(plain))
 
-            if args.run_type == "incremental":
+            if schema_wanted:
+                # The type check runs the schema file's own sourcequery, so it sees the types the validator will look up.
+                # Excluded columns are not checked: the validator leaves them out, from the same settings.
+                excluded = {s for s, _, status, _ in rec.rows if status.startswith("EXCLUDED") and s}
+                columns = [(row[1], row[2]) for row in source_db.execute_query(schema_sql.format(table_name=table)).values.tolist()]
+                gaps = unmapped_types(columns, excluded, datatype_map)
+                if not columns:
+                    reason = (f"the schema query (information_schema) returns no column for {args.source_schema}.{table}, so "
+                              f"the validator would not find it; check the role's access to the table")
+                elif gaps:
+                    reason = f"source type(s) with no row in the '{sheet}' sheet: {', '.join(gaps)}"
+                else:
+                    reason = None
+                if reason:
+                    log.error("%s: schema YAML not written: %s", table, reason)
+                    results.append((table, "schema_validation", "FAILED", f"{reason}; nothing was changed"))
+                else:
+                    schema_entries[table] = {}
+
+            if args.run_type == "incremental" and (data_wanted or count_wanted):
                 # The window is the validators' (CSV and Fivetran at run time). Always written: a side that lacks the column
                 # gets a WARNING, and the query fails there.
                 column = rule.incremental_column or settings.INCREMENTAL_COLUMNS.get(args.source_type, "updated_at")
@@ -226,6 +267,20 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
             log.error("count file update failed", exc_info=True)
             results.extend((table, "count_validation", "FAILED", "count file could not be updated")
                            for table in count_entries)
+    if schema_entries:
+        shared = {"source": args.source_type, "sourcequery": schema_sql, "target": "snowflake",
+                  # The {env} placeholder is kept: the validator fills it for its run, so one file serves every environment.
+                  "targetquery": db_rules.schema_query(snow, args.target_schema, args.target_template),
+                  "datatype_map": datatype_map, "precision_checks": precision_checks}
+        header = [f"{GENERATED_MARK} on {stamp} from {filter_files.WORKBOOKS[args.source_type]} (locations; '{sheet}' for "
+                  f"the types). Do not hand-edit; main.py --schema_validation yes rewrites it when they change."]
+        try:
+            path, statuses = write_schema_file(config_dir, schema_entries, shared, header, create_only=create_only)
+            results.extend((table, "schema_validation", statuses[table], str(path)) for table in schema_entries)
+        except Exception:
+            log.error("schema file update failed", exc_info=True)
+            results.extend((table, "schema_validation", "FAILED", "schema file could not be updated")
+                           for table in schema_entries)
     return results
 
 
@@ -234,16 +289,19 @@ def config_dir_for(layer_type: str, run_type: str) -> Path:
     return FRAMEWORK_ROOT / "config" / run_type / layer_type
 
 
-def tables_missing_yaml(layer_type: str, run_type: str, tables, data_validation: str, count_validation: str) -> list:
+def tables_missing_yaml(layer_type: str, run_type: str, tables, data_validation: str, count_validation: str,
+                        schema_validation: str = "no") -> list:
     """The named tables with no YAML for a validation this run asks for. Only the files are checked, no database is read.
 
     'all' is not checked here: its list comes from the source, so generate() reads it.
     """
     config_dir = config_dir_for(layer_type, run_type)
     counted = count_table_names(config_dir, layer_type)
+    in_schema = {name.lower() for name in schema_table_names(config_dir)}
     return [table for table in tables
             if (data_validation == "yes" and not data_file_path(config_dir, table).exists())
-            or (count_validation == "yes" and table not in counted)]
+            or (count_validation == "yes" and table not in counted)
+            or (schema_validation == "yes" and str(table).lower() not in in_schema)]
 
 
 def workbook_spelling(layer_type, run_type, tables) -> list:
@@ -259,12 +317,14 @@ def workbook_spelling(layer_type, run_type, tables) -> list:
 
 
 def run_for_validation(layer_type, tables, environment, run_type, data_validation, count_validation, rules_file=None,
-                       use_filter_files=True, create_only=False, log=None):
+                       use_filter_files=True, create_only=False, log=None, schema_validation="no"):
     """Check and update the YAML for one main.py run. Returns (results, ready_tables).
 
     Where each table lives comes from its row in the filter workbooks (filter_files.read()), not from arguments. The tables
     are grouped by that location (application, schemas, Snowflake database) and generated one group at a time.
     use_filter_files  True applies the rows' filter cells; False reads only the locations and compares whole tables.
+    schema_validation 'yes' also writes the schema file, from the workbook's type mapping sheet. Its location is the one of
+                      the workbook's first row; a table at another location is FAILED for schema (one query per file).
 
     results       (table, kind, status, detail) for every table and kind, as in generate(). The per-column comparison
                   is written to the log only. A named table with no workbook row is FAILED. A location whose schema lists no
@@ -280,7 +340,8 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
         raise ValueError(f"--layer_type {layer_type} has no YAML generation: db_rules.RULES has no engine '{source_type}'")
     args = resolve_args(SimpleNamespace(
         source_type=source_type, tables=tables, environment=environment, data_validation=data_validation,
-        count_validation=count_validation, run_type=run_type, source_schema=None, target_template=None, target_schema=None))
+        count_validation=count_validation, schema_validation=schema_validation, run_type=run_type, source_schema=None,
+        target_template=None, target_schema=None))
     label = RULES[source_type]["label"]
     layer = f"bronze_{source_type}"
     config_dir = config_dir_for(layer, run_type)
@@ -288,6 +349,7 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
     # The workbooks first: they say where every table lives. A bad row stops the run before anything is read or written.
     try:
         rows = filter_files.read(source_type, run_type, log=log)
+        schema_mapping = filter_files.schema_mapping(source_type, log=log) if schema_validation == "yes" else None
     except ValueError as exc:
         raise ValueError(f"Filter workbook problem: {exc}") from exc
     if not rows:
@@ -326,14 +388,24 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
 
     stamp = datetime.now().isoformat(timespec="seconds")
     log.info("YAML generation into %s", config_dir)
+    # The schema file has one sourcequery and one targetquery: the location of the workbook's first row (validator change V7
+    # would allow more).
+    schema_home = next(iter(rows.values())).location
     for where, names in by_location.items():
+        if schema_mapping is not None and where != schema_home:
+            reason = (f"the schema file holds one location ({schema_home.source_schema} -> {schema_home.target_database}."
+                      f"{schema_home.target_schema}), and this table is at {where.source_schema} -> {where.target_database}."
+                      f"{where.target_schema}; nothing was changed")
+            log.error("%s: schema YAML not written for %s: %s", where.application, ", ".join(names), reason)
+            results += [(table, "schema_validation", "FAILED", reason) for table in names]
         group = resolve_args(SimpleNamespace(**{**vars(args), "tables": names, "source_schema": where.source_schema,
                                                 "target_template": where.target_database, "target_schema": where.target_schema}))
         log.info("%s: %d table(s), %s schema %s -> Snowflake %s.%s, %d table rule(s)", where.application, len(names), label,
                  where.source_schema, group.target_database, where.target_schema, len(table_rules[where]))
         try:
             results += generate(group, source_db, target_db, config_dir, global_excluded, table_rules[where], log, stamp,
-                                file_filters=file_filters, create_only=create_only)
+                                file_filters=file_filters, create_only=create_only,
+                                schema_mapping=schema_mapping if where == schema_home else None)
         except ValueError as exc:
             # A schema that lists no table. Its tables FAIL; the next location still runs.
             log.error("%s: %s", where.application, exc)
@@ -344,6 +416,12 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
             if left:
                 log.warning("Generated YAML for %s is not in the filter workbooks for %s. It is left unchanged and not validated.",
                             ", ".join(left), where.application)
+    if schema_mapping is not None and "all" in tables:
+        listed = {table.lower() for table in rows}
+        left = sorted(table for table in schema_table_names(config_dir) if str(table).lower() not in listed)
+        if left:
+            log.warning("The schema file holds %s, which are not in the filter workbook. They are left unchanged and not validated.",
+                        ", ".join(left))
     for table, kind, status, detail in results:
         log.info("YAML %-9s %-35s %-17s %s", status, table, kind, detail)
 

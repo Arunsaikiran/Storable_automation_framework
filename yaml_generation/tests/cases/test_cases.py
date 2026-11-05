@@ -9,15 +9,17 @@ pair) and table rules in the rules workbook (one table, one database and schema)
 
 import re
 
+import pytest
 
-def pg_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no"):
-    return world.run("--layer_type", "bronze_postgres", "--tables", *tables, "--schema_validation", "no",
+
+def pg_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no", schema="no"):
+    return world.run("--layer_type", "bronze_postgres", "--tables", *tables, "--schema_validation", schema,
                      "--count_validation", count, "--data_validation", data, "--environment", "dev",
                      "--run_type", run_type, "--yaml_generation", yaml, "--filter_files", filters)
 
 
-def ms_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no"):
-    return world.run("--layer_type", "bronze_mssql", "--tables", *tables, "--schema_validation", "no",
+def ms_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no", schema="no"):
+    return world.run("--layer_type", "bronze_mssql", "--tables", *tables, "--schema_validation", schema,
                      "--count_validation", count, "--data_validation", data, "--environment", "dev",
                      "--run_type", run_type, "--yaml_generation", yaml, "--filter_files", filters)
 
@@ -151,6 +153,23 @@ def test_pg_14_generate_only_writes_yaml_and_runs_no_validator(world):
     assert pg_run(world, "units", yaml="yes", count="no", data="no") == 0
     assert world.exists("historical", "bronze_postgres", "units")
     assert world.validated == []
+
+
+@pytest.mark.parametrize("schema, count, data, written", [
+    ("no", "no", "no", {"schema", "count", "data"}),      # all three no: generate only, every kind
+    ("yes", "no", "no", {"schema"}),
+    ("no", "yes", "no", {"count"}),
+    ("no", "no", "yes", {"data"}),
+    ("no", "yes", "yes", {"count", "data"}),
+    ("yes", "yes", "yes", {"schema", "count", "data"}),
+])
+def test_pg_14b_yaml_generation_writes_only_the_kinds_asked_for(world, schema, count, data, written):
+    """Q: With --yaml_generation yes, is the YAML written for each kind set to yes, and for all three when all are no?"""
+    assert pg_run(world, "units", yaml="yes", schema=schema, count=count, data=data) == 0
+    found = {kind for kind, path in (("schema", world.schema_file("historical", "bronze_postgres")),
+                                     ("count", world.count_file("historical", "bronze_postgres")),
+                                     ("data", world.yaml("historical", "bronze_postgres", "units"))) if path.exists()}
+    assert found == written
 
 
 # --- PostgreSQL: the exclusions and the rules workbook --------------------------------------------------------------

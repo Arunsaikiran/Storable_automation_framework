@@ -379,3 +379,62 @@ def test_header_names_the_window_and_the_flattened_columns():
     header = "\n".join(yb.data_header(SPEC, "id_normalized", rec, yb.Filters(source_window="w1", target_window="w2"), STAMP))
     assert "# Incremental window (source): w1" in header and "# Incremental window (target): w2" in header
     assert "# Compared as flattened JSON text (json_columns, both sides): meta_normalized" in header
+
+
+# --- the schema validation file ---------------------------------------------------------------------------------
+
+SHARED = {"source": "mssql", "sourcequery": "SELECT 1\nFROM INFORMATION_SCHEMA.COLUMNS;", "target": "snowflake",
+          "targetquery": "SELECT 2\nFROM DEV_SITELINK_BRONZE.information_schema.columns;",
+          "datatype_map": {"int": "number"}, "precision_checks": {"numeric": ["int"]}}
+HEADER = [f"{yb.GENERATED_MARK} on {STAMP}. Do not hand-edit."]
+
+
+def _schema(tmp_path):
+    return yaml.safe_load(yb.schema_file_path(tmp_path).read_text(encoding="utf-8"))["validations"]["schema_validation"]
+
+
+def test_unmapped_types_names_the_column_and_skips_the_excluded_ones():
+    columns = [("UnitID", "int"), ("uTS", "timestamp"), ("Shape", "geography")]
+    assert yb.unmapped_types(columns, {"uTS"}, {"int": "number"}) == ["Shape (geography)"]
+    assert yb.unmapped_types([("Kind", "USER-DEFINED")], set(), {"user-defined": "variant"}) == ["Kind (USER-DEFINED)"]
+
+
+def test_schema_file_new_then_unchanged_then_updated(tmp_path):
+    entry = {"source_column_exclusion": ["uTS"], "target_column_exclusion": ["UTS"]}
+    assert yb.write_schema_file(tmp_path, {"Units": entry}, SHARED, HEADER)[1] == {"Units": "NEW"}
+    later = [f"{yb.GENERATED_MARK} on 2026-12-01T00:00:00. Do not hand-edit."]
+    text = yb.schema_file_path(tmp_path).read_text(encoding="utf-8")
+    assert yb.write_schema_file(tmp_path, {"Units": entry}, SHARED, later)[1] == {"Units": "UNCHANGED"}
+    assert yb.schema_file_path(tmp_path).read_text(encoding="utf-8") == text, "an unchanged file is not rewritten"
+    assert yb.write_schema_file(tmp_path, {"Units": dict(entry, source_column_exclusion=[])}, SHARED, later)[1] \
+        == {"Units": "UPDATED"}
+    other_env = dict(SHARED, targetquery="SELECT 2\nFROM STG_SITELINK_BRONZE.information_schema.columns;")
+    assert yb.write_schema_file(tmp_path, {"Units": dict(entry, source_column_exclusion=[])}, other_env, later)[1] \
+        == {"Units": "UPDATED"}, "a change of the shared queries updates every table written"
+    doc = _schema(tmp_path)
+    assert list(doc) == ["tables", *SHARED] and doc["targetquery"] == other_env["targetquery"]
+
+
+def test_schema_file_keeps_every_other_table_and_matches_a_name_in_any_case(tmp_path):
+    empty = {"source_column_exclusion": [], "target_column_exclusion": []}
+    yb.write_schema_file(tmp_path, {"addresses": empty, "Sites": empty}, SHARED, HEADER)
+    _, statuses = yb.write_schema_file(tmp_path, {"Addresses": {**empty, "target_column_exclusion": ["_FIVETRAN_ID"]}},
+                                       SHARED, HEADER)
+    assert statuses == {"Addresses": "UPDATED"}
+    assert list(_schema(tmp_path)["tables"]) == ["Addresses", "Sites"], "renamed in place, Sites never removed"
+
+
+def test_schema_file_create_only_adds_a_table_and_keeps_the_files_own_queries(tmp_path):
+    empty = {"source_column_exclusion": [], "target_column_exclusion": []}
+    yb.write_schema_file(tmp_path, {"Sites": empty}, SHARED, HEADER)
+    _, statuses = yb.write_schema_file(tmp_path, {"Units": empty}, dict(SHARED, datatype_map={}), HEADER, create_only=True)
+    assert statuses == {"Units": "NEW"}
+    assert _schema(tmp_path)["datatype_map"] == SHARED["datatype_map"]
+    assert list(_schema(tmp_path)["tables"]) == ["Sites", "Units"]
+
+
+def test_the_schema_file_queries_are_block_text_the_validator_can_format(tmp_path):
+    yb.write_schema_file(tmp_path, {"Units": {"source_column_exclusion": [], "target_column_exclusion": []}}, SHARED, HEADER)
+    text = yb.schema_file_path(tmp_path).read_text(encoding="utf-8")
+    assert "sourcequery: |-" in text and "targetquery: |-" in text
+    assert yb.schema_table_names(tmp_path) == {"Units"}
