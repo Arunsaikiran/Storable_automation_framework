@@ -672,7 +672,7 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
 
     control_df = pd.read_csv(control_file)
     rows = (control_df[(control_df['table'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
-s
+
     if rows.empty:
         raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
     previous_sync_date = rows.iloc[0]
