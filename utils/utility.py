@@ -209,8 +209,6 @@ def _write_summary_to_table_result_excel(summary_df, output_path, table_name):
 
     sheet_name = f"{table_name}_summary"[:31]
     result_file = os.path.join(output_path, f"{table_name}_result.xlsx")
-    print(result_file)
-
     os.makedirs(output_path, exist_ok=True)
 
     try:
@@ -373,13 +371,6 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
             summary_df=summary_df,
             output_path=output_path,
             validation_type=validation_type)
-
-    # if layer_type == 'reports' :
-    #     _write_overall_summary_excel(
-    #         summary_df=summary_df,
-    #         output_path=output_path,
-    #         validation_type=validation_type)
-
 
 def get_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
@@ -602,7 +593,6 @@ def data_context():
         report_pack: list | None = None
     return DataContext
 
-#to do
 def check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type,threshold:int=2):
     freshness_check = 'Pass'
     if layer_type == "bronze_postgres":
@@ -619,26 +609,22 @@ def check_freshness(source_conn,target_conn,source_table_name,target_table_name,
         target_query = f"""
             SELECT max(dUpdated) as max_date from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
             """
-    print(source_query)
+    logger.info("Performing Freshness Check")   
+    logger.info("Threshold: %s",threshold) 
+    logger.info("Source Query: %s",source_query)
     source_df = source_conn.execute_query(source_query)
-    print(target_query)
+    logger.info("Target Query: %s",target_query)
     target_df = target_conn.execute_query(target_query)
-
-    print("Source date",source_df['max_date'])
-    print("Target date",target_df['MAX_DATE'])
+    logger.info("Source date: %s",source_df['max_date'].iloc[0])
+    logger.info("Target date: %s",target_df['MAX_DATE'].iloc[0])
     hours = (source_df['max_date'] - target_df['MAX_DATE']).dt.total_seconds() / 3600
-    print("Hours:",hours)
     value = hours.iloc[0]
-
+    logger.info("Hours: %.2f",value)
     if pd.isna(value) or value > threshold:
         freshness_check = 'Fail'
     return freshness_check
 
 def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name):
-    print('-'*100)
-    print('validation:',validation)
-    print('-'*100)
-
 
     yaml_path = os.path.join(base_dir,"creds","api.yaml")
     control_file = os.path.join(base_dir,'control_table.csv')
@@ -655,16 +641,13 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
     dt = datetime.fromisoformat(d['data']['succeeded_at'])
     sync_date = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + dt.strftime('%z')
     date_column = 'data_validation_last_run_date' if validation == 'data' else 'count_validation_last_run_date'
-    print('-'*100)
-    print('date_column',date_column)
-    print('-'*100)
-
     control_df = pd.read_csv(control_file)
     rows = (control_df[(control_df['table'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
 
     if rows.empty:
         raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
     previous_sync_date = rows.iloc[0]
+    logger.info("Fetching Sync Date and Fivetran Start Date ranges (MIN/MAX)") 
     logger.info(f"Table '{table_name.lower()}' ({layer}): sync_date={sync_date}, previous_sync_date={previous_sync_date}")
 
     if sync_date == previous_sync_date:
@@ -684,9 +667,9 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
         WHERE _FIVETRAN_ACTIVE = TRUE
         and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
         """
-    print("-"*100)
-    print(target_query)
-    print("-"*100)
+
+    logger.info("Target query: %s",target_query)
+
     target_df =  target_conn.execute_query(target_query)
     if pd.isna(target_df['MIN_FIVETRAN_START'].iloc[0]) or pd.isna(target_df['MAX_FIVETRAN_START'].iloc[0]):
         logger.info(f"No new data has been ingested for this time period: table '{table_name.lower()}' ({layer}), {previous_sync_date} to {sync_date}")
@@ -695,17 +678,9 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
     min_ts = pd.Timestamp(target_df['MIN_FIVETRAN_START'].iloc[0])
     max_ts = pd.Timestamp(target_df['MAX_FIVETRAN_START'].iloc[0])
 
-    # print("-"*100)
-    # print(target_df['MIN_FIVETRAN_START'])
-    # print(target_df['MAX_FIVETRAN_START'])
-    # print(min_ts)
-    # print(max_ts)
-    # print("-"*100)
-
     min_fivetran_start = (min_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + min_ts.strftime('%z'))
     max_fivetran_start = (max_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + max_ts.strftime('%z'))
     if layer == 'bronze_mssql':
-        # print("Hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
         import re
         max_fivetran_start = re.sub(r'\+0000$', '', max_fivetran_start)
         min_fivetran_start = re.sub(r'\+0000$', '', min_fivetran_start)
@@ -727,17 +702,17 @@ def update_control_table(file_location, table_name, layer, validation, sync_date
     )
 
     if not mask.any():
-        print(f"No control table row for {table_name.lower()}-{layer}; nothing updated")
+        logger.info(f"No control table row for {table_name.lower()}-{layer}; nothing updated")
         return
 
     updates = {date_column: sync_date}
     for column, value in updates.items():
         if column not in control_df.columns:
-            print(f"Column '{column}' not in control table; skipped")
+            logger.info(f"Column '{column}' not in control table; skipped")
             continue
         control_df.loc[mask, column] = str(value)
-
     control_df.to_csv(file_location, index=False)
+
 def get_incremental_dates(base_dir,source_conn,target_conn,source_table_name,target_table_name,layer_type,validation):
     if check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type) == "Fail":
         raise RuntimeError(f"Freshness check failed for {target_table_name}")

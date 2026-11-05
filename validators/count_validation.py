@@ -1,8 +1,8 @@
 import yaml
-from db.factory import get_database, close_all_databases
+from db.factory import get_database
 from utils.utility import get_logger,get_incremental_dates,update_control_table
 from utils.exceptions import NoNewDataError,NoNewSyncError
-from datetime import datetime,timedelta
+from datetime import datetime
 import time
 import pyodbc
 import psycopg2
@@ -48,7 +48,6 @@ def validate_count(ctx):
     environment = ctx.environment
     tables = ctx.tables
     run_type = ctx.run_type
-    # CHANGE: YAML generation. The generated-YAML flag is no longer read here: every incremental YAML uses the freshness check.
     failure_count = 0
     system_error = False
 
@@ -194,10 +193,12 @@ def validate_count(ctx):
                             update_control_table(control_table_path,target_table_name,layer[0],'count',sync_date)
                         print("+"*100)
 
-                except NoNewSyncError:
+                except NoNewSyncError as e:
+                    logger.info("Skipping table=%s validation=%s: %s", table_name, validation_name, e)
                     continue
-            
-                except NoNewDataError:
+
+                except NoNewDataError as e:
+                    logger.info("Skipping table=%s validation=%s: %s", table_name, validation_name, e)
                     continue
 
                 except (pyodbc.Error, psycopg2.Error):
@@ -209,7 +210,6 @@ def validate_count(ctx):
                         exc_info=True
                     )
                     status = "FAIL"
-                    failure_count += 1
                     system_error = True
                     create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message,layer_type=layer[0])
                     continue

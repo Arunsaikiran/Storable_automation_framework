@@ -14,11 +14,6 @@ import pandas as pd
 
 logger = get_logger(__name__)
 
-
-def add_condition(query,condition):
-    keyword = " AND " if " where " in query.lower() else " WHERE "
-    return query + keyword + condition
-
 def validate_data(ctx):
     run_id = ctx.run_id
     run_at = ctx.run_at
@@ -268,10 +263,12 @@ def validate_data(ctx):
                             update_control_table(control_table_path,target_table_name,layer[0],'data',sync_date)
                         print("+"*100)
 
-                except NoNewSyncError:
+                except NoNewSyncError as e:
+                    logger.info("Skipping table=%s validation=%s: %s", table_name, validation_name, e)
                     continue
 
-                except NoNewDataError:
+                except NoNewDataError as e:
+                    logger.info("Skipping table=%s validation=%s: %s", table_name, validation_name, e)
                     continue
 
                 except (pyodbc.Error, psycopg2.Error):
@@ -283,7 +280,6 @@ def validate_data(ctx):
                         exc_info=True
                     )
                     status = "FAIL"
-                    failure_count += 1
                     system_error = True 
                     create_summary(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,error_message=error_message,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile,test_case=test_case,summary=summary)
                     continue
