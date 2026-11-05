@@ -1,13 +1,14 @@
 """Rules for each database: how to read its catalogue, and how to write a value as text.
 
-One block per database in RULES. The generator uses the SOURCE block picked with --source_type, and
-the TARGET block, which is always "snowflake" for now. Adding a database means adding one block here.
+One block per database ENGINE in RULES, not per application. The generator uses the SOURCE block of the layer's engine
+(--layer_type bronze_postgres uses "postgres"), and the TARGET block, which is always "snowflake" for now.
+
+Where a table lives (application, schema, Snowflake database and schema) is not here: it is in the filter workbooks
+(filter_files.py), one row per table. A new application on an engine that is already here needs only its workbook. A new
+engine (MySQL, MongoDB) needs one block here, a connector in db/, and its layer in main.py.
 
 What each key means
-  label                 name shown in messages
-  default_schema        schema used when --source_schema is not given (None = you must give it)
-  target_schema         Snowflake schema for this source (None = you must give --target_schema)
-  target_system         the name in the Snowflake Bronze database, e.g. EDGE gives DEV_EDGE_BRONZE
+  label                 the engine's name: shown in messages, and the value of source_database in a filter workbook
   has_primary_keys      whether the catalogue has primary keys the generator can read
   pg_catalog            read tables, columns and keys from pg_catalog, not information_schema (PostgreSQL only).
                         information_schema leaves out whatever the role cannot read, so a table would look missing.
@@ -29,9 +30,6 @@ import re
 RULES = {
     "postgres": {
         "label": "PostgreSQL",
-        "default_schema": "public",
-        "target_schema": "STOREDGE_FMS_PUBLIC",
-        "target_system": "EDGE",
         "has_primary_keys": True,
         "pg_catalog": True,
         "quote": ('"', '"'),
@@ -53,9 +51,6 @@ RULES = {
     },
     "mssql": {
         "label": "SQL Server",
-        "default_schema": "dbo",
-        "target_schema": "SITELINK",
-        "target_system": "SITELINK",
         "has_primary_keys": True,
         "quote": ("[", "]"),
         "text_type": "NVARCHAR(MAX)",
@@ -78,9 +73,6 @@ RULES = {
     },
     "athena": {
         "label": "Athena",
-        "default_schema": None,      # the Glue database name; give --source_schema
-        "target_schema": None,       # give --target_schema
-        "target_system": None,       # give --target_database
         # Athena tables have no primary key. Name the key in the table rules file (key_columns).
         "has_primary_keys": False,
         "quote": ('"', '"'),
@@ -100,9 +92,6 @@ RULES = {
     },
     "redshift": {
         "label": "Redshift",
-        "default_schema": None,      # give --source_schema
-        "target_schema": None,       # give --target_schema
-        "target_system": None,       # give --target_database
         "has_primary_keys": True,    # Redshift keys are informational; read them when they are defined
         "quote": ('"', '"'),
         # Without a length, Redshift's CAST gives VARCHAR(256) and cuts longer text. 65535 is the maximum.
@@ -184,7 +173,7 @@ def quote(name, rules) -> str:
 
 
 def _lit(value) -> str:
-    """A SQL string literal. Names come from the database's own catalogue or the command line, so quotes are doubled."""
+    """A SQL string literal. Names come from the database's own catalogue or the filter workbooks, so quotes are doubled."""
     return "'" + str(value).replace("'", "''") + "'"
 
 

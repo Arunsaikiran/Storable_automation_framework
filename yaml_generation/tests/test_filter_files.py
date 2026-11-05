@@ -1,4 +1,4 @@
-"""Unit tests for filter_files.py: the statement reader, the workbook reader (_statements) and load() for each run type."""
+"""Unit tests for filter_files.py: the statement reader, the workbook reader (read: each table's location) and filters()."""
 
 import logging
 
@@ -72,7 +72,7 @@ def test_quoted_text_is_read_as_text_not_as_sql():
     "select count(*) from events j join facilities f on j.facility_id=f.id where f.company_id = 1 or j.created_at > '2025-01-01'",
     "select count(*) from events j left join facilities f on j.facility_id=f.id where f.company_id = 1",
     "select count(*) from events j join facilities f on j.facility_id=f.id where j.created_at > f.created_at",
-    "select count(*) from events j join facilities f on j.facility_id=f.name where f.company_id = 1",
+    "select count(*) from events j join facilities f on j.facility_id=j.id where f.company_id = 1",
     "select count(*) from events where status between 'a' and 'b'",
     "select count(*) from events where id in (select id from other)",
     "select count(*) from events e join events e on e.id=e.id",
@@ -101,95 +101,195 @@ def test_a_cell_with_only_conditions_is_about_the_rows_table():
         == ("created_at >= '2026-08-01'", "created_at >= '2026-08-01'")
 
 
-# --- the workbook reader (_statements) -------------------------------------------------------------------------
+# --- the workbook reader: read() gives each table's location and filter cell ------------------------------------------
 
-def test_statements_reads_the_column_for_the_run_type_from_the_first_sheet_that_has_both(tmp_path):
-    path = _workbook(tmp_path / "f.xlsx", {
-        "notes": [["Something else"], ["x"]],
-        "filters": [["  Target Table Name ", "Incremental filters to apply", "Other"],
-                    ["units", "created_at > '2025-01-01'", "ignored"],
-                    [None, None, None],
-                    ["notes", None, "ignored"]],
+LOG = logging.getLogger("t")
+EDGE = ["Edge", "PostgreSQL", "public", "Snowflake", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC"]
+SITELINK = ["SiteLink", "SQL Server", "dbo", "Snowflake", "{env}_SITELINK_BRONZE", "SITELINK"]
+HEADER = ["Target Table Name", "Incremental filters to apply", "Historical Filter to apply.", *ff.LOCATION_HEADERS]
+
+
+def _rows(*rows, location=EDGE, header=HEADER):
+    """A sheet: the standard header, then [table, incremental, historical] padded, then the location columns."""
+    return [header] + [list(row) + [None] * (3 - len(row)) + list(location) for row in rows]
+
+
+def _filters(folder, run_type, source_type="postgres"):
+    return ff.filters(ff.read(source_type, run_type, folder=folder, log=LOG), log=LOG)
+
+
+def test_read_gives_each_table_its_location_from_the_row(tmp_path):
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"filters": _rows(["units"])})
+    row = ff.read("postgres", "historical", folder=tmp_path, log=LOG)["units"]
+    assert row.location == ff.Location("Edge", "postgres", "public", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC")
+    assert row.statement == "" and row.label == "edge_bronze_filters.xlsx row 2 (units)"
+
+
+def test_read_uses_the_first_sheet_with_the_columns_and_matches_headers_loosely(tmp_path):
+    header = ["  TARGET TABLE NAME ", "Incremental Filters to apply.", "x", *[f" {name.upper()} " for name in ff.LOCATION_HEADERS]]
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {
+        "notes": [["Target Table Name", "Something else"], ["other"]],          # no location columns: not this sheet
+        "filters": _rows(["units", "created_at > '2025-01-01'"], [None], ["notes"], header=header),
     })
-    assert ff._statements(path, "incremental filters to apply") == [
-        (2, "units", "created_at > '2025-01-01'"),
-        (4, "notes", ""),
-    ]
+    rows = ff.read("postgres", "incremental", folder=tmp_path, log=LOG)
+    assert list(rows) == ["units", "notes"], "a row with no table name is skipped"
+    assert rows["units"].statement == "created_at > '2025-01-01'"
+    assert rows["notes"].label.endswith("row 4 (notes)"), "row numbers are the sheet's"
 
 
-def test_statements_returns_none_when_no_sheet_has_the_column(tmp_path):
-    path = _workbook(tmp_path / "f.xlsx", {"only": [["Target Table Name", "Other"], ["units", "x"]]})
-    assert ff._statements(path, "historical filter to apply.") is None
+def test_a_workbook_without_the_location_columns_is_an_error_naming_the_file(tmp_path):
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"], ["units", None]]})
+    with pytest.raises(ValueError, match="edge_bronze_filters.xlsx has no sheet with the columns"):
+        ff.read("postgres", "incremental", folder=tmp_path, log=LOG)
 
 
-def test_statements_skips_a_row_with_no_table_name_and_keeps_the_row_numbers(tmp_path):
-    path = _workbook(tmp_path / "f.xlsx", {"s": [["Target Table Name", "Historical Filter to apply."],
-                                                 [None, "x = 1"], ["units", "y = 2"]]})
-    assert ff._statements(path, "historical filter to apply.") == [(3, "units", "y = 2")]
+def test_the_layer_picks_its_workbook_and_no_other_file_is_read(tmp_path):
+    """bronze_postgres reads edge_bronze_filters.xlsx only. A bad row in another file does not stop it."""
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": _rows(["units"])})
+    _workbook(tmp_path / "sitelink_bronze_filters.xlsx", {"s": _rows(["Accounts"], location=SITELINK)})
+    _workbook(tmp_path / "notes.xlsx", {"s": _rows(["broken"], location=[None] * 6)})
+    assert list(ff.read("postgres", "historical", folder=tmp_path, log=LOG)) == ["units"]
+    assert list(ff.read("mssql", "historical", folder=tmp_path, log=LOG)) == ["Accounts"]
 
 
-# --- load(): the run type picks the column -------------------------------------------------------------------------
+def test_a_layer_with_no_workbook_or_a_missing_file_is_an_error(tmp_path):
+    with pytest.raises(ValueError, match="bronze_athena has no filter workbook"):
+        ff.read("athena", "historical", folder=tmp_path, log=LOG)
+    with pytest.raises(ValueError, match="for --layer_type bronze_mssql is missing"):
+        ff.read("mssql", "historical", folder=tmp_path, log=LOG)
+
+
+def test_a_target_database_without_env_is_an_error(tmp_path):
+    _workbook(tmp_path / "edge_bronze_filters.xlsx",
+              {"s": _rows(["units"], location=["Edge", "PostgreSQL", "public", "Snowflake", "DEV_EDGE_BRONZE", "X"])})
+    with pytest.raises(ValueError, match=r"row 2 \(units\): target_database 'DEV_EDGE_BRONZE' has no \{env\}"):
+        ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+
+
+def test_table_names_are_matched_without_regard_to_case(tmp_path, caplog):
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": _rows(["Addresses"], ["ADDRESSES"])})
+    with caplog.at_level(logging.WARNING):
+        rows = ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+    assert list(rows) == ["Addresses"] and "row 3 (ADDRESSES): the table is listed twice" in caplog.text
+    assert ff.spelled(["addresses", "nosuch"], rows) == ["Addresses", "nosuch"]
+
+
+def test_a_workbook_without_the_run_types_filter_column_still_gives_the_locations(tmp_path, caplog):
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": [["Target Table Name", *ff.LOCATION_HEADERS], ["units", *EDGE]]})
+    with caplog.at_level(logging.WARNING):
+        rows = ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+    assert rows["units"].statement == "" and rows["units"].location.source_schema == "public"
+    assert "has no 'historical filter to apply' column" in caplog.text
+
+
+@pytest.mark.parametrize("column", ff.LOCATION_HEADERS[1:])
+def test_an_empty_location_cell_is_an_error_naming_the_file_row_and_column(tmp_path, column):
+    location = list(EDGE)
+    location[ff.LOCATION_HEADERS.index(column)] = None
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": _rows(["units"], location=location)})
+    with pytest.raises(ValueError, match=rf"edge_bronze_filters.xlsx row 2 \(units\): {column} is empty"):
+        ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+
+
+def test_a_target_other_than_snowflake_is_an_error(tmp_path):
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": _rows(["units"], location=["Edge", "PostgreSQL", "public", "Redshift", "X", "Y"])})
+    with pytest.raises(ValueError, match="target_application must be Snowflake, found 'Redshift'"):
+        ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+
+
+@pytest.mark.parametrize("engine", ["SQL Server", "MySQL"])
+def test_a_row_for_another_engine_in_the_layers_workbook_is_an_error(tmp_path, engine):
+    other = ["Marketplace", engine, "app", "Snowflake", "{env}_MARKETPLACE_BRONZE", "APP"]
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": [HEADER, ["units", None, None, *EDGE], ["listings", None, None, *other]]})
+    with pytest.raises(ValueError, match=rf"row 3 \(listings\): source_database is '{engine}', but "
+                                         r"edge_bronze_filters.xlsx is the workbook for PostgreSQL"):
+        ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+
+
+def test_the_engine_is_matched_by_label_or_key_in_any_case():
+    assert ff.engine_of("PostgreSQL") == ff.engine_of(" postgres ") == "postgres"
+    assert ff.engine_of("sql server") == ff.engine_of("MSSQL") == "mssql"
+    assert ff.engine_of("Snowflake") == "snowflake"
+    assert ff.engine_of("MySQL") is None and ff.engine_of(None) is None
+
+
+def test_a_table_listed_twice_keeps_the_first_row_with_a_warning(tmp_path, caplog):
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": _rows(["units", "units\nwhere id > 1"], ["units", "units\nwhere id > 2"])})
+    with caplog.at_level(logging.WARNING):
+        assert _filters(tmp_path, "incremental")["units"] == ("id > 1", "id > 1")
+    assert "row 3 (units): the table is listed twice" in caplog.text
+
+
+def test_a_refused_first_row_is_the_tables_row_so_the_table_is_loaded_in_full(tmp_path):
+    """The first row is where the table lives, so its filter is the one used; a later row for the same table is not."""
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": _rows(["units", 'units\nwhere "id" > 1'], ["units", "units\nwhere id > 2"])})
+    assert "units" not in _filters(tmp_path, "incremental")
+
+
+# --- filters(): the run type picks the column, each side is written for the row's location ---------------------------
 
 @pytest.fixture
 def folder(tmp_path):
-    _workbook(tmp_path / "postgres.xlsx", {"filters": [
-        ["Target Table Name", "Incremental filters to apply", "Historical Filter to apply."],
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"filters": _rows(
         ["units", "units\nwhere created_at >= '2025-01-01'", "units\nwhere created_at >= '2020-01-01'"],
         ["notes", "", "notes\nwhere body is not null"],
         ["events", "events j\nwhere j.created_at > '2025-06-01' -- note", None],
         ["bad", "bad\nwhere a = 1 or b = 2", None],
-    ]})
+    )})
     return tmp_path
 
 
 def test_incremental_run_reads_the_incremental_column(folder):
-    filters = ff.load("postgres", "public", "DEV_EDGE_BRONZE", "STOREDGE", "incremental", folder=folder,
-                      log=logging.getLogger("t"))
+    filters = _filters(folder, "incremental")
     assert filters["units"] == ("created_at >= '2025-01-01'", "created_at >= '2025-01-01'")
     assert "notes" not in filters, "an empty cell means no filter"
 
 
 def test_historical_run_reads_the_historical_column(folder):
-    filters = ff.load("postgres", "public", "DEV_EDGE_BRONZE", "STOREDGE", "historical", folder=folder,
-                      log=logging.getLogger("t"))
+    filters = _filters(folder, "historical")
     assert filters["units"][0] == "created_at >= '2020-01-01'"
     assert filters["notes"] == ("body is not null", "body is not null")
     assert "units" in filters and "events" not in filters
 
 
+def test_the_snowflake_side_is_written_for_the_rows_own_location(tmp_path):
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": _rows(["events", None, "events j\njoin facilities f on j.facility_id=f.id\n"
+                                                                    "where f.company_id in (137)"])})
+    _, target = _filters(tmp_path, "historical")["events"]
+    assert target == ('facility_id IN (SELECT id FROM {env}_EDGE_BRONZE."STOREDGE_FMS_PUBLIC"."FACILITIES" '
+                      "WHERE company_id in (137) AND _FIVETRAN_ACTIVE = TRUE)")
+
+
 def test_a_bare_condition_cell_filters_its_own_table_without_a_join(tmp_path):
-    _workbook(tmp_path / "postgres.xlsx", {"filters": [
-        ["Target Table Name", "Incremental filters to apply", "Historical Filter to apply."],
-        ["account_balance_items", None, "created_at >= '2026-08-01'"],
-    ]})
-    filters = ff.load("postgres", "public", "DEV_EDGE_BRONZE", "STOREDGE", "historical", folder=tmp_path,
-                      log=logging.getLogger("t"))
-    assert filters == {"account_balance_items": ("created_at >= '2026-08-01'", "created_at >= '2026-08-01'")}
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": _rows(["account_balance_items", None, "created_at >= '2026-08-01'"])})
+    assert _filters(tmp_path, "historical") == {
+        "account_balance_items": ("created_at >= '2026-08-01'", "created_at >= '2026-08-01'")}
 
 
 def test_a_refused_row_loads_its_table_in_full_and_is_logged(folder, caplog):
     with caplog.at_level(logging.WARNING):
-        filters = ff.load("postgres", "public", "DEV", "S", "incremental", folder=folder, log=logging.getLogger("t"))
+        filters = _filters(folder, "incremental")
     assert "bad" not in filters
     assert "loaded in full" in caplog.text and "row 5 (bad)" in caplog.text
 
 
 def test_a_filter_refused_by_check_filter_is_not_applied(folder, caplog):
     with caplog.at_level(logging.WARNING):
-        filters = ff.load("postgres", "public", "DEV", "S", "incremental", folder=folder, log=logging.getLogger("t"))
+        filters = _filters(folder, "incremental")
     assert "events" not in filters
     assert "loaded in full" in caplog.text
 
 
-def test_a_table_listed_twice_keeps_the_first_row(tmp_path):
-    _workbook(tmp_path / "postgres_a.xlsx",{"s": [["Target Table Name", "Incremental filters to apply"],
-                                           ["units", "units\nwhere id > 1"], ["units", "units\nwhere id > 2"]]})
-    filters = ff.load("postgres", "public", "DEV", "S", "incremental", folder=tmp_path, log=logging.getLogger("t"))
-    assert filters["units"] == ("id > 1", "id > 1")
-
-
-def test_a_source_without_a_layout_reads_no_filter_files(folder):
-    assert ff.load("athena", "glue", "DEV", "S", "incremental", folder=folder, log=logging.getLogger("t")) == {}
+def test_a_cell_about_another_table_is_refused_and_the_table_loaded_in_full(tmp_path, caplog):
+    # A cell copied from another row would filter the wrong table. The row's table must be the one the statement reads.
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"s": _rows(
+        ["discount_plan_ledger_instances", "discount_plan_ledger_instances_line_items j\n"
+                                           "join discount_plan_ledger_instances ss on j.discount_plan_ledger_instance_id=ss.id\n"
+                                           "where j.created_at >= '2026-08-01'"])})
+    with caplog.at_level(logging.WARNING):
+        filters = _filters(tmp_path, "incremental")
+    assert "discount_plan_ledger_instances" not in filters
+    assert "is about 'discount_plan_ledger_instances_line_items', not 'discount_plan_ledger_instances'" in caplog.text
 
 
 MS_ARGS = ("mssql", "dbo", "DEV_SITELINK_BRONZE", "SITELINK")
@@ -198,6 +298,13 @@ MS_ARGS = ("mssql", "dbo", "DEV_SITELINK_BRONZE", "SITELINK")
 def test_sql_server_joins_are_written_with_brackets():
     src, _ = ff.convert("select count(*) from AcctTypes j join Promotions p on j.promo_id=p.id where p.active = 1", *MS_ARGS)
     assert src == "promo_id IN (SELECT id FROM [dbo].[Promotions] WHERE active = 1)"
+
+
+def test_sitelink_joins_on_its_own_keys_through_sites_to_owners():
+    src, _ = ff.convert("select count(*) from Units t join Sites s on t.SiteID = s.SiteID join Owners o on s.OwnerID = o.OwnerID "
+                        "where o.sCorpCode in ('SLQA', 'CVIJAY')", *MS_ARGS)
+    assert src == ("SiteID IN (SELECT SiteID FROM [dbo].[Sites] WHERE OwnerID IN "
+                   "(SELECT OwnerID FROM [dbo].[Owners] WHERE sCorpCode in ('SLQA', 'CVIJAY')))")
 
 
 def test_a_bind_parameter_is_refused_because_it_has_no_value():
@@ -211,47 +318,17 @@ def test_a_postgresql_cast_is_not_mistaken_for_a_bind_parameter():
     assert "::date" in source_where
 
 
-def test_sql_server_reads_only_the_sitelink_workbook(tmp_path, caplog):
+def test_sql_server_reads_only_its_own_workbook_and_compare_full_is_no_filter(tmp_path, caplog):
     # The PostgreSQL workbook in the same folder must not be applied to SQL Server.
-    _workbook(tmp_path / "postgres.xlsx", {"filters": [["Target Table Name", "Incremental filters to apply"],
-                                                       ["units", "units\nwhere id > 1"]]})
-    _workbook(tmp_path / "Sitelink_bronze_filters.xlsx", {"Sheet1": [
-        ["s.no", "table", " filters to Apply", "Incremental filters to Apply"],
-        [1, "AcctTypes", "AcctTypes t\nwhere t.scorpcode = :scorpcode", "AcctTypes t\nwhere t.scorpcode = :scorpcode"],
-        [2, "Promotions", "compare full", "compare full"],
-        [3, "Accounts", "Accounts t\nwhere t.active = 1", "Accounts t\nwhere t.active = 1"],
-    ]})
+    _workbook(tmp_path / "edge_bronze_filters.xlsx", {"filters": _rows(["units", "units\nwhere id > 1"])})
+    _workbook(tmp_path / "sitelink_bronze_filters.xlsx", {"Sheet1": _rows(
+        ["AcctTypes", "AcctTypes t\nwhere t.scorpcode = :scorpcode"],
+        ["Promotions", "compare full"],
+        ["Accounts", "Accounts t\nwhere t.active = 1"], location=SITELINK)})
     with caplog.at_level(logging.WARNING):
-        filters = ff.load("mssql", "dbo", "{env}_SITELINK_BRONZE", "SITELINK", "incremental", folder=tmp_path,
-                          log=logging.getLogger("t"))
+        filters = _filters(tmp_path, "incremental", source_type="mssql")
     assert filters == {"Accounts": ("active = 1", "active = 1")}
     assert "AcctTypes" not in filters and "loaded in full" in caplog.text
-    assert "units" not in filters
-
-
-def test_the_shipped_workbooks_load_for_both_run_types():
-    """Read-only smoke test on the real folder. It checks the read does not fail, not what the filters say."""
-    for run_type in ("incremental", "historical"):
-        assert isinstance(ff.load("postgres", "public", "DEV_EDGE_BRONZE", "STOREDGE", run_type, log=logging.getLogger("t")), dict)
-
-
-def test_a_cell_about_another_table_is_refused_and_the_table_loaded_in_full(tmp_path, caplog):
-    # A cell copied from another row would filter the wrong table. The row's table must be the one the statement reads.
-    _workbook(tmp_path / "postgres_a.xlsx",{"s": [["Target Table Name", "Incremental filters to apply"],
-        ["discount_plan_ledger_instances", "discount_plan_ledger_instances_line_items j\n"
-                                           "join discount_plan_ledger_instances ss on j.discount_plan_ledger_instance_id=ss.id\n"
-                                           "where j.created_at >= '2026-08-01'"]]})
-    with caplog.at_level(logging.WARNING):
-        filters = ff.load("postgres", "public", "DEV", "S", "incremental", folder=tmp_path, log=logging.getLogger("t"))
-    assert "discount_plan_ledger_instances" not in filters
-    assert "is about 'discount_plan_ledger_instances_line_items', not 'discount_plan_ledger_instances'" in caplog.text
-
-
-def test_a_refused_first_row_does_not_block_a_valid_second_row(tmp_path):
-    _workbook(tmp_path / "postgres_a.xlsx",{"s": [["Target Table Name", "Incremental filters to apply"],
-                                           ["units", 'units\nwhere "id" > 1'], ["units", "units\nwhere id > 2"]]})
-    filters = ff.load("postgres", "public", "DEV", "S", "incremental", folder=tmp_path, log=logging.getLogger("t"))
-    assert filters["units"] == ("id > 2", "id > 2")
 
 
 def test_quoted_identifiers_are_refused_as_the_docstring_says():
@@ -259,27 +336,15 @@ def test_quoted_identifiers_are_refused_as_the_docstring_says():
         ff.convert('select count(*) from events j join facilities f on j.facility_id=f.id where f."company_id" in (137)', *ARGS)
 
 
-# --- which workbook is for which database: the file name prefix, and the table list for --tables all ----------------
+# --- the shipped workbooks ----------------------------------------------------------------------------------------------
 
-def test_the_file_name_prefix_picks_the_database(tmp_path, caplog):
-    _workbook(tmp_path / "postgres Table filters.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"],
-                                                              ["units", None]]})
-    _workbook(tmp_path / "Sitelink_bronze_filters.xlsx", {"Sheet1": [["table", "Incremental filters to Apply"],
-                                                                     ["Accounts", None]]})
-    _workbook(tmp_path / "notes.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"], ["other", None]]})
-    with caplog.at_level(logging.WARNING):
-        assert ff.workbook_tables("postgres", "incremental", folder=tmp_path, log=logging.getLogger("t")) == ["units"]
-        assert ff.workbook_tables("mssql", "incremental", folder=tmp_path, log=logging.getLogger("t")) == ["Accounts"]
-    assert "notes.xlsx has no known database prefix" in caplog.text
-
-
-def test_workbook_tables_lists_a_table_whose_filter_cell_is_empty(folder):
-    assert ff.workbook_tables("postgres", "incremental", folder=folder, log=logging.getLogger("t")) == \
-        ["units", "notes", "events", "bad"]
-
-
-def test_the_shipped_workbooks_list_their_own_database_tables():
-    postgres = ff.workbook_tables("postgres", "incremental", log=logging.getLogger("t"))
-    sitelink = ff.workbook_tables("mssql", "incremental", log=logging.getLogger("t"))
-    assert "events" in postgres and "NationalMasterAccounts" not in postgres
+@pytest.mark.parametrize("run_type", ["historical", "incremental"])
+def test_the_shipped_workbooks_give_every_table_a_location(run_type):
+    """Read-only smoke test on the real folder: each application's workbook lists only its own engine's tables."""
+    edge = ff.read("postgres", run_type, log=LOG)
+    sitelink = ff.read("mssql", run_type, log=LOG)
+    assert "events" in edge and "NationalMasterAccounts" not in edge
     assert "NationalMasterAccounts" in sitelink and "events" not in sitelink
+    assert {row.location.application for row in edge.values()} == {"Edge"}
+    assert {row.location.application for row in sitelink.values()} == {"SiteLink"}
+    assert isinstance(ff.filters(edge, log=LOG), dict)

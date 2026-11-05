@@ -1,14 +1,31 @@
-"""Row filters read from the Excel files in yaml_generation/Filter-files-excel/.
+"""The filter workbooks in yaml_generation/Filter-files-excel/: the one source of truth for where each table lives, and its row filters.
 
-Why: a filter keeps part of a large table, so the framework does not load the whole table into RAM. The filter is
+One workbook per layer, picked by --layer_type (WORKBOOKS below): bronze_postgres reads edge_bronze_filters.xlsx and
+bronze_mssql reads sitelink_bronze_filters.xlsx. No other .xlsx in the folder is read. A new layer (bronze_athena) is a new
+workbook with the same columns, one line in WORKBOOKS, and a block for its engine in db_rules.RULES.
+
+What is read: the first sheet that has the table column and the six location columns. Headers are matched trimmed, in
+lower case, with a trailing dot ignored. One row per table:
+  Target Table Name              the table name (the source name; Snowflake holds it in upper case)
+  source_application             e.g. Edge, SiteLink. Shown in the log.
+  source_database                the source engine, as db_rules.RULES names it: PostgreSQL, SQL Server (the label, or the key)
+  source_schema                  e.g. public, dbo
+  target_application             Snowflake (the only target for now)
+  target_database                the Snowflake database as written in the YAML, e.g. {env}_EDGE_BRONZE. {env} is filled in per
+                                 run, and a row without it is refused (it would compare every environment against one database).
+  target_schema                  e.g. STOREDGE_FMS_PUBLIC
+  Historical Filter to apply     the row filter for --run_type historical (optional)
+  Incremental filters to apply   the row filter for --run_type incremental (optional)
+Every row's source_database must be the layer's engine (bronze_postgres: PostgreSQL). --tables all is every row. A named
+table with no row FAILS: without a row there is no schema to read it from. Table names are matched without regard to case
+(--tables addresses is the row Addresses), and the workbook's spelling is used from then on.
+
+Why filters: a filter keeps part of a large table, so the framework does not load the whole table into RAM. The filter is
 applied to the source and to Snowflake, for the count and the data, the same way as a filter in the rules workbook
-(settings.py). When the rules workbook sets a filter for the same side, that one is used.
+(settings.py). When the rules workbook sets a filter for the same side, that one is used. --filter_files no reads the
+locations and ignores the filters.
 
-What is read
-  A workbook with the columns "Target Table Name" and the filter column for the run type (the PostgreSQL layout):
-    --run_type incremental  ->  "Incremental filters to apply"
-    --run_type historical   ->  "Historical Filter to apply."
-  Headers are matched trimmed and in lower case. It is read from the first sheet that has both columns.
+The filter cell
   Each cell holds the table, its alias, the joins and the conditions, one clause per line:
 
       general_ledger_line_items j
@@ -18,15 +35,25 @@ What is read
   The cell does not start with "select count(*) from": the framework adds it. A cell that does start with "select"
   is read as it is.
 
-  It becomes one condition per side. Each join becomes a sub-select on the foreign key:
+  It becomes one condition per side. Each join becomes a sub-select on the joined column:
 
       created_at >= '2024-08-01' AND facility_id IN (SELECT id FROM "public"."facilities" WHERE company_id IN (137,9088,501))
 
-  The Snowflake side is built from the same cell, so both sides keep the same rows.
+  The key need not be id. SiteLink joins on its own keys, through Sites to Owners:
+
+      Units t
+      join Sites s on t.SiteID = s.SiteID
+      join Owners o on s.OwnerID = o.OwnerID
+      where o.sCorpCode in ('SLQA', 'STP2DEV')
+
+  becomes  SiteID IN (SELECT SiteID FROM [dbo].[Sites] WHERE OwnerID IN (SELECT OwnerID FROM [dbo].[Owners] WHERE sCorpCode in (...)))
+
+  The Snowflake side is built from the same cell, so both sides keep the same rows. A sub-select keeps each row once, as
+  a filter should, even where an inner join on a key that is not unique would repeat it.
 
 Shapes read
   - select count(*) from <table> [alias], then inner joins, then an optional where clause joined with AND.
-  - Each join is  <table> [alias] on <a>.<column> = <alias>.id, where <a> is already in the statement.
+  - Each join is  <table> [alias] on <a>.<column> = <alias>.<key>, where <a> is already in the statement.
   - A condition uses one table. A bare column belongs to the first table. Joins chain (a table joined to a joined table).
   - A cell with only conditions, no table line and no join (e.g. created_at >= '2026-08-01'), is about the row's table.
 
@@ -34,9 +61,8 @@ What is refused, and the table is then loaded in full (the log names the row)
   OR, BETWEEN, left/right/outer joins, subqueries, group by, quoted identifiers, unbalanced quotes or brackets,
   a condition that uses two tables, and anything check_filter() refuses.
 
-SQL Server (bronze_mssql) reads only Sitelink_bronze_filters.xlsx, with its own headers: "table", " filters to Apply" and
-"Incremental filters to Apply". A cell that says "compare full" is no filter. A bind parameter such as :scorpcode has no value
-here, so that statement is refused and its table is loaded in full. Each database reads only its own workbook.
+A cell that says "compare full" is no filter. A bind parameter such as :scorpcode has no value here, so that statement is
+refused and its table is loaded in full.
 
 Self-check: python yaml_generation/filter_files.py
 """
@@ -54,20 +80,37 @@ if str(FRAMEWORK_ROOT) not in sys.path:  # lets the self-check run as a plain sc
     sys.path.insert(0, str(FRAMEWORK_ROOT))
 
 from yaml_generation.db_rules import RULES, quote  # noqa: E402
-from yaml_generation.yaml_builder import FIVETRAN_FILTER, check_filter  # noqa: E402
+from yaml_generation.yaml_builder import ENV_PLACEHOLDER, FIVETRAN_FILTER, check_filter  # noqa: E402
 
 FOLDER = Path(__file__).resolve().parent / "Filter-files-excel"
-# Which database a workbook is for: the prefix of its file name, the text before the first space, underscore or dot.
-# "postgres Table filters.xlsx" is PostgreSQL and "Sitelink_bronze_filters.xlsx" is SQL Server. A new workbook is read once its
-# prefix is here and its database has a layout in LAYOUTS. A file with any other prefix is named in the log and not read.
-PREFIXES = {"postgres": "postgres", "sitelink": "mssql"}
-# Per database: the table column and the filter column for each run type (header text, trimmed and in lower case). SQL Server
-# has no "historical" word in its workbook, so its first filter column is read as historical.
-LAYOUTS = {
-    "postgres": {"table": "target table name", "historical": "historical filter to apply.",
-                 "incremental": "incremental filters to apply"},
-    "mssql": {"table": "table", "historical": "filters to apply", "incremental": "incremental filters to apply"},
-}
+# The workbook each layer reads, by its engine (--layer_type bronze_<engine>). A new layer adds its workbook here.
+WORKBOOKS = {"postgres": "edge_bronze_filters.xlsx", "mssql": "sitelink_bronze_filters.xlsx"}
+# The headers, as matched: trimmed, lower case, a trailing dot dropped. The same layout for every application.
+TABLE_HEADER = "target table name"
+LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
+                    "target_application", "target_database", "target_schema"]
+FILTER_HEADERS = {"historical": "historical filter to apply", "incremental": "incremental filters to apply"}
+
+
+@dataclass(frozen=True)
+class Location:
+    """Where one table lives, from its workbook row. Tables with the same Location are generated together."""
+
+    application: str       # e.g. Edge
+    source_type: str       # the db_rules.RULES key of source_database, e.g. postgres
+    source_schema: str     # e.g. public
+    target_database: str   # as written in the YAML, e.g. {env}_EDGE_BRONZE
+    target_schema: str     # e.g. STOREDGE_FMS_PUBLIC
+
+
+@dataclass
+class Row:
+    """One table's row: its location, and its filter cell for the run type ("" when none)."""
+
+    table: str
+    location: Location
+    statement: str
+    label: str             # "<file> row <n> (<table>)", for the log
 
 # A quoted literal. Text inside quotes is never read as SQL, and never changed.
 LITERAL = re.compile(r"'[^']*'")
@@ -96,7 +139,7 @@ class _Plan:
     base: str                                          # alias of the first table
     tables: dict = field(default_factory=dict)         # alias -> table name, as written
     own: dict = field(default_factory=dict)            # alias -> conditions that use only that table
-    joins: dict = field(default_factory=dict)          # alias -> [(column, parent alias)], one sub-select each
+    joins: dict = field(default_factory=dict)          # alias -> [(column, parent alias, parent key)], one sub-select each
 
 
 @dataclass
@@ -168,21 +211,22 @@ def _plan(statement) -> _Plan:
     for piece in join_parts[1:]:
         join = JOIN_ON.match(piece.strip())
         if not join:
-            raise Refused(f"join not read: '{piece.strip()}'. Write it as: join <table> <alias> on <alias>.<column> = <alias>.id")
+            raise Refused(f"join not read: '{piece.strip()}'. Write it as: join <table> <alias> on <alias>.<column> = <alias>.<key>")
         new_table, new_alias = join.group(1), (join.group(2) or join.group(1)).lower()
-        a_alias, a_col, b_alias, b_col = (join.group(i).lower() for i in (3, 4, 5, 6))
+        # Aliases are matched in lower case; column names are kept as written (SiteID stays SiteID).
+        a_alias, a_col, b_alias, b_col = join.group(3).lower(), join.group(4), join.group(5).lower(), join.group(6)
         if new_alias in plan.tables:
             raise Refused(f"alias '{new_alias}' is used twice")
-        # The joined table must be the one with the id. The other side is a table already in the statement.
-        if a_alias == new_alias and a_col == "id" and b_alias in plan.tables:
-            old, column = b_alias, b_col
-        elif b_alias == new_alias and b_col == "id" and a_alias in plan.tables:
-            old, column = a_alias, a_col
+        # One side is the joined table's key column (id, SiteID, OwnerID ...); the other is a table already in the statement.
+        if a_alias == new_alias and b_alias in plan.tables:
+            old, column, key = b_alias, b_col, a_col
+        elif b_alias == new_alias and a_alias in plan.tables:
+            old, column, key = a_alias, a_col, b_col
         else:
-            raise Refused(f"join '{piece.strip()}' must link a table already in the statement to {new_table}.id")
+            raise Refused(f"join '{piece.strip()}' must link a table already in the statement to a column of {new_table}")
         plan.tables[new_alias] = new_table
         plan.own[new_alias] = []
-        plan.joins.setdefault(old, []).append((column, new_alias))
+        plan.joins.setdefault(old, []).append((column, new_alias, key))
 
     for condition in (_split_and(where_text) if where_text else []):
         if not condition:
@@ -206,11 +250,11 @@ def _plan(statement) -> _Plan:
 def _where(plan: _Plan, alias: str, side: _Side) -> list:
     """The conditions for one table: its own, then one sub-select for each join from it to a parent table."""
     parts = list(plan.own[alias])
-    for column, parent in plan.joins.get(alias, []):
+    for column, parent, key in plan.joins.get(alias, []):
         inner = _where(plan, parent, side)
         if side.active:
             inner.append(side.active)
-        sub = f"SELECT id FROM {side.ref(plan.tables[parent])}"
+        sub = f"SELECT {key} FROM {side.ref(plan.tables[parent])}"
         if inner:
             sub += " WHERE " + " AND ".join(inner)
         parts.append(f"{column} IN ({sub})")
@@ -237,23 +281,26 @@ def _join(parts):
     return " AND ".join(parts) if parts else None
 
 
-def _statements(path, filter_column, table_column=LAYOUTS["postgres"]["table"]):
-    """(row, table, statement) for each row of the first sheet that has both columns. None when no sheet has them."""
+def _header(name) -> str:
+    """A header as matched: trimmed, lower case, without a trailing dot ("Historical Filter to apply." matches)."""
+    return str(name).strip().lower().rstrip(".").strip() if name is not None else ""
+
+
+def engine_of(name):
+    """The db_rules.RULES key for an engine as a workbook writes it (the label or the key, any case), or None."""
+    text = str(name or "").strip().lower()
+    return next((key for key, rule in RULES.items() if text in (key, rule["label"].lower())), None)
+
+
+def _sheet_rows(path):
+    """({header: column}, [(row_number, values)]) of the first sheet with the table and location columns, or None."""
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:
         for sheet in workbook.worksheets:
             rows = sheet.iter_rows(values_only=True)
-            header = [str(name).strip().lower() if name is not None else "" for name in (next(rows, None) or ())]
-            if table_column not in header or filter_column not in header:
-                continue
-            table_at, filter_at = header.index(table_column), header.index(filter_column)
-            found = []
-            for row_number, row in enumerate(rows, start=2):
-                table = row[table_at] if table_at < len(row) else None
-                statement = row[filter_at] if filter_at < len(row) else None
-                if table is not None and str(table).strip():
-                    found.append((row_number, str(table).strip(), str(statement) if statement else ""))
-            return found
+            header = [_header(name) for name in (next(rows, None) or ())]
+            if TABLE_HEADER in header and all(name in header for name in LOCATION_HEADERS):
+                return {name: header.index(name) for name in header if name}, list(enumerate(rows, start=2))
         return None
     finally:
         workbook.close()
@@ -274,83 +321,100 @@ def _count_statement(text, table):
     return "select count(*) from " + text
 
 
-def workbooks_for(source_type, folder=None, log=None) -> list:
-    """The .xlsx files in the folder whose prefix (PREFIXES) is for this database. Other files are logged and not read."""
-    log = log or logging.getLogger(__name__)
-    paths = []
-    for path in sorted(Path(folder or FOLDER).glob("*.xlsx")):
-        if path.name.startswith("~$"):
-            continue
-        database = PREFIXES.get(re.split(r"[ _.]", path.name, maxsplit=1)[0].lower())
-        if database is None:
-            log.warning("Filter file %s has no known database prefix (%s), so it is not read", path.name, ", ".join(PREFIXES))
-        elif database == source_type:
-            paths.append(path)
-    return paths
+def read(source_type, run_type, folder=None, log=None) -> dict:
+    """{table: Row} for every row of the layer's workbook (WORKBOOKS[source_type]), in workbook order.
 
-
-def workbook_tables(source_type, run_type, folder=None, log=None) -> list:
-    """The table names listed in this database's workbooks, in workbook order, each once. Used for --tables all."""
-    log = log or logging.getLogger(__name__)
-    layout = LAYOUTS[source_type]
-    names = []
-    for path in workbooks_for(source_type, folder, log):
-        rows = _statements(path, layout[run_type], layout["table"])
-        if rows is None:
-            log.warning("Filter file %s has no '%s' column, so its tables are not listed", path.name, layout[run_type])
-            continue
-        for _, table, _ in rows:
-            if table not in names:
-                names.append(table)
-    return names
-
-
-def load(source_type, source_schema, target_database, target_schema, run_type, folder=None, log=None) -> dict:
-    """{table: (source_where, target_where)} for the tables whose cell was read. Tables not in it are loaded in full.
-
-    run_type picks the column for the database's layout in LAYOUTS: the incremental column or the historical one.
-    target_database is the Snowflake name as written in the YAML (e.g. {env}_EDGE_BRONZE), so the target side keeps the placeholder.
-    A refused cell is logged with its file and row, and that table is loaded in full.
+    Raises ValueError naming the file (and row) when the layer has no workbook, the file or its sheet is missing, or a row is
+    bad: an empty location column, a source_database that is not the layer's engine, a target that is not Snowflake, or a
+    target_database without {env}. run_type picks the filter column (FILTER_HEADERS). A table listed twice (in any case)
+    keeps its first row.
     """
     log = log or logging.getLogger(__name__)
-    layout = LAYOUTS.get(source_type)
-    if layout is None:
-        log.info("Filter files: none used for %s, because no workbook layout is defined for it", source_type)
-        return {}
+    label_of = RULES[source_type]["label"]
+    name = WORKBOOKS.get(source_type)
+    if name is None:
+        raise ValueError(f"--layer_type bronze_{source_type} has no filter workbook: add <application>_bronze_filters.xlsx "
+                         f"to {FOLDER} and its name to filter_files.WORKBOOKS")
+    path = Path(folder or FOLDER) / name
+    if not path.is_file():
+        raise ValueError(f"the filter workbook for --layer_type bronze_{source_type} is missing: {path}")
+    sheet = _sheet_rows(path)
+    if sheet is None:
+        raise ValueError(f"{name} has no sheet with the columns {', '.join([TABLE_HEADER] + LOCATION_HEADERS)}")
+    position, rows = sheet
+    filter_at = position.get(FILTER_HEADERS[run_type])
+    if filter_at is None:
+        log.warning("Filter workbook %s has no '%s' column, so its tables get no %s filter", name, FILTER_HEADERS[run_type], run_type)
+    found, first = {}, {}
+    for number, values in rows:
+        def cell(index):
+            value = values[index] if index is not None and index < len(values) else None
+            return str(value).strip() if value is not None and str(value).strip() else ""
 
-    column = layout[run_type]
-    filters, seen, used_files = {}, set(), []
-    for path in workbooks_for(source_type, folder, log):
-        rows = _statements(path, column, layout["table"])
-        if rows is None:
-            log.warning("Filter file %s has no '%s' column, so it is not read", path.name, column)
+        table = cell(position[TABLE_HEADER])
+        if not table:
             continue
-        used_files.append(path.name)
-        for row_number, table, statement in rows:
-            if not statement.strip() or statement.strip().lower() == "compare full":
-                continue
-            label = f"{path.name} row {row_number} ({table}), column '{column}'"
-            if table in seen:
-                log.warning("Filter not applied: %s. The table is listed twice; the first row is used", label)
-                continue
-            try:
-                # The statement must be about the row's own table. A cell copied from another row would filter the wrong table.
-                statement_table = BASE_TABLE.match(_count_statement(statement, table))
-                if not statement_table or statement_table.group(1).lower() != table.lower():
-                    raise Refused(f"the statement is about '{statement_table.group(1) if statement_table else '?'}', not '{table}'")
-                source_where, target_where = convert(_count_statement(statement, table), source_type, source_schema,
-                                                     target_database, target_schema)
-                check_filter(source_where, label)
-                check_filter(target_where, label, placeholders=True)
-            except ValueError as exc:
-                log.warning("Filter not applied, the table is loaded in full: %s: %s", label, exc)
-                continue
-            seen.add(table)
-            if source_where or target_where:
-                filters[table] = (source_where, target_where)
-    log.info("Filter files: %d table filter(s) read for run type %s, column '%s', from %s",
-             len(filters), run_type, column, ", ".join(used_files) or "none")
-    return filters
+        label = f"{name} row {number} ({table})"
+        missing = [column for column in LOCATION_HEADERS if not cell(position[column])]
+        if missing:
+            raise ValueError(f"{label}: {', '.join(missing)} is empty. Every row names where its table lives.")
+        engine = cell(position["source_database"])
+        if engine_of(engine) != source_type:
+            raise ValueError(f"{label}: source_database is {engine!r}, but {name} is the workbook for {label_of} "
+                             f"(--layer_type bronze_{source_type})")
+        if engine_of(cell(position["target_application"])) != "snowflake":
+            raise ValueError(f"{label}: target_application must be Snowflake, found {cell(position['target_application'])!r}")
+        target_database = cell(position["target_database"])
+        if ENV_PLACEHOLDER not in target_database:
+            raise ValueError(f"{label}: target_database {target_database!r} has no {ENV_PLACEHOLDER}, so every environment "
+                             f"would be compared against that one database. Write it as {ENV_PLACEHOLDER}_<APPLICATION>_BRONZE")
+        if table.lower() in first:
+            log.warning("%s: the table is listed twice, so this row is not used (the first is %s)", label, first[table.lower()])
+            continue
+        first[table.lower()] = label
+        statement = values[filter_at] if filter_at is not None and filter_at < len(values) else None
+        location = Location(cell(position["source_application"]), source_type, cell(position["source_schema"]),
+                            target_database, cell(position["target_schema"]))
+        found[table] = Row(table, location, str(statement) if statement else "", label)
+    log.info("Filter workbook %s: %d table(s) for %s", name, len(found), label_of)
+    return found
+
+
+def spelled(tables, rows) -> list:
+    """tables as the workbook writes them: a name is matched without regard to case. A name not in rows is kept as typed."""
+    names = {table.lower(): table for table in rows}
+    return [names.get(str(table).lower(), table) for table in tables]
+
+
+def filters(rows: dict, log=None) -> dict:
+    """{table: (source_where, target_where)} from the filter cells of rows (from read()). A table not in it is loaded in full.
+
+    Each side is written for its row's own location, so the Snowflake side keeps the {env} placeholder. A refused cell is
+    logged with its file and row, and that table is loaded in full.
+    """
+    log = log or logging.getLogger(__name__)
+    found = {}
+    for table, row in rows.items():
+        if not row.statement.strip() or row.statement.strip().lower() == "compare full":
+            continue
+        where = row.location
+        try:
+            statement = _count_statement(row.statement, table)
+            # The statement must be about the row's own table. A cell copied from another row would filter the wrong table.
+            statement_table = BASE_TABLE.match(statement)
+            if not statement_table or statement_table.group(1).lower() != table.lower():
+                raise Refused(f"the statement is about '{statement_table.group(1) if statement_table else '?'}', not '{table}'")
+            source_where, target_where = convert(statement, where.source_type, where.source_schema,
+                                                 where.target_database, where.target_schema)
+            check_filter(source_where, row.label)
+            check_filter(target_where, row.label, placeholders=True)
+        except ValueError as exc:
+            log.warning("Filter not applied, the table is loaded in full: %s: %s", row.label, exc)
+            continue
+        if source_where or target_where:
+            found[table] = (source_where, target_where)
+    log.info("Filter files: %d table filter(s) read, from %d workbook row(s)", len(found), len(rows))
+    return found
 
 
 if __name__ == "__main__":
@@ -385,6 +449,15 @@ if __name__ == "__main__":
     assert src == ("created_at >= '2026-08-01' AND discount_plan_ledger_instance_id IN "
                    '(SELECT id FROM "public"."discount_plan_ledger_instances")'), src
 
+    # A join on a named key (SiteLink: Sites by SiteID, Owners by OwnerID). Column case is kept.
+    src, tgt = convert("select count(*) from Units t join Sites s on t.SiteID = s.SiteID join Owners o on s.OwnerID = o.OwnerID "
+                       "where o.sCorpCode in ('SLQA')", "mssql", "dbo", "{env}_SITELINK_BRONZE", "AWSDEV_DEVT5000_DBO")
+    assert src == ("SiteID IN (SELECT SiteID FROM [dbo].[Sites] WHERE "
+                   "OwnerID IN (SELECT OwnerID FROM [dbo].[Owners] WHERE sCorpCode in ('SLQA')))"), src
+    assert tgt == ('SiteID IN (SELECT SiteID FROM {env}_SITELINK_BRONZE."AWSDEV_DEVT5000_DBO"."SITES" WHERE '
+                   'OwnerID IN (SELECT OwnerID FROM {env}_SITELINK_BRONZE."AWSDEV_DEVT5000_DBO"."OWNERS" '
+                   "WHERE sCorpCode in ('SLQA') AND _FIVETRAN_ACTIVE = TRUE) AND _FIVETRAN_ACTIVE = TRUE)"), tgt
+
     # Refused: each one names the reason. The table is then loaded in full.
     for bad in [
         "select count(*) from transactions  j join facilities f on j.facility_id=f.id where f.company_id in (137) "
@@ -392,7 +465,7 @@ if __name__ == "__main__":
         "select count(*) from events j join facilities f on j.facility_id=f.id where f.company_id = 1 or j.created_at > '2025-01-01'",
         "select count(*) from events j left join facilities f on j.facility_id=f.id where f.company_id = 1",
         "select count(*) from events j join facilities f on j.facility_id=f.id where j.created_at > f.created_at",
-        "select count(*) from events j join facilities f on j.facility_id=f.name where f.company_id = 1",
+        "select count(*) from events j join facilities f on j.facility_id=j.id where f.company_id = 1",  # does not reach f
         "delete from events where created_at > '2025-01-01'",
     ]:
         try:

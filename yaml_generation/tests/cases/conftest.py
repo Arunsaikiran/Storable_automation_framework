@@ -77,19 +77,31 @@ def write_workbook(path, sheets):
     return path
 
 
+LOCATION_HEADERS = ["source_application", "source_database", "source_schema", "target_application", "target_database",
+                    "target_schema"]
+EDGE = ["Edge", "PostgreSQL", "public", "Snowflake", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC"]
+SITELINK = ["SiteLink", "SQL Server", "dbo", "Snowflake", "{env}_SITELINK_BRONZE", "AWSDEV_DEVT5000_DBO"]
+
+# The filter workbooks are where each table lives. 'extra' (PostgreSQL) and 'Charges' (SQL Server) are in the source only.
 POSTGRES_FILTERS = {"filters": [
-    ["Target Table Name", "Incremental filters to apply", "Historical Filter to apply."],
-    ["units", "units\nwhere updated_at > '2025-01-01'", "units\nwhere id > 1"],
-    ["notes", None, "notes n\nwhere n.body = 'a' or n.body = 'b'"],         # refused: 'or'
-    ["lookup", None, None],
+    ["Target Table Name", "Incremental filters to apply", "Historical Filter to apply.", *LOCATION_HEADERS],
+    ["units", "units\nwhere updated_at > '2025-01-01'", "units\nwhere id > 1", *EDGE],
+    ["notes", None, "notes n\nwhere n.body = 'a' or n.body = 'b'", *EDGE],         # refused: 'or'
+    ["lookup", None, None, *EDGE],
 ]}
 
-SITELINK_FILTERS = {"Sheet1": [
-    ["s.no", "table", " filters to Apply", "Incremental filters to Apply"],
-    [1, "Units", "Units t\nwhere t.UnitID > 100", "Units t\nwhere t.UnitID > 100"],
-    [2, "Addresses", "Addresses t\nwhere t.scorpcode = :scorpcode", "Addresses t\nwhere t.scorpcode = :scorpcode"],  # bind
-    [3, "Lookup", "compare full", "compare full"],
-]}
+
+def sitelink_filters(location=SITELINK):
+    return {"Sheet1": [
+        ["s.no", "Target Table Name", "Historical Filter to apply", "Incremental filters to Apply", *LOCATION_HEADERS],
+        [1, "Units", "Units t\nwhere t.UnitID > 100", "Units t\nwhere t.UnitID > 100", *location],
+        [2, "Addresses", "Addresses t\nwhere t.scorpcode = :scorpcode", "Addresses t\nwhere t.scorpcode = :scorpcode",
+         *location],  # bind
+        [3, "Lookup", "compare full", "compare full", *location],
+    ]}
+
+
+SITELINK_FILTERS = sitelink_filters()
 
 
 # --- the run -----------------------------------------------------------------------------------------------------
@@ -151,6 +163,9 @@ def world(monkeypatch, tmp_path):
     # Paths: everything main.py and the generator write goes under the temporary root.
     monkeypatch.setattr(generate_yaml, "FRAMEWORK_ROOT", root)
     monkeypatch.setattr(filter_files, "FOLDER", w.filters)
+    # Every run reads where its tables live from the filter workbooks, so both applications' workbooks are there by default.
+    w.write_filters("edge_bronze_filters.xlsx", POSTGRES_FILTERS)
+    w.write_filters("sitelink_bronze_filters.xlsx", SITELINK_FILTERS)
     monkeypatch.setattr(settings, "pick_rules_file",
                         lambda explicit=None, **kwargs: w.rules_path if w.rules_path.exists() else None)
     # The exclusions file starts as a copy of the shipped one, so the cases use the real database sections.
@@ -200,11 +215,11 @@ def world(monkeypatch, tmp_path):
 
 @pytest.fixture
 def postgres_filter_files(world):
-    world.write_filters("postgres_filters.xlsx", POSTGRES_FILTERS)
+    """The world, named for the cases about the Edge workbook's filters (the workbook is always there)."""
     return world
 
 
 @pytest.fixture
 def sitelink_filter_files(world):
-    world.write_filters("Sitelink_bronze_filters.xlsx", SITELINK_FILTERS)
+    """The world, named for the cases about the SiteLink workbook's filters (the workbook is always there)."""
     return world
