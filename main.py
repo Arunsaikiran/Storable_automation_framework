@@ -5,7 +5,7 @@ from datetime import datetime
 # CHANGE: YAML generation. replace() builds the schema validation context with the tables as requested (see schema_ctx below).
 from dataclasses import replace
 from db.factory import close_all_databases
-from utils.utility import generate_runid, get_config_output_paths, get_logger, add_file_handler, parse_arguments, data_context
+from utils.utility import generate_runid, get_config_output_paths, get_logger, add_file_handler, parse_arguments, data_context, BRONZE_LAYERS
 from validators.schema_validation import validate_schema
 from validators.integrity_check import validate_integrity
 from validators.count_validation import validate_count
@@ -33,7 +33,7 @@ def main():
     # CHANGE: YAML generation. A table name is matched to the layer's filter workbook without regard to case (--tables addresses
     # becomes the workbook's Addresses), so the generator, every validator and the reports use the workbook's spelling. A name
     # not in the workbook is kept as typed, and the generation step reports it.
-    if layer[0] in ("bronze_postgres", "bronze_mssql") and "all" not in tables:
+    if layer[0] in BRONZE_LAYERS and "all" not in tables:
         from yaml_generation.generate_yaml import workbook_spelling
         tables = workbook_spelling(layer[0], run_type, tables)
 
@@ -112,7 +112,7 @@ def main():
                 data_validation='yes' if generate_only else args.data_validation[0],
                 count_validation='yes' if generate_only else args.count_validation[0],
                 # CHANGE: YAML generation. No schema or Snowflake database is passed: each table's row in the filter workbook
-                # (yaml_generation/Filter-files-excel/) gives them. --filter_files 'yes' (the default) applies that row's filter.
+                # (yaml_generation/master_files/) gives them. --filter_files 'yes' (the default) applies that row's filter.
                 use_filter_files=args.filter_files[0] == 'yes',
                 # CHANGE: YAML generation. --schema_validation yes also writes config/<run_type>/<layer>/schema_validation/
                 # schema_validation.yaml (queries from the workbook row, types from its '<engine> schema mapping' sheet).
@@ -154,7 +154,7 @@ def main():
 
     # CHANGE: YAML generation. Without --yaml_generation, a named table whose YAML is missing is created now. A YAML that is
     # already there is used as it is. 'all' is not checked here, because its list comes from the source.
-    if not yaml_generation and "all" not in tables and layer[0] in ("bronze_postgres", "bronze_mssql"):
+    if not yaml_generation and "all" not in tables and layer[0] in BRONZE_LAYERS:
         from yaml_generation.generate_yaml import run_for_validation, tables_missing_yaml
         # CHANGE: YAML generation. A named table with no entry in the schema YAML is missing too, when schema validation is asked for.
         missing = tables_missing_yaml(layer[0], run_type, tables, args.data_validation[0], args.count_validation[0],

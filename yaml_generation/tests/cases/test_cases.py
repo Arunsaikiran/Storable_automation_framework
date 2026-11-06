@@ -142,7 +142,7 @@ def test_pg_12_tables_all_takes_the_names_from_the_postgres_workbook(postgres_fi
 
 def test_pg_13_tables_all_without_workbook_names_is_refused(world):
     """Q: With --tables all and no workbook for postgres, does the run stop with exit 1 and write nothing?"""
-    (world.filters / "edge_bronze_filters.xlsx").unlink()
+    (world.filters / "edge_bronze_master.xlsx").unlink()
     assert pg_run(world, "all", yaml="yes", count="no", data="no") == 1
     assert "the filter workbook for --layer_type bronze_postgres is missing" in world.log()
     assert not (world.root / "config").exists() or not any((world.root / "config").rglob("*.yaml"))
@@ -322,7 +322,7 @@ def test_ms_11_tables_all_takes_the_names_from_the_sitelink_workbook(sitelink_fi
 def test_ms_12_a_wrong_target_schema_writes_nothing(world):
     """Q: With a target_schema in the workbook that does not exist in Snowflake, does Units fail with exit 1 and no YAML?"""
     from conftest import SITELINK, sitelink_filters
-    world.write_filters("sitelink_bronze_filters.xlsx", sitelink_filters(SITELINK[:5] + ["NOPE"]))
+    world.write_filters("sitelink_bronze_master.xlsx", sitelink_filters(SITELINK[:5] + ["NOPE"]))
     assert ms_run(world, "Units", yaml="yes") == 1
     assert "no tables visible in Snowflake schema" in world.log()
     assert not world.exists("historical", "bronze_mssql", "Units")

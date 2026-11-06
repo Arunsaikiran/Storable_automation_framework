@@ -127,8 +127,9 @@ def test_schema_query_fills_the_location_and_keeps_table_name_for_the_validator(
     assert "FROM DEV_EDGE_BRONZE.information_schema.columns" in sql
     assert "TABLE_CATALOG = 'DEV_EDGE_BRONZE' AND table_schema = 'STOREDGE_FMS_PUBLIC'" in sql
     assert sql.format(table_name="UNITS").count("'UNITS'") == 1      # the validator's str.format() runs on it
-    assert "TABLE_SCHEMA = 'dbo'" in db_rules.schema_query(MS, "dbo")
-    assert "table_schema = 'public'" in db_rules.schema_query(PG, "public")
+    assert "FROM DevT5000.INFORMATION_SCHEMA.COLUMNS" in db_rules.schema_query(MS, "dbo", "DevT5000")
+    assert "TABLE_SCHEMA = 'dbo'" in db_rules.schema_query(MS, "dbo", "DevT5000")
+    assert "FROM fms.information_schema.columns" in db_rules.schema_query(PG, "public", "fms")  # source: database.schema
 
 
 def test_schema_query_has_no_trailing_space_so_the_yaml_keeps_block_style():

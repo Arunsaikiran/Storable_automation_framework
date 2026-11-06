@@ -79,8 +79,8 @@ def write_workbook(path, sheets):
 
 LOCATION_HEADERS = ["source_application", "source_database", "source_schema", "target_application", "target_database",
                     "target_schema"]
-EDGE = ["Edge", "PostgreSQL", "public", "Snowflake", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC"]
-SITELINK = ["SiteLink", "SQL Server", "dbo", "Snowflake", "{env}_SITELINK_BRONZE", "AWSDEV_DEVT5000_DBO"]
+EDGE = ["Edge", "fms", "public", "Snowflake", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC"]
+SITELINK = ["SiteLink", "DevT5000", "dbo", "Snowflake", "{env}_SITELINK_BRONZE", "AWSDEV_DEVT5000_DBO"]
 
 # The type mapping sheets (filter_files.SCHEMA_SHEETS) for the fake sources' types, read by --schema_validation yes.
 MAPPING_HEADER = ["source_data_type", "target_data_type", "precision_check", "notes"]
@@ -175,8 +175,8 @@ def world(monkeypatch, tmp_path):
     monkeypatch.setattr(generate_yaml, "FRAMEWORK_ROOT", root)
     monkeypatch.setattr(filter_files, "FOLDER", w.filters)
     # Every run reads where its tables live from the filter workbooks, so both applications' workbooks are there by default.
-    w.write_filters("edge_bronze_filters.xlsx", POSTGRES_FILTERS)
-    w.write_filters("sitelink_bronze_filters.xlsx", SITELINK_FILTERS)
+    w.write_filters("edge_bronze_master.xlsx", POSTGRES_FILTERS)
+    w.write_filters("sitelink_bronze_master.xlsx", SITELINK_FILTERS)
     monkeypatch.setattr(settings, "pick_rules_file",
                         lambda explicit=None, **kwargs: w.rules_path if w.rules_path.exists() else None)
     # The exclusions file starts as a copy of the shipped one, so the cases use the real database sections.

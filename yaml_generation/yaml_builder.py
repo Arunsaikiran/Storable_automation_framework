@@ -109,6 +109,7 @@ class TableSpec:
     table: str            # source table name
     target_database: str  # Snowflake database name as written in the YAML, e.g. {env}_EDGE_BRONZE
     target_schema: str    # e.g. EDGE, SITELINK
+    source_database: str = None  # e.g. fms, DevT5000: the workbook's source_database. None writes schema.table only.
 
     @property
     def target_table(self) -> str:
@@ -306,9 +307,17 @@ def _select(items, from_clause: str, where_parts=(), placeholders=False) -> str:
     return _checked("\n".join(lines) + ";", placeholders)
 
 
+def source_name(database, schema: str, table: str, rules: dict) -> str:
+    """A source table as written in SQL: database.schema.table, e.g. "fms"."public"."units" or [DevT5000].[dbo].[Units].
+
+    The database is left out when it is None. PostgreSQL accepts a database name only when it is the one connected to.
+    """
+    return ".".join(quote(part, rules) for part in (database, schema, table) if part)
+
+
 def source_ref(spec: TableSpec, rules: dict) -> str:
-    """The source table as written in FROM, e.g. "public"."units". The connection picks the database."""
-    return f"{quote(spec.source_schema, rules)}.{quote(spec.table, rules)}"
+    """The source table as written in FROM, e.g. "fms"."public"."units" (database.schema.table, as on the Snowflake side)."""
+    return source_name(spec.source_database, spec.source_schema, spec.table, rules)
 
 
 def target_ref(spec: TableSpec) -> str:
@@ -345,6 +354,7 @@ def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters) -> d
     entry = {
         "source_table_name": spec.table,
         "source": spec.source_type,
+        **({"source_database": spec.source_database} if spec.source_database else {}),
         "source_schema": spec.source_schema,
         "sourcecolumn": key,
         "sourcequery": _select(source_items, source_ref(spec, source_rules), filters.source_parts()),
@@ -371,6 +381,7 @@ def build_count_entry(spec: TableSpec, filters: Filters) -> dict:
     return {
         "source_table_name": spec.table,
         "source": spec.source_type,
+        **({"source_database": spec.source_database} if spec.source_database else {}),
         "source_schema": spec.source_schema,
         "sourcequery": _checked(source_sql + (f" WHERE {source_where}" if source_where else "") + ";"),
         "target_table_name": spec.target_table,
@@ -396,7 +407,7 @@ def data_header(spec: TableSpec, key: str, rec: Reconciliation, filters: Filters
     source_rules = RULES[spec.source_type]
     lines = [
         f"{GENERATED_MARK} on {stamp}. Do not hand-edit; main.py --yaml_generation yes rewrites it when the structure changes.",
-        f"# Source: {source_rules['label']} {spec.source_schema}.{spec.table}",
+        f"# Source: {source_rules['label']} {'.'.join(p for p in (spec.source_database, spec.source_schema, spec.table) if p)}",
         f"# Target: {spec.target_database}.{spec.target_schema}.{spec.target_table} (Snowflake, _FIVETRAN_ACTIVE = TRUE)",
         f"# Key: {key}   Columns compared: {len(rec.pairs)}",
     ]

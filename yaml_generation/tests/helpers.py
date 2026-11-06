@@ -94,7 +94,7 @@ def make_args(run_type="historical", tables=ALL_TABLES, data="yes", count="yes",
     ('all' is turned into names by run_for_validation()). Any attribute can be overridden by keyword, e.g. source_schema="sales".
     """
     args = SimpleNamespace(source_type="postgres", tables=list(tables), environment=environment,
-                           data_validation=data, count_validation=count, schema_validation=schema, source_schema=SOURCE_SCHEMA,
+                           data_validation=data, count_validation=count, schema_validation=schema, source_schema=SOURCE_SCHEMA, source_database=None,
                            target_template="{env}_EDGE_BRONZE", target_schema=TARGET_SCHEMA, run_type=run_type)
     for name, value in overrides.items():
         setattr(args, name, value)

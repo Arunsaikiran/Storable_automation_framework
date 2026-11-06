@@ -89,7 +89,7 @@ def resolve_args(args):
     """Check the run's flags, and work out the Snowflake name to read. Raises ValueError with the reason.
 
     The location is never a default: it is the table's filter workbook row (filter_files.Location).
-      args.source_schema, args.target_schema  as the row writes them
+      args.source_database, args.source_schema, args.target_schema  as the row writes them
       args.target_template  the Snowflake database as written to the YAML, e.g. {env}_EDGE_BRONZE
       args.target_database  the name this run reads the catalogue from: {env} filled in for --environment (DEV_EDGE_BRONZE
                             for dev). filter_files.read() refuses a row without {env}.
@@ -144,7 +144,7 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
     schema_entries = {}
     if want_schema:
         datatype_map, precision_checks = schema_mapping
-        schema_sql = db_rules.schema_query(source, args.source_schema)
+        schema_sql = db_rules.schema_query(source, args.source_schema, args.source_database)
         sheet = filter_files.SCHEMA_SHEETS[args.source_type]
         in_schema_file = {name.lower() for name in schema_table_names(config_dir)} if create_only else set()
 
@@ -165,7 +165,8 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                 results.append((table, kind, "PRESENT", "YAML already there; not changed"))
         if not (data_wanted or count_wanted or schema_wanted):
             continue
-        spec = TableSpec(args.source_type, args.source_schema, table, args.target_template, args.target_schema)
+        spec = TableSpec(args.source_type, args.source_schema, table, args.target_template, args.target_schema,
+                         source_database=args.source_database)
         try:
             source_columns = db_rules.list_columns(source_db, args.source_schema, table, rules=source)
             target_columns = db_rules.list_columns(target_db, spec.target_schema, spec.target_table,
@@ -341,7 +342,7 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
     args = resolve_args(SimpleNamespace(
         source_type=source_type, tables=tables, environment=environment, data_validation=data_validation,
         count_validation=count_validation, schema_validation=schema_validation, run_type=run_type, source_schema=None,
-        target_template=None, target_schema=None))
+        source_database=None, target_template=None, target_schema=None))
     label = RULES[source_type]["label"]
     layer = f"bronze_{source_type}"
     config_dir = config_dir_for(layer, run_type)
@@ -399,9 +400,10 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
             log.error("%s: schema YAML not written for %s: %s", where.application, ", ".join(names), reason)
             results += [(table, "schema_validation", "FAILED", reason) for table in names]
         group = resolve_args(SimpleNamespace(**{**vars(args), "tables": names, "source_schema": where.source_schema,
+                                                "source_database": where.source_database,
                                                 "target_template": where.target_database, "target_schema": where.target_schema}))
-        log.info("%s: %d table(s), %s schema %s -> Snowflake %s.%s, %d table rule(s)", where.application, len(names), label,
-                 where.source_schema, group.target_database, where.target_schema, len(table_rules[where]))
+        log.info("%s: %d table(s), %s %s.%s -> Snowflake %s.%s, %d table rule(s)", where.application, len(names), label,
+                 where.source_database, where.source_schema, group.target_database, where.target_schema, len(table_rules[where]))
         try:
             results += generate(group, source_db, target_db, config_dir, global_excluded, table_rules[where], log, stamp,
                                 file_filters=file_filters, create_only=create_only,

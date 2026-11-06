@@ -55,7 +55,7 @@ RULES = {
             "SELECT\n"
             "table_name,column_name,data_type,character_maximum_length,character_octet_length,numeric_precision,"
             "numeric_precision_radix,numeric_scale,datetime_precision\n"
-            "FROM information_schema.columns\n"
+            "FROM {database}.information_schema.columns\n"
             "where table_schema = '{schema}' and table_name = '{table_name}'\n"
             "order by table_name,ordinal_position;"),
     },
@@ -91,7 +91,7 @@ RULES = {
             "NUMERIC_PRECISION_RADIX AS numeric_precision_radix,\n"
             "NUMERIC_SCALE AS numeric_scale,\n"
             "DATETIME_PRECISION AS datetime_precision\n"
-            "FROM INFORMATION_SCHEMA.COLUMNS\n"
+            "FROM {database}.INFORMATION_SCHEMA.COLUMNS\n"
             "WHERE TABLE_SCHEMA = '{schema}'\n"
             "AND TABLE_NAME = '{table_name}'\n"
             "ORDER BY TABLE_NAME,ORDINAL_POSITION;"),

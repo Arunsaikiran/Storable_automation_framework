@@ -33,7 +33,7 @@ def detail_of(results, table, kind):
     return next(detail for t, k, _, detail in results if t == table and k == kind)
 
 
-LOCATION = ["Edge", "PostgreSQL", SOURCE_SCHEMA, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA]
+LOCATION = ["Edge", "fms", SOURCE_SCHEMA, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA]
 WORKBOOK_HEADER = ["Target Table Name", "Historical Filter to apply.", "Incremental filters to apply",
                    *filter_files.LOCATION_HEADERS]
 
@@ -67,7 +67,7 @@ def workbook_folder(monkeypatch, tmp_path_factory):
     """The filter workbook is where each table lives. This one lists the fake tables at the fake location, so 'all' means
     units, notes and lookup in these tests, as the fake source holds them."""
     folder = tmp_path_factory.mktemp("workbooks")
-    write_filter_workbook(folder / "edge_bronze_filters.xlsx", [["units"], ["notes"], ["lookup"]])
+    write_filter_workbook(folder / "edge_bronze_master.xlsx", [["units"], ["notes"], ["lookup"]])
     monkeypatch.setattr(filter_files, "FOLDER", folder)
     return folder
 
@@ -309,7 +309,7 @@ def test_a_rules_target_where_with_the_env_placeholder_is_written_as_it_is(tmp_p
 
 def test_a_file_filter_with_the_env_placeholder_on_the_target_side_is_written_and_checked(tmp_path):
     """The filter workbook keeps {env} on the Snowflake side. The target query holds it, and _checked() accepts it."""
-    write_filter_workbook(tmp_path / "edge_bronze_filters.xlsx",
+    write_filter_workbook(tmp_path / "edge_bronze_master.xlsx",
                           [["units", "units j\njoin notes n on j.note_id = n.id\nwhere n.body is not null"]])
     file_filters = filter_files.filters(filter_files.read("postgres", "historical", folder=tmp_path, log=LOG), log=LOG)
     config = config_dir_for(tmp_path, "historical")
@@ -388,8 +388,8 @@ def test_two_applications_on_one_engine_are_generated_each_at_its_own_location(r
     run_env.dbs["source"].tables[("payments", "charges")] = [("id", "integer"), ("amount", "integer")]
     run_env.dbs["source"].primary_keys[("payments", "charges")] = ["id"]
     run_env.dbs["target"].tables[("PAYMENTS", "CHARGES")] = [("ID", "NUMBER"), ("AMOUNT", "NUMBER")]
-    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx",
-                          [["units"], ["charges", None, None, "Payments", "PostgreSQL", "payments", "Snowflake",
+    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx",
+                          [["units"], ["charges", None, None, "Payments", "fms", "payments", "Snowflake",
                                        "{env}_PAYMENTS_BRONZE", "PAYMENTS"]])
     results, ready = _run(run_env, tables=["units", "charges"])
     assert set(ready) == {"units", "charges"}
@@ -399,8 +399,8 @@ def test_two_applications_on_one_engine_are_generated_each_at_its_own_location(r
 
 
 def test_a_schema_that_lists_no_table_fails_its_own_tables_and_the_other_location_goes_on(run_env, workbook_folder):
-    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx",
-                          [["units"], ["charges", None, None, "Payments", "PostgreSQL", "nosuch", "Snowflake",
+    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx",
+                          [["units"], ["charges", None, None, "Payments", "fms", "nosuch", "Snowflake",
                                        "{env}_PAYMENTS_BRONZE", "PAYMENTS"]])
     results, ready = _run(run_env, tables=["units", "charges"])
     assert statuses(results)[("charges", "table")] == "FAILED"
@@ -409,8 +409,8 @@ def test_a_schema_that_lists_no_table_fails_its_own_tables_and_the_other_locatio
 
 
 def test_a_workbook_row_with_an_empty_location_cell_stops_the_run(run_env, workbook_folder):
-    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx",
-                          [["units", None, None, "Edge", "PostgreSQL", None, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA]])
+    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx",
+                          [["units", None, None, "Edge", "fms", None, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA]])
     with pytest.raises(ValueError, match=r"Filter workbook problem: .*row 2 \(units\): source_schema is empty"):
         _run(run_env, tables=["units"])
 
@@ -677,7 +677,7 @@ def test_a_schema_only_run_writes_the_schema_file_and_no_data_or_count(run_env):
 def test_the_schema_file_holds_no_exclusions_and_an_excluded_column_needs_no_mapping(run_env, workbook_folder):
     """Exclusions are kept only in the settings (the validator reads them), so the file lists table names only. units'
     _fivetran_synced is timestamp with time zone; it is excluded, so that type needs no mapping row."""
-    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"]],
+    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"]],
                           mapping=[row for row in TYPE_MAPPING if row[0] != "timestamp with time zone"])
     results, _ = _schema_only(run_env)
     assert statuses(results) == {("units", "schema_validation"): "NEW"}
@@ -693,7 +693,7 @@ def test_a_second_schema_run_is_unchanged_and_another_environment_too(run_env):
 
 
 def test_a_source_type_with_no_mapping_row_fails_that_tables_schema_and_names_it(run_env, workbook_folder, caplog):
-    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"], ["notes"], ["lookup"]],
+    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"], ["notes"], ["lookup"]],
                           mapping=[row for row in TYPE_MAPPING if row[0] != "text"])
     with caplog.at_level(logging.ERROR):
         results, ready = _run(run_env, schema_validation="yes")
@@ -715,14 +715,14 @@ def test_a_table_the_schema_query_cannot_see_fails_its_schema(run_env):
 
 
 def test_a_missing_mapping_sheet_stops_the_run_before_anything_is_written(run_env, workbook_folder):
-    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"]], mapping=None)
+    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"]], mapping=None)
     with pytest.raises(ValueError, match="Filter workbook problem: .*no sheet 'Postgres schema mapping'"):
         _run(run_env, schema_validation="yes")
     assert not (run_env.root / "config").exists()
 
 
 def test_the_mapping_sheet_is_not_read_without_schema_validation(run_env, workbook_folder):
-    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"]], mapping=None)
+    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"]], mapping=None)
     results, _ = _run(run_env, tables=["units"])
     assert statuses(results)[("units", "data_validation")] == "NEW"
 
@@ -731,8 +731,8 @@ def test_a_table_at_a_second_location_fails_its_schema_and_keeps_its_data(run_en
     run_env.dbs["source"].tables[("payments", "charges")] = [("id", "integer")]
     run_env.dbs["source"].primary_keys[("payments", "charges")] = ["id"]
     run_env.dbs["target"].tables[("PAYMENTS", "CHARGES")] = [("ID", "NUMBER")]
-    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx",
-                          [["units"], ["charges", None, None, "Payments", "PostgreSQL", "payments", "Snowflake",
+    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx",
+                          [["units"], ["charges", None, None, "Payments", "fms", "payments", "Snowflake",
                                        "{env}_PAYMENTS_BRONZE", "PAYMENTS"]])
     results, ready = _run(run_env, tables=["charges", "units"], schema_validation="yes")
     assert statuses(results)[("charges", "schema_validation")] == "FAILED"
@@ -762,7 +762,7 @@ def test_tables_missing_yaml_checks_the_schema_file_when_asked(run_env):
 
 def test_all_warns_about_a_schema_entry_no_longer_in_the_workbook_and_keeps_it(run_env, workbook_folder, caplog):
     _schema_only(run_env)
-    write_filter_workbook(workbook_folder / "edge_bronze_filters.xlsx", [["units"], ["notes"]])
+    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"], ["notes"]])
     with caplog.at_level(logging.WARNING):
         _schema_only(run_env)
     assert "The schema file holds lookup, which are not in the filter workbook" in caplog.text
