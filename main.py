@@ -5,7 +5,7 @@ from datetime import datetime
 # CHANGE: YAML generation. replace() builds the schema validation context with the tables as requested (see schema_ctx below).
 from dataclasses import replace
 from db.factory import close_all_databases
-from utils.utility import generate_runid, get_config_output_paths, get_logger, add_file_handler, parse_arguments, data_context
+from utils.utility import generate_runid, get_config_output_paths, get_logger, add_file_handler, parse_arguments, data_context, BRONZE_LAYERS
 from validators.schema_validation import validate_schema
 from validators.integrity_check import validate_integrity
 from validators.count_validation import validate_count
@@ -33,7 +33,7 @@ def main():
     # CHANGE: YAML generation. A table name is matched to the layer's filter workbook without regard to case (--tables addresses
     # becomes the workbook's Addresses), so the generator, every validator and the reports use the workbook's spelling. A name
     # not in the workbook is kept as typed, and the generation step reports it.
-    if layer[0] in ("bronze_postgres", "bronze_mssql") and "all" not in tables:
+    if layer[0] in BRONZE_LAYERS and "all" not in tables:
         from yaml_generation.generate_yaml import workbook_spelling
         tables = workbook_spelling(layer[0], run_type, tables)
 
@@ -90,14 +90,19 @@ def main():
 
     # CHANGE: YAML generation. The tables as requested, kept before generation replaces them with the ready list.
     requested_tables = tables
+    # CHANGE: YAML generation. The tables schema validation runs on: as requested, unless the YAML step below narrows them.
+    schema_tables = requested_tables
     # CHANGE: YAML generation. With --yaml_generation yes the YAML for the requested tables is checked against the live source and
     # Snowflake structure and rewritten where it differs, before any validator runs. Only the tables that are ready are validated.
     # A table that FAILED is left out (no table is skipped: a table with no primary key FAILS). The run exits 1 when a table FAILED or no table is ready.
     if yaml_generation:
         # CHANGE: YAML generation. Imported here, not at the top of the file, so a run with the flag off does not need the yaml_generation folder.
         from yaml_generation.generate_yaml import run_for_validation
-        # CHANGE: YAML generation. With both validation flags 'no', the YAML is still written for both kinds and no validator runs.
-        generate_only = args.data_validation[0] == 'no' and args.count_validation[0] == 'no'
+        # CHANGE: YAML generation. With the data, count and schema flags all 'no', the YAML is written for all three kinds and no
+        # validator runs (generate only). Otherwise only the kinds set to 'yes' are written: --schema_validation yes alone
+        # writes the schema YAML only.
+        generate_only = (args.data_validation[0] == 'no' and args.count_validation[0] == 'no'
+                         and args.schema_validation[0] == 'no')
         try:
             generation_results, tables = run_for_validation(
                 layer_type=layer[0],
@@ -107,8 +112,11 @@ def main():
                 data_validation='yes' if generate_only else args.data_validation[0],
                 count_validation='yes' if generate_only else args.count_validation[0],
                 # CHANGE: YAML generation. No schema or Snowflake database is passed: each table's row in the filter workbook
-                # (yaml_generation/Filter-files-excel/) gives them. --filter_files 'yes' (the default) applies that row's filter.
+                # (yaml_generation/master_files/) gives them. --filter_files 'yes' (the default) applies that row's filter.
                 use_filter_files=args.filter_files[0] == 'yes',
+                # CHANGE: YAML generation. --schema_validation yes also writes config/<run_type>/<layer>/schema_validation/
+                # schema_validation.yaml (queries from the workbook row, types from its '<engine> schema mapping' sheet).
+                schema_validation='yes' if generate_only else args.schema_validation[0],
                 log=logger,
             )
         except Exception:
@@ -137,12 +145,20 @@ def main():
         if "data_validation" in configpaths:
             configpaths["data_validation"] = [path for path in configpaths["data_validation"]
                                               if os.path.splitext(os.path.basename(path))[0] in data_ready]
+        # CHANGE: YAML generation. Schema validation now reads a generated YAML, so it gets only the tables whose schema YAML is
+        # ready, by name (also for 'all'). A table whose schema FAILED (for example a type with no mapping row) is not
+        # validated from an older entry in the file.
+        if args.schema_validation[0] == 'yes':
+            schema_tables = [table for table, kind, status, _ in generation_results
+                             if kind == "schema_validation" and status in ("NEW", "UPDATED", "UNCHANGED", "PRESENT")]
 
     # CHANGE: YAML generation. Without --yaml_generation, a named table whose YAML is missing is created now. A YAML that is
     # already there is used as it is. 'all' is not checked here, because its list comes from the source.
-    if not yaml_generation and "all" not in tables and layer[0] in ("bronze_postgres", "bronze_mssql"):
+    if not yaml_generation and "all" not in tables and layer[0] in BRONZE_LAYERS:
         from yaml_generation.generate_yaml import run_for_validation, tables_missing_yaml
-        missing = tables_missing_yaml(layer[0], run_type, tables, args.data_validation[0], args.count_validation[0])
+        # CHANGE: YAML generation. A named table with no entry in the schema YAML is missing too, when schema validation is asked for.
+        missing = tables_missing_yaml(layer[0], run_type, tables, args.data_validation[0], args.count_validation[0],
+                                      args.schema_validation[0])
         if missing:
             # CHANGE: YAML generation. A created incremental YAML needs no --filter_files now (it has the window).
             logger.info("YAML missing for %s: creating it", ", ".join(missing))
@@ -156,6 +172,8 @@ def main():
                     count_validation=args.count_validation[0],
                     # CHANGE: YAML generation. The location comes from the filter workbook row, as above.
                     use_filter_files=args.filter_files[0] == 'yes',
+                    # CHANGE: YAML generation. A missing schema YAML entry is created too (an existing one is left alone).
+                    schema_validation=args.schema_validation[0],
                     create_only=True,
                     log=logger,
                 )
@@ -168,6 +186,8 @@ def main():
                 logger.error("YAML could not be created for %s. These tables are not validated.", ", ".join(failed))
                 system_error = True
             tables = [table for table in tables if table not in failed]
+            # CHANGE: YAML generation. A table whose YAML could not be created is not schema validated either.
+            schema_tables = tables
             if not tables:
                 logger.error("YAML creation: no table is left to validate. See the YAML lines above.")
                 close_all_databases()
@@ -197,9 +217,14 @@ def main():
             )
     # CHANGE: YAML generation. The validators no longer skip the Fivetran freshness check for a generated YAML: it is
     # removed from the context, because no validator reads the flag any more.
-    # CHANGE: YAML generation. Schema validation reads no generated YAML, so it gets the tables as requested (for example 'all').
-    # The count and data validators get the ready list, which is what the generated YAML covers.
-    schema_ctx = replace(ctx, tables=requested_tables)
+    # CHANGE: YAML generation. Schema validation gets schema_tables: the tables whose schema YAML is ready after generation (as
+    # requested, for example 'all', when nothing was generated). The count and data validators get the ready list.
+    schema_ctx = replace(ctx, tables=schema_tables)
+    # CHANGE: YAML generation. No table with a ready schema YAML: the schema validator does not run on an old copy of the file.
+    if "schema_validation" in validation_dirs and not schema_tables:
+        logger.error("Schema validation not run: no table has a ready schema YAML. See the YAML lines above.")
+        validation_dirs = [validation for validation in validation_dirs if validation != "schema_validation"]
+        system_error = True
 
     validators_to_run = []
     module_dict = {'validate_integrity':'Integrity validation','validate_schema':'Schema validation','validate_count':'Count validation','validate_data':'Data validation'}

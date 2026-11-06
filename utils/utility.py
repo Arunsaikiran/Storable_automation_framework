@@ -11,6 +11,10 @@ import yaml
 import requests
 from utils.exceptions import NoNewDataError,NoNewSyncError
 
+# CHANGE: YAML generation. The bronze layers that have YAML generation, filter workbooks and schema validation. Every layer
+# check below and in main.py reads this one tuple, so a new bronze layer (bronze_mysql) is added here once, not at each check.
+BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql")
+
 
 #Generating runids
 def generate_runid():
@@ -121,7 +125,8 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
                     
                     os.makedirs(path, exist_ok=True)
 
-    elif layer_type[0] in ("bronze_mssql", "bronze_postgres", "silver"):
+    # CHANGE: YAML generation. The bronze layers come from BRONZE_LAYERS (top of the file); silver keeps the same output paths.
+    elif layer_type[0] in BRONZE_LAYERS + ("silver",):
         logpath = os.path.join(
             output_dir,
             layer_type[0],
@@ -442,7 +447,8 @@ def parse_arguments():
     "--layer_type",
     nargs=1,
     required = True,
-    choices=["bronze_postgres","bronze_mssql", "silver", "gold", "reports", "sanity"]
+    # CHANGE: YAML generation. The bronze choices come from BRONZE_LAYERS, so a new bronze layer is accepted once it is added there.
+    choices=[*BRONZE_LAYERS, "silver", "gold", "reports", "sanity"]
     )
 
     parser.add_argument(
@@ -508,7 +514,7 @@ def parse_arguments():
 
     # CHANGE: YAML generation. --source_schema, --target_database and --target_schema were removed. Each table's application,
     # source schema, Snowflake database and Snowflake schema are read from its row in the filter workbook
-    # (yaml_generation/Filter-files-excel/), the one source of truth, so a run needs fewer arguments.
+    # (yaml_generation/master_files/), the one source of truth, so a run needs fewer arguments.
 
     # CHANGE: YAML generation. 'yes' applies the row filters in the filter workbooks to the generated YAML: the historical column
     # for --run_type historical, the incremental column for --run_type incremental. A filtered table is then a part of the big
@@ -538,8 +544,9 @@ def parse_arguments():
         if args.count_validation[0] == "yes" or args.schema_validation[0] == "yes":
             parser.error("Only the parameter --data_validation = 'yes' is accepted.")
 
-    if args.schema_validation[0] == "yes" and layer_type[0] not in ("bronze_mssql", "bronze_postgres"):
-        parser.error("--schema_validation 'yes' is only allowed when --layer_type is 'bronze_mssql' or 'bronze_postgres'.")
+    # CHANGE: YAML generation. Schema validation reads the master workbook's type mapping sheet, which only the BRONZE_LAYERS have.
+    if args.schema_validation[0] == "yes" and layer_type[0] not in BRONZE_LAYERS:
+        parser.error(f"--schema_validation 'yes' is only allowed when --layer_type is one of {', '.join(BRONZE_LAYERS)}.")
 
     if layer_type[0] in ("sanity", "reports"):
         if not args.report_pack:
@@ -560,17 +567,17 @@ def parse_arguments():
     # given on the command line is kept, so the checks below still refuse an explicit 'yes' on another layer.
     for flag in ("yaml_generation", "filter_files"):
         if getattr(args, flag) is None:
-            setattr(args, flag, ['yes' if layer_type[0] in ("bronze_postgres", "bronze_mssql") else 'no'])
+            setattr(args, flag, ['yes' if layer_type[0] in BRONZE_LAYERS else 'no'])
 
     # CHANGE: YAML generation. The generator reads the source and Snowflake catalogues of the layer's own database. Only the two
     # bronze layers have a generator (yaml_generation/db_rules.py).
-    if args.yaml_generation[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
-        parser.error("--yaml_generation 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql'.")
+    if args.yaml_generation[0] == "yes" and layer_type[0] not in BRONZE_LAYERS:
+        parser.error(f"--yaml_generation 'yes' is only allowed when --layer_type is one of {', '.join(BRONZE_LAYERS)}.")
 
     # CHANGE: YAML generation. The filter workbooks hold rows for the bronze engines only (the source_database column in
     # yaml_generation/filter_files.py). Any other layer would get no filter, so an incremental run would compare whole tables.
-    if args.filter_files[0] == "yes" and layer_type[0] not in ("bronze_postgres", "bronze_mssql"):
-        parser.error("--filter_files 'yes' is only allowed when --layer_type is 'bronze_postgres' or 'bronze_mssql' (the filter workbooks are for those two).")
+    if args.filter_files[0] == "yes" and layer_type[0] not in BRONZE_LAYERS:
+        parser.error(f"--filter_files 'yes' is only allowed when --layer_type is one of {', '.join(BRONZE_LAYERS)} (the filter workbooks are for those).")
 
     # CHANGE: YAML generation. These flags are used whenever a YAML is written: with --yaml_generation 'yes', and without it
     # when a named table has no YAML yet (main.py creates it). So they are accepted with either value of --yaml_generation.

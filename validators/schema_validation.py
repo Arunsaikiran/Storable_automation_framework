@@ -11,6 +11,10 @@ import traceback
 import os
 import pandas as pd
 import numpy as np
+# CHANGE: YAML generation. The column exclusions are read from the one place they are kept (exclusions.yaml and the rules
+# workbook in yaml_generation/settings/), the same files the count and data YAML are generated from.
+from yaml_generation import settings as exclusion_settings
+from yaml_generation.yaml_builder import normalize_name
 
 logger = get_logger(__name__)
 
@@ -49,6 +53,20 @@ def validate_schema(ctx):
     source_query = config_file['sourcequery']
     target_query = config_file['targetquery']
     datatype_map = config_file['datatype_map']
+    # CHANGE: YAML generation (V2). The source types each precision check applies to, from the YAML (the mapping sheet's
+    # precision_check column). A file without the key keeps the PostgreSQL types checked before.
+    precision_checks = config_file.get('precision_checks') or {}
+    datetime_types = precision_checks.get('datetime', ['timestamp without time zone'])
+    numeric_types = precision_checks.get('numeric', ['integer'])
+    character_types = precision_checks.get('character', ['character varying'])
+    # CHANGE: YAML generation (V1). {env} in the target query is filled for the run's environment, as count_validation.py does,
+    # so one generated YAML serves every environment. local and unknown environments read DEV, as there.
+    env = {"stg": "STG", "qat": "QAT", "prod": "PRD"}.get(environment, "DEV")
+    # CHANGE: YAML generation. Columns left out on both sides: exclusions.yaml (this source's section and snowflake) and the
+    # rules workbook's exclude_columns for the table, matched by normalised name, so no exclusion list is kept in the YAML.
+    global_excluded = exclusion_settings.load_exclusions(source_type=source)
+    rules_path = exclusion_settings.pick_rules_file()
+    table_rules = exclusion_settings.load_table_rules(rules_path, source) if rules_path else {}
     print("="*100)
     print("Started...")
 
@@ -76,22 +94,23 @@ def validate_schema(ctx):
             #Getting dataframe
             batch_start_time = datetime.now()
             logger.info("Executing schema validation check for table: %s", table_name)
-            #Column Exclusion
-            source_column_exclusion = config_file['tables'][table_name]['source_column_exclusion']
-            target_column_exclusion = config_file['tables'][table_name]['target_column_exclusion']
+            # CHANGE: YAML generation. Column exclusion from the settings (see above), the same set on both sides.
+            rule = table_rules.get(table_name)
+            excluded = global_excluded | (rule.exclude if rule else set())
 
             obj = get_database(source,BASE_DIR,environment)
             formatted_source_query = source_query.format(table_name = table_name)
             source_df = obj.execute_query(formatted_source_query)
-            source_df = source_df[~source_df['column_name'].isin(source_column_exclusion)]
+            source_df = source_df[~source_df['column_name'].map(normalize_name).isin(excluded)]
             source_df.columns = [f"{i}_source" for i in source_df.columns]
             source_df = source_df.replace({None: np.nan})
             logger.info("Source Query: %s", formatted_source_query)
             obj = get_database(target,BASE_DIR,environment)
-            formatted_target_query = target_query.format(table_name = table_name.upper())
+            # CHANGE: YAML generation (V1). env is filled too; a query without {env} is unchanged by it.
+            formatted_target_query = target_query.format(table_name = table_name.upper(), env = env)
             target_df = obj.execute_query(formatted_target_query)
             target_df.columns = target_df.columns.str.lower()
-            target_df = target_df[~target_df['column_name'].isin(target_column_exclusion)]
+            target_df = target_df[~target_df['column_name'].map(normalize_name).isin(excluded)]
             target_df.columns = [f"{i}_target" for i in target_df.columns]
 
             for col in target_df.select_dtypes(include=['object','string']).columns:
@@ -172,11 +191,16 @@ def validate_schema(ctx):
             #data_type check
             datatype_rows = []
             for _,row in join_df[['table_name_source','column_name_source','column_name_target','data_type_source','data_type_target']].iterrows():
-                if datatype_map[row['data_type_source']] == row['data_type_target']:
+                # CHANGE: YAML generation (V3). A source type with no map entry FAILS that column (description says why), not
+                # the whole table with a KeyError.
+                mapped = datatype_map.get(row['data_type_source'])
+                if mapped == row['data_type_target']:
                     pass
                 else:
                     data_type_failure_counts += 1
-                    datatype_rows.append(row[['table_name_source','column_name_source','data_type_source','data_type_target']])
+                    r = row[['table_name_source','column_name_source','data_type_source','data_type_target']].copy()
+                    r['description'] = "" if mapped is not None else f"no mapping for {row['data_type_source']}"
+                    datatype_rows.append(r)
             if data_type_failure_counts == 0:
                 table_result["datatype_validation"] = {"status":"PASS"}
             else:
@@ -188,7 +212,8 @@ def validate_schema(ctx):
 
             #Datetime precision
             datetime_rows = []
-            for _,row in join_df[join_df['data_type_source'].isin(['timestamp without time zone'])].iterrows():
+            # CHANGE: YAML generation (V2). The types come from precision_checks (see above).
+            for _,row in join_df[join_df['data_type_source'].isin(datetime_types)].iterrows():
                 if row['datetime_precision_source'] <= row['datetime_precision_target']:
                     if row['datetime_precision_source'] < row['datetime_precision_target']:
                         table_warning = "Yes"
@@ -214,8 +239,10 @@ def validate_schema(ctx):
 
             #integer
             integer_rows = []
-            for _,row in join_df[join_df['data_type_source'].isin(['integer'])].iterrows():
-                if row['numeric_precision_source'] <= row['numeric_precision_target'] or row['numeric_scale_source'] <= row['numeric_scale_target']:
+            # CHANGE: YAML generation (V2, V4). The types come from precision_checks. Both the precision and the scale must fit
+            # (and): with or, a target precision smaller than the source PASSED whenever the scale fitted.
+            for _,row in join_df[join_df['data_type_source'].isin(numeric_types)].iterrows():
+                if row['numeric_precision_source'] <= row['numeric_precision_target'] and row['numeric_scale_source'] <= row['numeric_scale_target']:
                     if row['numeric_precision_source'] < row['numeric_precision_target'] or row['numeric_scale_source'] < row['numeric_scale_target']:
                         table_warning = "Yes"
                         r = row[['table_name_source','column_name_source','data_type_source','data_type_target','numeric_precision_source','numeric_precision_target','numeric_scale_source','numeric_scale_target']].copy()
@@ -240,8 +267,8 @@ def validate_schema(ctx):
 
             #Character length
             character_rows = []
-            for _,row in join_df[join_df['data_type_source'].isin(['character varying'])].iterrows():
-                print(row)
+            # CHANGE: YAML generation (V2, V6). The types come from precision_checks; the debug print(row) is removed.
+            for _,row in join_df[join_df['data_type_source'].isin(character_types)].iterrows():
                 if row['character_maximum_length_source'] <= row['character_maximum_length_target']:
                     if row['character_maximum_length_source'] < row['character_maximum_length_target']:
                         table_warning = "Yes"

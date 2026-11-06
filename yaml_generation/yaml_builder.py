@@ -8,7 +8,8 @@ This file makes no database calls. The generator reads the columns and keys (db_
   2. Builds one normalised SELECT for the source and one for the Snowflake table. Each column becomes text
      in the same way on both sides, so the framework can compare them.
   3. Adds the optional row filters (the same condition on the count and on the data query).
-  4. Writes the YAML files that the framework's main.py reads.
+  4. Writes the YAML files that the framework's main.py reads: data, count, and the schema validation file
+     (write_schema_file(): table names, queries and type map; no exclusions, the validator reads the settings).
 
 Why normalise: the two databases store the same value in different types. A boolean is true/false in
 PostgreSQL and 1/0 in SQL Server, and a timestamp prints differently in each. The rules are in db_rules.py.
@@ -108,6 +109,7 @@ class TableSpec:
     table: str            # source table name
     target_database: str  # Snowflake database name as written in the YAML, e.g. {env}_EDGE_BRONZE
     target_schema: str    # e.g. EDGE, SITELINK
+    source_database: str = None  # e.g. fms, DevT5000: the workbook's source_database. None writes schema.table only.
 
     @property
     def target_table(self) -> str:
@@ -305,9 +307,17 @@ def _select(items, from_clause: str, where_parts=(), placeholders=False) -> str:
     return _checked("\n".join(lines) + ";", placeholders)
 
 
+def source_name(database, schema: str, table: str, rules: dict) -> str:
+    """A source table as written in SQL: database.schema.table, e.g. "fms"."public"."units" or [DevT5000].[dbo].[Units].
+
+    The database is left out when it is None. PostgreSQL accepts a database name only when it is the one connected to.
+    """
+    return ".".join(quote(part, rules) for part in (database, schema, table) if part)
+
+
 def source_ref(spec: TableSpec, rules: dict) -> str:
-    """The source table as written in FROM, e.g. "public"."units". The connection picks the database."""
-    return f"{quote(spec.source_schema, rules)}.{quote(spec.table, rules)}"
+    """The source table as written in FROM, e.g. "fms"."public"."units" (database.schema.table, as on the Snowflake side)."""
+    return source_name(spec.source_database, spec.source_schema, spec.table, rules)
 
 
 def target_ref(spec: TableSpec) -> str:
@@ -344,6 +354,7 @@ def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters) -> d
     entry = {
         "source_table_name": spec.table,
         "source": spec.source_type,
+        **({"source_database": spec.source_database} if spec.source_database else {}),
         "source_schema": spec.source_schema,
         "sourcecolumn": key,
         "sourcequery": _select(source_items, source_ref(spec, source_rules), filters.source_parts()),
@@ -370,6 +381,7 @@ def build_count_entry(spec: TableSpec, filters: Filters) -> dict:
     return {
         "source_table_name": spec.table,
         "source": spec.source_type,
+        **({"source_database": spec.source_database} if spec.source_database else {}),
         "source_schema": spec.source_schema,
         "sourcequery": _checked(source_sql + (f" WHERE {source_where}" if source_where else "") + ";"),
         "target_table_name": spec.target_table,
@@ -395,7 +407,7 @@ def data_header(spec: TableSpec, key: str, rec: Reconciliation, filters: Filters
     source_rules = RULES[spec.source_type]
     lines = [
         f"{GENERATED_MARK} on {stamp}. Do not hand-edit; main.py --yaml_generation yes rewrites it when the structure changes.",
-        f"# Source: {source_rules['label']} {spec.source_schema}.{spec.table}",
+        f"# Source: {source_rules['label']} {'.'.join(p for p in (spec.source_database, spec.source_schema, spec.table) if p)}",
         f"# Target: {spec.target_database}.{spec.target_schema}.{spec.target_table} (Snowflake, _FIVETRAN_ACTIVE = TRUE)",
         f"# Key: {key}   Columns compared: {len(rec.pairs)}",
     ]
@@ -543,6 +555,65 @@ def upsert_count_file(config_dir, layer: str, entries: dict):
     if path.exists() and tables == before:
         return path, statuses
     _write_text(path, "\n".join(COUNT_HEADER) + "\n\n" + _dump({"tables": tables}))
+    return path, statuses
+
+
+def unmapped_types(columns, excluded, datatype_map) -> list:
+    """'column (type)' for each source column whose type has no datatype_map key. excluded columns are not checked.
+
+    The match is exact: the validator looks the catalogue's DATA_TYPE up as it is (datatype_map[...]).
+    """
+    return [f"{name} ({dtype})" for name, dtype in columns if name not in excluded and dtype not in datatype_map]
+
+
+def schema_file_path(config_dir) -> Path:
+    """The one schema validation YAML of a layer and run type, where utils.get_config_output_paths() reads it."""
+    return Path(config_dir) / "schema_validation" / "schema_validation.yaml"
+
+
+def _schema_block(config_dir) -> dict:
+    path = schema_file_path(config_dir)
+    if not path.exists():
+        return {}
+    return ((yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("validations") or {}).get("schema_validation") or {}
+
+
+def schema_table_names(config_dir) -> set:
+    """Names of the tables in the schema file. Empty when there is no file."""
+    return set(_schema_block(config_dir).get("tables") or {})
+
+
+def write_schema_file(config_dir, entries: dict, shared: dict, header: list, create_only=False):
+    """Add or replace tables in the schema file, keeping every other table, and write the shared keys (queries, maps).
+
+    entries  {table: {}} (the validator reads the exclusions from the settings). A table already in the file (in any case) keeps its position, under the
+             workbook's spelling.
+    shared   {source, sourcequery, target, targetquery, datatype_map, precision_checks}. With create_only, an existing
+             file keeps its own.
+    Returns (path, statuses): {table: NEW | UPDATED | UNCHANGED}. A table is UPDATED when its entry or the shared keys
+    changed. The file is written only when its content (all but the stamp line) differs.
+    """
+    path = schema_file_path(config_dir)
+    before = _schema_block(config_dir)
+    old_tables = before.get("tables") or {}
+    old_shared = {key: value for key, value in before.items() if key != "tables"}
+    if create_only and path.exists():
+        shared = old_shared
+    shared_changed = old_shared != shared
+    old_key = {str(key).lower(): key for key in old_tables}
+    tables, statuses = {}, {}
+    for key, value in old_tables.items():
+        new = next((t for t in entries if t.lower() == str(key).lower()), None)
+        tables[new or key] = entries[new] if new else value
+    for table, entry in entries.items():
+        old = old_tables.get(old_key.get(table.lower()))
+        statuses[table] = ("NEW" if table.lower() not in old_key
+                           else "UPDATED" if old != entry or shared_changed or old_key[table.lower()] != table
+                           else "UNCHANGED")
+        tables.setdefault(table, entry)
+    text = "\n".join(header) + "\n\n" + _dump({"validations": {"schema_validation": {"tables": tables, **shared}}})
+    if not path.exists() or _without_stamp(path.read_text(encoding="utf-8")) != _without_stamp(text):
+        _write_text(path, text)
     return path, statuses
 
 

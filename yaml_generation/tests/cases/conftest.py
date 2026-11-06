@@ -79,8 +79,16 @@ def write_workbook(path, sheets):
 
 LOCATION_HEADERS = ["source_application", "source_database", "source_schema", "target_application", "target_database",
                     "target_schema"]
-EDGE = ["Edge", "PostgreSQL", "public", "Snowflake", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC"]
-SITELINK = ["SiteLink", "SQL Server", "dbo", "Snowflake", "{env}_SITELINK_BRONZE", "AWSDEV_DEVT5000_DBO"]
+EDGE = ["Edge", "fms", "public", "Snowflake", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC"]
+SITELINK = ["SiteLink", "DevT5000", "dbo", "Snowflake", "{env}_SITELINK_BRONZE", "AWSDEV_DEVT5000_DBO"]
+
+# The type mapping sheets (filter_files.SCHEMA_SHEETS) for the fake sources' types, read by --schema_validation yes.
+MAPPING_HEADER = ["source_data_type", "target_data_type", "precision_check", "notes"]
+POSTGRES_MAPPING = [MAPPING_HEADER, ["integer", "number", "numeric"], ["character varying", "text", "character"],
+                    ["text", "text"], ["timestamp without time zone", "timestamp_ntz", "datetime"],
+                    ["timestamp with time zone", "timestamp_tz"]]
+MSSQL_MAPPING = [MAPPING_HEADER, ["int", "number", "numeric"], ["varchar", "text", "character"],
+                 ["datetime", "timestamp_ntz", "datetime"], ["timestamp", "binary"], ["money", "number", "numeric"]]
 
 # The filter workbooks are where each table lives. 'extra' (PostgreSQL) and 'Charges' (SQL Server) are in the source only.
 POSTGRES_FILTERS = {"filters": [
@@ -88,7 +96,7 @@ POSTGRES_FILTERS = {"filters": [
     ["units", "units\nwhere updated_at > '2025-01-01'", "units\nwhere id > 1", *EDGE],
     ["notes", None, "notes n\nwhere n.body = 'a' or n.body = 'b'", *EDGE],         # refused: 'or'
     ["lookup", None, None, *EDGE],
-]}
+], "Postgres schema mapping": POSTGRES_MAPPING}
 
 
 def sitelink_filters(location=SITELINK):
@@ -98,7 +106,7 @@ def sitelink_filters(location=SITELINK):
         [2, "Addresses", "Addresses t\nwhere t.scorpcode = :scorpcode", "Addresses t\nwhere t.scorpcode = :scorpcode",
          *location],  # bind
         [3, "Lookup", "compare full", "compare full", *location],
-    ]}
+    ], "MSSQL schema mapping": MSSQL_MAPPING}
 
 
 SITELINK_FILTERS = sitelink_filters()
@@ -150,6 +158,9 @@ class World:
         logs = sorted((self.root / "output").rglob("validation_*.log"), key=lambda p: p.stat().st_mtime)
         return logs[-1].read_text(encoding="utf-8") if logs else ""
 
+    def schema_file(self, run_type, layer):
+        return self.root / "config" / run_type / layer / "schema_validation" / "schema_validation.yaml"
+
     def exists(self, run_type, layer, table):
         return self.yaml(run_type, layer, table).exists()
 
@@ -164,8 +175,8 @@ def world(monkeypatch, tmp_path):
     monkeypatch.setattr(generate_yaml, "FRAMEWORK_ROOT", root)
     monkeypatch.setattr(filter_files, "FOLDER", w.filters)
     # Every run reads where its tables live from the filter workbooks, so both applications' workbooks are there by default.
-    w.write_filters("edge_bronze_filters.xlsx", POSTGRES_FILTERS)
-    w.write_filters("sitelink_bronze_filters.xlsx", SITELINK_FILTERS)
+    w.write_filters("edge_bronze_master.xlsx", POSTGRES_FILTERS)
+    w.write_filters("sitelink_bronze_master.xlsx", SITELINK_FILTERS)
     monkeypatch.setattr(settings, "pick_rules_file",
                         lambda explicit=None, **kwargs: w.rules_path if w.rules_path.exists() else None)
     # The exclusions file starts as a copy of the shipped one, so the cases use the real database sections.

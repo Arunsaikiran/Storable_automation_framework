@@ -9,15 +9,17 @@ pair) and table rules in the rules workbook (one table, one database and schema)
 
 import re
 
+import pytest
 
-def pg_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no"):
-    return world.run("--layer_type", "bronze_postgres", "--tables", *tables, "--schema_validation", "no",
+
+def pg_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no", schema="no"):
+    return world.run("--layer_type", "bronze_postgres", "--tables", *tables, "--schema_validation", schema,
                      "--count_validation", count, "--data_validation", data, "--environment", "dev",
                      "--run_type", run_type, "--yaml_generation", yaml, "--filter_files", filters)
 
 
-def ms_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no"):
-    return world.run("--layer_type", "bronze_mssql", "--tables", *tables, "--schema_validation", "no",
+def ms_run(world, *tables, run_type="historical", yaml="no", count="yes", data="yes", filters="no", schema="no"):
+    return world.run("--layer_type", "bronze_mssql", "--tables", *tables, "--schema_validation", schema,
                      "--count_validation", count, "--data_validation", data, "--environment", "dev",
                      "--run_type", run_type, "--yaml_generation", yaml, "--filter_files", filters)
 
@@ -140,7 +142,7 @@ def test_pg_12_tables_all_takes_the_names_from_the_postgres_workbook(postgres_fi
 
 def test_pg_13_tables_all_without_workbook_names_is_refused(world):
     """Q: With --tables all and no workbook for postgres, does the run stop with exit 1 and write nothing?"""
-    (world.filters / "edge_bronze_filters.xlsx").unlink()
+    (world.filters / "edge_bronze_master.xlsx").unlink()
     assert pg_run(world, "all", yaml="yes", count="no", data="no") == 1
     assert "the filter workbook for --layer_type bronze_postgres is missing" in world.log()
     assert not (world.root / "config").exists() or not any((world.root / "config").rglob("*.yaml"))
@@ -151,6 +153,23 @@ def test_pg_14_generate_only_writes_yaml_and_runs_no_validator(world):
     assert pg_run(world, "units", yaml="yes", count="no", data="no") == 0
     assert world.exists("historical", "bronze_postgres", "units")
     assert world.validated == []
+
+
+@pytest.mark.parametrize("schema, count, data, written", [
+    ("no", "no", "no", {"schema", "count", "data"}),      # all three no: generate only, every kind
+    ("yes", "no", "no", {"schema"}),
+    ("no", "yes", "no", {"count"}),
+    ("no", "no", "yes", {"data"}),
+    ("no", "yes", "yes", {"count", "data"}),
+    ("yes", "yes", "yes", {"schema", "count", "data"}),
+])
+def test_pg_14b_yaml_generation_writes_only_the_kinds_asked_for(world, schema, count, data, written):
+    """Q: With --yaml_generation yes, is the YAML written for each kind set to yes, and for all three when all are no?"""
+    assert pg_run(world, "units", yaml="yes", schema=schema, count=count, data=data) == 0
+    found = {kind for kind, path in (("schema", world.schema_file("historical", "bronze_postgres")),
+                                     ("count", world.count_file("historical", "bronze_postgres")),
+                                     ("data", world.yaml("historical", "bronze_postgres", "units"))) if path.exists()}
+    assert found == written
 
 
 # --- PostgreSQL: the exclusions and the rules workbook --------------------------------------------------------------
@@ -303,7 +322,7 @@ def test_ms_11_tables_all_takes_the_names_from_the_sitelink_workbook(sitelink_fi
 def test_ms_12_a_wrong_target_schema_writes_nothing(world):
     """Q: With a target_schema in the workbook that does not exist in Snowflake, does Units fail with exit 1 and no YAML?"""
     from conftest import SITELINK, sitelink_filters
-    world.write_filters("sitelink_bronze_filters.xlsx", sitelink_filters(SITELINK[:5] + ["NOPE"]))
+    world.write_filters("sitelink_bronze_master.xlsx", sitelink_filters(SITELINK[:5] + ["NOPE"]))
     assert ms_run(world, "Units", yaml="yes") == 1
     assert "no tables visible in Snowflake schema" in world.log()
     assert not world.exists("historical", "bronze_mssql", "Units")

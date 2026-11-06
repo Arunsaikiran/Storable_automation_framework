@@ -19,6 +19,9 @@ What each key means
   boolean_types, timestamp_types, date_types, text_types, large_text_types, integer_types
                         type names as this database reports them
   refused_types         types that cannot be compared as text here. A data file for such a table is refused.
+  schema_query          the catalogue query of the schema validation YAML (sourcequery / targetquery), today's text.
+                        {schema} and {database} are filled from the table's filter workbook row (schema_query());
+                        {table_name} is left for validators/schema_validation.py to fill per table.
 
 Type names are compared in lower case, with lengths removed: "decimal(10,2)" is read as "decimal".
 Values here are the best understanding of each dialect. Only PostgreSQL has been run on a live
@@ -48,6 +51,13 @@ RULES = {
         # Compared as flattened JSON text (utils/json_normalize.py): keys and spacing differ between the two databases.
         "json_types": {"jsonb", "json", "hstore"},
         "refused_types": set(),
+        "schema_query": (
+            "SELECT\n"
+            "table_name,column_name,data_type,character_maximum_length,character_octet_length,numeric_precision,"
+            "numeric_precision_radix,numeric_scale,datetime_precision\n"
+            "FROM {database}.information_schema.columns\n"
+            "where table_schema = '{schema}' and table_name = '{table_name}'\n"
+            "order by table_name,ordinal_position;"),
     },
     "mssql": {
         "label": "SQL Server",
@@ -70,6 +80,21 @@ RULES = {
         "integer_types": {"int", "bigint", "smallint", "tinyint"},
         # rowversion is reported as "timestamp": a binary counter with no match in Snowflake.
         "refused_types": {"geography", "geometry", "image", "timestamp"},
+        "schema_query": (
+            "SELECT\n"
+            "TABLE_NAME AS table_name,\n"
+            "COLUMN_NAME AS column_name,\n"
+            "DATA_TYPE AS data_type,\n"
+            "CHARACTER_MAXIMUM_LENGTH AS character_maximum_length,\n"
+            "CHARACTER_OCTET_LENGTH AS character_octet_length,\n"
+            "NUMERIC_PRECISION AS numeric_precision,\n"
+            "NUMERIC_PRECISION_RADIX AS numeric_precision_radix,\n"
+            "NUMERIC_SCALE AS numeric_scale,\n"
+            "DATETIME_PRECISION AS datetime_precision\n"
+            "FROM {database}.INFORMATION_SCHEMA.COLUMNS\n"
+            "WHERE TABLE_SCHEMA = '{schema}'\n"
+            "AND TABLE_NAME = '{table_name}'\n"
+            "ORDER BY TABLE_NAME,ORDINAL_POSITION;"),
     },
     "athena": {
         "label": "Athena",
@@ -127,6 +152,13 @@ RULES = {
         "large_text_types": set(),
         "integer_types": {"number"},
         "refused_types": set(),
+        "schema_query": (
+            "SELECT\n"
+            "table_name,column_name,data_type,character_maximum_length,character_octet_length,numeric_precision,"
+            "numeric_precision_radix,numeric_scale,datetime_precision\n"
+            "FROM {database}.information_schema.columns\n"
+            "WHERE TABLE_CATALOG = '{database}' AND table_schema = '{schema}' AND TABLE_NAME = '{table_name}'\n"
+            "ORDER BY table_name, ordinal_position;"),
     },
 }
 
@@ -180,6 +212,16 @@ def _lit(value) -> str:
 def _pg_catalog(rules) -> bool:
     """True for PostgreSQL, whose tables, columns and keys are read from pg_catalog (see the rules block above)."""
     return bool(rules and rules.get("pg_catalog"))
+
+
+def schema_query(rules, schema, database=None) -> str:
+    """The schema validation query for one engine, at one location. {table_name} is kept for the validator to fill.
+
+    Raises ValueError for an engine with no schema_query (Athena, Redshift: no schema validation YAML yet).
+    """
+    if "schema_query" not in rules:
+        raise ValueError(f"{rules['label']} has no schema_query in db_rules.RULES, so no schema validation YAML can be written")
+    return rules["schema_query"].replace("{schema}", schema).replace("{database}", database or "")
 
 
 def list_tables(db, schema, prefix="", rules=None):

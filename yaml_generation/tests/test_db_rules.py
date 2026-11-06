@@ -118,3 +118,25 @@ def test_postgres_tables_and_columns_are_read_from_pg_catalog():
     columns = db_rules.list_columns(db, "edge", "units", rules=db_rules.RULES["postgres"])
     assert columns[:2] == [("id", "integer"), ("unit_name", "character varying")]
     assert "pg_attribute" in db.queries[-1] and "INFORMATION_SCHEMA" not in db.queries[-1]
+
+
+# --- the schema validation query -------------------------------------------------------------------------------
+
+def test_schema_query_fills_the_location_and_keeps_table_name_for_the_validator():
+    sql = db_rules.schema_query(SNOW, "STOREDGE_FMS_PUBLIC", "DEV_EDGE_BRONZE")
+    assert "FROM DEV_EDGE_BRONZE.information_schema.columns" in sql
+    assert "TABLE_CATALOG = 'DEV_EDGE_BRONZE' AND table_schema = 'STOREDGE_FMS_PUBLIC'" in sql
+    assert sql.format(table_name="UNITS").count("'UNITS'") == 1      # the validator's str.format() runs on it
+    assert "FROM DevT5000.INFORMATION_SCHEMA.COLUMNS" in db_rules.schema_query(MS, "dbo", "DevT5000")
+    assert "TABLE_SCHEMA = 'dbo'" in db_rules.schema_query(MS, "dbo", "DevT5000")
+    assert "FROM fms.information_schema.columns" in db_rules.schema_query(PG, "public", "fms")  # source: database.schema
+
+
+def test_schema_query_has_no_trailing_space_so_the_yaml_keeps_block_style():
+    for rules in (PG, MS, SNOW):
+        assert all(line == line.rstrip() for line in db_rules.schema_query(rules, "s", "d").split("\n"))
+
+
+def test_an_engine_with_no_schema_query_is_refused():
+    with pytest.raises(ValueError, match="Athena has no schema_query"):
+        db_rules.schema_query(ATH, "glue_db")

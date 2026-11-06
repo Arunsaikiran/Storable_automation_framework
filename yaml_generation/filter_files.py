@@ -1,14 +1,14 @@
-"""The filter workbooks in yaml_generation/Filter-files-excel/: the one source of truth for where each table lives, and its row filters.
+"""The master workbooks in yaml_generation/master_files/: the one source of truth for where each table lives, and its row filters.
 
-One workbook per layer, picked by --layer_type (WORKBOOKS below): bronze_postgres reads edge_bronze_filters.xlsx and
-bronze_mssql reads sitelink_bronze_filters.xlsx. No other .xlsx in the folder is read. A new layer (bronze_athena) is a new
+One workbook per layer, picked by --layer_type (WORKBOOKS below): bronze_postgres reads edge_bronze_master.xlsx and
+bronze_mssql reads sitelink_bronze_master.xlsx. No other .xlsx in the folder is read. A new layer (bronze_athena) is a new
 workbook with the same columns, one line in WORKBOOKS, and a block for its engine in db_rules.RULES.
 
 What is read: the first sheet that has the table column and the six location columns. Headers are matched trimmed, in
 lower case, with a trailing dot ignored. One row per table:
   Target Table Name              the table name (the source name; Snowflake holds it in upper case)
   source_application             e.g. Edge, SiteLink. Shown in the log.
-  source_database                the source engine, as db_rules.RULES names it: PostgreSQL, SQL Server (the label, or the key)
+  source_database                the source database name, e.g. fms (Edge), DevT5000 (SiteLink). The engine is the layer's.
   source_schema                  e.g. public, dbo
   target_application             Snowflake (the only target for now)
   target_database                the Snowflake database as written in the YAML, e.g. {env}_EDGE_BRONZE. {env} is filled in per
@@ -16,9 +16,13 @@ lower case, with a trailing dot ignored. One row per table:
   target_schema                  e.g. STOREDGE_FMS_PUBLIC
   Historical Filter to apply     the row filter for --run_type historical (optional)
   Incremental filters to apply   the row filter for --run_type incremental (optional)
-Every row's source_database must be the layer's engine (bronze_postgres: PostgreSQL). --tables all is every row. A named
+Both sides are written database.schema.table: "fms"."public"."units" and {env}_EDGE_BRONZE."STOREDGE_FMS_PUBLIC"."UNITS".
+A source_database that names an engine (PostgreSQL, SQL Server) is refused: it is the database now. --tables all is every row. A named
 table with no row FAILS: without a row there is no schema to read it from. Table names are matched without regard to case
 (--tables addresses is the row Addresses), and the workbook's spelling is used from then on.
+
+The type mapping sheet (SCHEMA_SHEETS: 'MSSQL schema mapping', 'Postgres schema mapping') is read by schema_mapping() for
+the schema validation YAML only. One row per source type: source_data_type, target_data_type, precision_check, notes.
 
 Why filters: a filter keeps part of a large table, so the framework does not load the whole table into RAM. The filter is
 applied to the source and to Snowflake, for the count and the data, the same way as a filter in the rules workbook
@@ -80,16 +84,20 @@ if str(FRAMEWORK_ROOT) not in sys.path:  # lets the self-check run as a plain sc
     sys.path.insert(0, str(FRAMEWORK_ROOT))
 
 from yaml_generation.db_rules import RULES, quote  # noqa: E402
-from yaml_generation.yaml_builder import ENV_PLACEHOLDER, FIVETRAN_FILTER, check_filter  # noqa: E402
+from yaml_generation.yaml_builder import ENV_PLACEHOLDER, FIVETRAN_FILTER, check_filter, source_name  # noqa: E402
 
-FOLDER = Path(__file__).resolve().parent / "Filter-files-excel"
+FOLDER = Path(__file__).resolve().parent / "master_files"
 # The workbook each layer reads, by its engine (--layer_type bronze_<engine>). A new layer adds its workbook here.
-WORKBOOKS = {"postgres": "edge_bronze_filters.xlsx", "mssql": "sitelink_bronze_filters.xlsx"}
+WORKBOOKS = {"postgres": "edge_bronze_master.xlsx", "mssql": "sitelink_bronze_master.xlsx"}
 # The headers, as matched: trimmed, lower case, a trailing dot dropped. The same layout for every application.
 TABLE_HEADER = "target table name"
 LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
                     "target_application", "target_database", "target_schema"]
 FILTER_HEADERS = {"historical": "historical filter to apply", "incremental": "incremental filters to apply"}
+# The type mapping sheet of each workbook, read for the schema validation YAML (schema_mapping()). Matched without regard to case.
+SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping"}
+MAPPING_HEADERS = ["source_data_type", "target_data_type"]          # required; precision_check and notes are optional
+PRECISION_CHECKS = ("datetime", "numeric", "character")
 
 
 @dataclass(frozen=True)
@@ -97,7 +105,8 @@ class Location:
     """Where one table lives, from its workbook row. Tables with the same Location are generated together."""
 
     application: str       # e.g. Edge
-    source_type: str       # the db_rules.RULES key of source_database, e.g. postgres
+    source_type: str       # the layer's engine, the db_rules.RULES key, e.g. postgres
+    source_database: str   # e.g. fms, DevT5000
     source_schema: str     # e.g. public
     target_database: str   # as written in the YAML, e.g. {env}_EDGE_BRONZE
     target_schema: str     # e.g. STOREDGE_FMS_PUBLIC
@@ -261,15 +270,15 @@ def _where(plan: _Plan, alias: str, side: _Side) -> list:
     return parts
 
 
-def convert(statement, source_type, source_schema, target_database, target_schema):
+def convert(statement, source_type, source_schema, target_database, target_schema, source_database=None):
     """(source_where, target_where) for one count statement. A side is None when the statement adds no condition.
 
-    Raises Refused when the statement is not read. Tables without a schema are read in source_schema (source) and
-    target_database.target_schema (Snowflake), as the rest of the generator does.
+    Raises Refused when the statement is not read. Tables without a schema are read in source_database.source_schema
+    (source) and target_database.target_schema (Snowflake), as the rest of the generator does.
     """
     plan = _plan(statement)
     pg, snow = RULES[source_type], RULES["snowflake"]
-    source = _Side(ref=lambda table: f"{quote(source_schema, pg)}.{quote(table, pg)}")
+    source = _Side(ref=lambda table: source_name(source_database, source_schema, table, pg))
     # Snowflake keeps history rows, so a sub-select reads only the active ones (the rule the generator uses for the base table).
     # ponytail: no check that the join and condition columns exist. A wrong column fails at the count with a SQL error.
     target = _Side(ref=lambda table: f"{target_database}.{quote(target_schema, snow)}.{quote(table.upper(), snow)}",
@@ -325,7 +334,7 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
     """{table: Row} for every row of the layer's workbook (WORKBOOKS[source_type]), in workbook order.
 
     Raises ValueError naming the file (and row) when the layer has no workbook, the file or its sheet is missing, or a row is
-    bad: an empty location column, a source_database that is not the layer's engine, a target that is not Snowflake, or a
+    bad: an empty location column, a source_database that names an engine instead of a database, a target that is not Snowflake, or a
     target_database without {env}. run_type picks the filter column (FILTER_HEADERS). A table listed twice (in any case)
     keeps its first row.
     """
@@ -333,7 +342,7 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
     label_of = RULES[source_type]["label"]
     name = WORKBOOKS.get(source_type)
     if name is None:
-        raise ValueError(f"--layer_type bronze_{source_type} has no filter workbook: add <application>_bronze_filters.xlsx "
+        raise ValueError(f"--layer_type bronze_{source_type} has no master workbook: add <application>_bronze_master.xlsx "
                          f"to {FOLDER} and its name to filter_files.WORKBOOKS")
     path = Path(folder or FOLDER) / name
     if not path.is_file():
@@ -358,10 +367,10 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
         missing = [column for column in LOCATION_HEADERS if not cell(position[column])]
         if missing:
             raise ValueError(f"{label}: {', '.join(missing)} is empty. Every row names where its table lives.")
-        engine = cell(position["source_database"])
-        if engine_of(engine) != source_type:
-            raise ValueError(f"{label}: source_database is {engine!r}, but {name} is the workbook for {label_of} "
-                             f"(--layer_type bronze_{source_type})")
+        source_database = cell(position["source_database"])
+        if engine_of(source_database):
+            raise ValueError(f"{label}: source_database is {source_database!r}, an engine. Write the {label_of} database "
+                             f"name (e.g. fms, DevT5000): the YAML names each table database.schema.table")
         if engine_of(cell(position["target_application"])) != "snowflake":
             raise ValueError(f"{label}: target_application must be Snowflake, found {cell(position['target_application'])!r}")
         target_database = cell(position["target_database"])
@@ -373,11 +382,69 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
             continue
         first[table.lower()] = label
         statement = values[filter_at] if filter_at is not None and filter_at < len(values) else None
-        location = Location(cell(position["source_application"]), source_type, cell(position["source_schema"]),
+        location = Location(cell(position["source_application"]), source_type, source_database, cell(position["source_schema"]),
                             target_database, cell(position["target_schema"]))
         found[table] = Row(table, location, str(statement) if statement else "", label)
     log.info("Filter workbook %s: %d table(s) for %s", name, len(found), label_of)
     return found
+
+
+def schema_mapping(source_type, folder=None, log=None):
+    """(datatype_map, precision_checks) from the layer workbook's type mapping sheet (SCHEMA_SHEETS), for the schema YAML.
+
+    datatype_map      {source_data_type: target_data_type}. The source type is kept as written: the validator looks up the
+                      catalogue's DATA_TYPE exactly. The Snowflake type is written in lower case, as the validator compares it.
+    precision_checks  {datetime | numeric | character: [source types]}, from the precision_check column (read in phase 2).
+    Raises ValueError naming the file and row: no workbook, no sheet, a missing header, an empty source_data_type or
+    target_data_type, or an unknown precision_check. A source type listed twice (in any case) keeps its first row.
+    """
+    log = log or logging.getLogger(__name__)
+    name, sheet_name = WORKBOOKS.get(source_type), SCHEMA_SHEETS.get(source_type)
+    if name is None or sheet_name is None:
+        raise ValueError(f"--layer_type bronze_{source_type} has no type mapping sheet: add it to filter_files.SCHEMA_SHEETS")
+    path = Path(folder or FOLDER) / name
+    if not path.is_file():
+        raise ValueError(f"the filter workbook for --layer_type bronze_{source_type} is missing: {path}")
+    workbook = load_workbook(path, read_only=True, data_only=True)
+    try:
+        sheet = next((ws for ws in workbook.worksheets if ws.title.strip().lower() == sheet_name.lower()), None)
+        if sheet is None:
+            raise ValueError(f"{name} has no sheet '{sheet_name}' (the source to Snowflake type mapping)")
+        rows = sheet.iter_rows(values_only=True)
+        header = [_header(cell) for cell in (next(rows, None) or ())]
+        missing = [column for column in MAPPING_HEADERS if column not in header]
+        if missing:
+            raise ValueError(f"{name}, sheet '{sheet.title}': no {', '.join(missing)} column")
+        at = {column: header.index(column) for column in MAPPING_HEADERS + ["precision_check"] if column in header}
+        datatype_map, precision_checks, first = {}, {}, {}
+        for number, values in enumerate(rows, start=2):
+            def cell(column):
+                index = at.get(column)
+                value = values[index] if index is not None and index < len(values) else None
+                return str(value).strip() if value is not None else ""
+
+            source, target, check = cell("source_data_type"), cell("target_data_type").lower(), cell("precision_check").lower()
+            if not (source or target or check):
+                continue
+            label = f"{name}, sheet '{sheet.title}' row {number}"
+            if not source or not target:
+                raise ValueError(f"{label}: source_data_type and target_data_type must both be filled")
+            if check and check not in PRECISION_CHECKS:
+                raise ValueError(f"{label}: precision_check is {check!r}; expected one of {', '.join(PRECISION_CHECKS)} or empty")
+            if source.lower() in first:
+                log.warning("%s: type %s is listed twice, so this row is not used (the first is row %d)",
+                            label, source, first[source.lower()])
+                continue
+            first[source.lower()] = number
+            datatype_map[source] = target
+            if check:
+                precision_checks.setdefault(check, []).append(source)
+    finally:
+        workbook.close()
+    if not datatype_map:
+        raise ValueError(f"{name}, sheet '{sheet_name}': no type mapping row")
+    log.info("Type mapping %s / %s: %d type(s)", name, sheet_name, len(datatype_map))
+    return datatype_map, precision_checks
 
 
 def spelled(tables, rows) -> list:
@@ -405,7 +472,7 @@ def filters(rows: dict, log=None) -> dict:
             if not statement_table or statement_table.group(1).lower() != table.lower():
                 raise Refused(f"the statement is about '{statement_table.group(1) if statement_table else '?'}', not '{table}'")
             source_where, target_where = convert(statement, where.source_type, where.source_schema,
-                                                 where.target_database, where.target_schema)
+                                                 where.target_database, where.target_schema, where.source_database)
             check_filter(source_where, row.label)
             check_filter(target_where, row.label, placeholders=True)
         except ValueError as exc:
