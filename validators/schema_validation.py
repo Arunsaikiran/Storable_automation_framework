@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 import pyodbc
 import psycopg2
-from utils.utility import create_summary,create_summary_schema
+from utils.utility import create_summary_schema
 import traceback
 import os
 import pandas as pd
