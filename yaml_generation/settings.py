@@ -40,7 +40,7 @@ REQUIRED_RULE_HEADERS = ["source_type", "table_name"]
 # The column an incremental run windows on, per database, when the rules workbook does not name one. The validators' freshness
 # check reads the same column: updated_at for PostgreSQL, dupdated for SQL Server (check_freshness in utils/utility.py).
 # A table without it cannot run an incremental window.
-INCREMENTAL_COLUMNS = {"postgres": "updated_at", "mssql": "dupdated"}
+INCREMENTAL_COLUMNS = {"postgres": "updated_at", "mssql": "dupdated", "newbook": "updated_at" }
 
 
 @dataclass

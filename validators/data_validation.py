@@ -115,10 +115,12 @@ def validate_data(ctx):
                         # CHANGE: YAML generation. The freshness check also runs for a generated YAML: its queries hold the
                         # same :start_time and :end_time placeholders as a hand-written one.
                         #Check freshness, then get the latest sync date (fivetran) and previous sync date (control table)
-                        max_fivetran_start,min_fivetran_start,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'data')
+                        #max_fivetran_start,min_fivetran_start,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'data')
+                        max_updated_at,min_updated_at,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],environment,'data')
+
                         for key, value in {
-                            "start_time": min_fivetran_start,
-                            "end_time": max_fivetran_start
+                            "start_time": min_updated_at,
+                            "end_time": max_updated_at
                         }.items():
                             source_query = source_query.replace(f":{key}", f"'{value}'")
                             target_query = target_query.replace(f":{key}", f"'{value}'")

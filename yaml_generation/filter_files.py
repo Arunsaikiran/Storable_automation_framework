@@ -88,14 +88,14 @@ from yaml_generation.yaml_builder import ENV_PLACEHOLDER, FIVETRAN_FILTER, check
 
 FOLDER = Path(__file__).resolve().parent / "master_files"
 # The workbook each layer reads, by its engine (--layer_type bronze_<engine>). A new layer adds its workbook here.
-WORKBOOKS = {"postgres": "edge_bronze_master.xlsx", "mssql": "sitelink_bronze_master.xlsx"}
+WORKBOOKS = {"postgres": "edge_bronze_master.xlsx", "mssql": "sitelink_bronze_master.xlsx", "newbook": "newbook_bronze_master.xlsx"}
 # The headers, as matched: trimmed, lower case, a trailing dot dropped. The same layout for every application.
 TABLE_HEADER = "target table name"
 LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
                     "target_application", "target_database", "target_schema"]
 FILTER_HEADERS = {"historical": "historical filter to apply", "incremental": "incremental filters to apply"}
 # The type mapping sheet of each workbook, read for the schema validation YAML (schema_mapping()). Matched without regard to case.
-SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping"}
+SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping", "newbook" : "Newbook schema mapping"}
 MAPPING_HEADERS = ["source_data_type", "target_data_type"]          # required; precision_check and notes are optional
 PRECISION_CHECKS = ("datetime", "numeric", "character")
 

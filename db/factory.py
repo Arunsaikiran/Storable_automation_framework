@@ -45,6 +45,17 @@ def get_database(db_type,BASE_DIR,env):
         athena_output = athena['athena_output']
         db = Athena(PROFILE=profile,AWS_REGION=aws_region,ATHENA_DB=athena_db,ATHENA_OUTPUT=athena_output)
 
+    elif db_type == 'newbook':
+        snowflake = file['newbook']
+        snowflake_account = snowflake['snowflake_account']
+        snowflake_user = snowflake['snowflake_user']
+        snowflake_role = snowflake['snowflake_role']
+        externalbrowser = snowflake['externalbrowser']
+        snowflake_database = snowflake['snowflake_database']
+        snowflake_schema = snowflake['snowflake_schema']
+        snowflake_warehouse = snowflake['snowflake_warehouse']
+        db = Snowflake(SNOWFLAKE_ACCOUNT=snowflake_account,SNOWFLAKE_USER=snowflake_user,SNOWFLAKE_ROLE=snowflake_role,externalbrowser=externalbrowser,SNOWFLAKE_DATABASE=snowflake_database,SNOWFLAKE_SCHEMA=snowflake_schema,SNOWFLAKE_WAREHOUSE=snowflake_warehouse)
+
     elif db_type == "snowflake":
         snowflake = file['snowflake']
         snowflake_account = snowflake['snowflake_account']

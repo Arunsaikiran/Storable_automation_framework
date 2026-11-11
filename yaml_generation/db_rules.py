@@ -160,9 +160,37 @@ RULES = {
             "WHERE TABLE_CATALOG = '{database}' AND table_schema = '{schema}' AND TABLE_NAME = '{table_name}'\n"
             "ORDER BY table_name, ordinal_position;"),
     },
+
+    "newbook": {
+        "label": "Newbook",
+        "has_primary_keys": False,   # the target is only read for its column names
+        "quote": ('"', '"'),
+        "text_type": "STRING",
+        "true": "TRUE",
+        "false": "FALSE",
+        "trim": "TRIM({c})",
+        "timestamp": "TO_VARCHAR({c}, 'YYYY-MM-DD HH24:MI:SS.FF6')",
+        "date": "TO_VARCHAR({c}, 'YYYY-MM-DD')",
+        "boolean_types": {"boolean"},
+        "timestamp_types": {"timestamp_ntz", "timestamp_ltz", "timestamp_tz"},
+        "date_types": {"date"},
+        "text_types": {"text", "varchar"},
+        "large_text_types": set(),
+        "integer_types": {"number"},
+        "refused_types": set(),
+        "schema_query": (
+            "SELECT\n"
+            "table_name,column_name,data_type,character_maximum_length,character_octet_length,numeric_precision,"
+            "numeric_precision_radix,numeric_scale,datetime_precision\n"
+            "FROM {database}.information_schema.columns\n"
+            "WHERE TABLE_CATALOG = '{database}' AND table_schema = '{schema}' AND TABLE_NAME = '{table_name}'\n"
+            "ORDER BY table_name, ordinal_position;"),
+    },
 }
 
-SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift"]
+
+
+SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "newbook"]
 TARGET_TYPES = ["snowflake"]
 
 # Lengths and precisions in a type name, e.g. "(10,2)" or "(3)".

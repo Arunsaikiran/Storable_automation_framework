@@ -13,7 +13,7 @@ from utils.exceptions import NoNewDataError,NoNewSyncError
 
 # CHANGE: YAML generation. The bronze layers that have YAML generation, filter workbooks and schema validation. Every layer
 # check below and in main.py reads this one tuple, so a new bronze layer (bronze_mysql) is added here once, not at each check.
-BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql")
+BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql", "bronze_newbook")
 
 
 #Generating runids
@@ -600,21 +600,29 @@ def data_context():
         report_pack: list | None = None
     return DataContext
 
-def check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type,threshold:int=2):
+def check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type,environment,threshold:int=50):
     freshness_check = 'Pass'
     if layer_type == "bronze_postgres":
         source_query = f"""
         SELECT max(updated_at) as max_date from {source_table_name}
             """
         target_query = f"""
-            SELECT max(updated_at) as max_date from DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
+            SELECT max(updated_at) as max_date from {environment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
             """
     elif layer_type == "bronze_mssql":
         source_query = f"""
         SELECT max(dUpdated) as max_date from {source_table_name}
             """
         target_query = f"""
-            SELECT max(dUpdated) as max_date from DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
+            SELECT max(dUpdated) as max_date from {environment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
+            """
+
+    elif layer_type == "bronze_newbook":
+        source_query = f"""
+        SELECT max(updated_at) as max_date from {environment}_NEWBOOK_AU_BRONZE.NB_DEV_AU_SQL01_CORPORATIONS_11144.{target_table_name}
+            """
+        target_query = f"""
+            SELECT max(updated_at) as max_date from {environment}_NEWBOOK_AU_BRONZE.NB_DEV_AU_SQL01_CORPORATIONS_11144.{target_table_name}
             """
     logger.info("Performing Freshness Check")   
     logger.info("Threshold: %s",threshold) 
@@ -631,70 +639,132 @@ def check_freshness(source_conn,target_conn,source_table_name,target_table_name,
         freshness_check = 'Fail'
     return freshness_check
 
-def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name):
-
-    yaml_path = os.path.join(base_dir,"creds","api.yaml")
+def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name,environment):
     control_file = os.path.join(base_dir,'control_table.csv')
-    apikey, secret, connection_id = get_api_creds(yaml_path, layer)
-
-    url = f"https://api.fivetran.com/v1/connections/{connection_id}"
-    response = requests.get(
-        url,
-        auth=(apikey, secret),
-    )
-
-    response.raise_for_status()
-    d = response.json()
-    dt = datetime.fromisoformat(d['data']['succeeded_at'])
-    sync_date = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + dt.strftime('%z')
     date_column = 'data_validation_last_run_date' if validation == 'data' else 'count_validation_last_run_date'
+
     control_df = pd.read_csv(control_file)
     rows = (control_df[(control_df['table'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
 
     if rows.empty:
         raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
     previous_sync_date = rows.iloc[0]
-    logger.info("Fetching Sync Date and Fivetran Start Date ranges (MIN/MAX)") 
-    logger.info(f"Table '{table_name.lower()}' ({layer}): sync_date={sync_date}, previous_sync_date={previous_sync_date}")
-
-    if sync_date == previous_sync_date:
-        raise NoNewSyncError(f"No new sync for {table_name.lower()} ({layer}): sync_date {sync_date} equals previous_sync_date")
 
     if layer == 'bronze_postgres':
-        target_query = f"""
-        SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
-        FROM DEV_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
-        WHERE _FIVETRAN_ACTIVE = TRUE
-        and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
-        """
+        target_table = f"{environment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}"
+        col = 'updated_at'
     elif layer == 'bronze_mssql':
-        target_query = f"""
-        SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
-        FROM DEV_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
-        WHERE _FIVETRAN_ACTIVE = TRUE
-        and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
-        """
+        target_table = f"{environment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}"
+        col = 'dUpdated'
+    else:
+        raise ValueError(f"Unsupported layer '{layer}' for get_dates")
 
-    logger.info("Target query: %s",target_query)
+    target_query_sync = f"""
+    SELECT max(_fivetran_synced) as MAX_FIVETRAN_SYNCED
+    FROM {target_table}
+    WHERE _FIVETRAN_ACTIVE = TRUE
+    """
+    logger.info("Target query: %s",target_query_sync)
 
-    target_df =  target_conn.execute_query(target_query)
-    if pd.isna(target_df['MIN_FIVETRAN_START'].iloc[0]) or pd.isna(target_df['MAX_FIVETRAN_START'].iloc[0]):
-        logger.info(f"No new data has been ingested for this time period: table '{table_name.lower()}' ({layer}), {previous_sync_date} to {sync_date}")
-        #update_control_table(control_file, table_name, layer, validation, sync_date)
-        raise NoNewDataError(f"No new data for {table_name.lower()} ({layer}) between {previous_sync_date} and {sync_date}")
-    min_ts = pd.Timestamp(target_df['MIN_FIVETRAN_START'].iloc[0])
-    max_ts = pd.Timestamp(target_df['MAX_FIVETRAN_START'].iloc[0])
+    target_df = target_conn.execute_query(target_query_sync)
+    max_ts = pd.Timestamp(target_df['MAX_FIVETRAN_SYNCED'].iloc[0])
 
-    min_fivetran_start = (min_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + min_ts.strftime('%z'))
-    max_fivetran_start = (max_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + max_ts.strftime('%z'))
-    if layer == 'bronze_mssql':
-        import re
-        max_fivetran_start = re.sub(r'\+0000$', '', max_fivetran_start)
-        min_fivetran_start = re.sub(r'\+0000$', '', min_fivetran_start)
+    if pd.isna(max_ts):
+        raise NoNewDataError(f"No active rows for {table_name.lower()} ({layer})")
 
-    logger.info(f"Table '{table_name}' ({layer}): max_fivetran_start={max_fivetran_start}, min_fivetran_start={min_fivetran_start}")
+    if pd.notna(previous_sync_date) and max_ts <= pd.Timestamp(previous_sync_date):
+        raise NoNewSyncError(f"No new sync for {table_name.lower()} ({layer}): max_fivetran_synced {max_ts} <= previous_sync_date {previous_sync_date}")
+
+    max_fivetran_synced = _format_ts(max_ts)
+    logger.info(f"Table '{table_name}' ({layer}): max_fivetran_synced={max_fivetran_synced}, previous_sync_date={previous_sync_date}")
+
+    #Extracting min/max dUpdated for the sync window
+
+    target_query_updated = f"""
+    SELECT max({col}) as MAX_UPDATED,min({col}) as MIN_UPDATED
+    FROM {target_table}
+    WHERE _FIVETRAN_ACTIVE = TRUE AND _FIVETRAN_SYNCED > '{previous_sync_date}' and _fivetran_synced <= '{max_fivetran_synced}'
+    """
+    logger.info("Target query: %s",target_query_updated)
+    target_df = target_conn.execute_query(target_query_updated)
+
+    if pd.isna(target_df['MAX_UPDATED'].iloc[0]) or pd.isna(target_df['MIN_UPDATED'].iloc[0]):
+        raise NoNewDataError(f"No new data for {table_name.lower()} ({layer}) between {previous_sync_date} and {max_fivetran_synced}")
+
+    max_updated = _format_ts(pd.Timestamp(target_df['MAX_UPDATED'].iloc[0]))
+    min_updated = _format_ts(pd.Timestamp(target_df['MIN_UPDATED'].iloc[0]))
+    logger.info(f"Table '{table_name}' ({layer}): max_updated={max_updated}, min_updated={min_updated}")
+
+    return max_updated,min_updated,max_fivetran_synced
+
+def _format_ts(ts):
+    return (ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + ts.strftime('%z')).strip()
+
+#Old
+# def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name,enviroment):
+
+#     yaml_path = os.path.join(base_dir,"creds","api.yaml")
+#     control_file = os.path.join(base_dir,'control_table.csv')
+#     apikey, secret, connection_id = get_api_creds(yaml_path, layer)
+
+#     url = f"https://api.fivetran.com/v1/connections/{connection_id}"
+#     response = requests.get(
+#         url,
+#         auth=(apikey, secret),
+#     )
+
+#     response.raise_for_status()
+#     d = response.json()
+#     dt = datetime.fromisoformat(d['data']['succeeded_at'])
+#     sync_date = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + dt.strftime('%z')
+#     date_column = 'data_validation_last_run_date' if validation == 'data' else 'count_validation_last_run_date'
+#     control_df = pd.read_csv(control_file)
+#     rows = (control_df[(control_df['table'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
+
+#     if rows.empty:
+#         raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
+#     previous_sync_date = rows.iloc[0]
+#     logger.info("Fetching Sync Date and Fivetran Start Date ranges (MIN/MAX)") 
+#     logger.info(f"Table '{table_name.lower()}' ({layer}): sync_date={sync_date}, previous_sync_date={previous_sync_date}")
+
+#     if sync_date == previous_sync_date:
+#         raise NoNewSyncError(f"No new sync for {table_name.lower()} ({layer}): sync_date {sync_date} equals previous_sync_date")
+
+#     if layer == 'bronze_postgres':
+#         target_query = f"""
+#         SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
+#         FROM {enviroment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
+#         WHERE _FIVETRAN_ACTIVE = TRUE
+#         and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
+#         """
+#     elif layer == 'bronze_mssql':
+#         target_query = f"""
+#         SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
+#         FROM {enviroment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
+#         WHERE _FIVETRAN_ACTIVE = TRUE
+#         and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
+#         """
+
+#     logger.info("Target query: %s",target_query)
+
+#     target_df =  target_conn.execute_query(target_query)
+#     if pd.isna(target_df['MIN_FIVETRAN_START'].iloc[0]) or pd.isna(target_df['MAX_FIVETRAN_START'].iloc[0]):
+#         logger.info(f"No new data has been ingested for this time period: table '{table_name.lower()}' ({layer}), {previous_sync_date} to {sync_date}")
+#         #update_control_table(control_file, table_name, layer, validation, sync_date)
+#         raise NoNewDataError(f"No new data for {table_name.lower()} ({layer}) between {previous_sync_date} and {sync_date}")
+#     min_ts = pd.Timestamp(target_df['MIN_FIVETRAN_START'].iloc[0])
+#     max_ts = pd.Timestamp(target_df['MAX_FIVETRAN_START'].iloc[0])
+
+#     min_fivetran_start = (min_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + min_ts.strftime('%z'))
+#     max_fivetran_start = (max_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + max_ts.strftime('%z'))
+#     if layer == 'bronze_mssql':
+#         import re
+#         max_fivetran_start = re.sub(r'\+0000$', '', max_fivetran_start)
+#         min_fivetran_start = re.sub(r'\+0000$', '', min_fivetran_start)
+
+#     logger.info(f"Table '{table_name}' ({layer}): max_fivetran_start={max_fivetran_start}, min_fivetran_start={min_fivetran_start}")
     
-    return max_fivetran_start,min_fivetran_start,sync_date
+#     return max_fivetran_start,min_fivetran_start,sync_date
 
 def update_control_table(file_location, table_name, layer, validation, sync_date):
     date_column = (
@@ -720,10 +790,10 @@ def update_control_table(file_location, table_name, layer, validation, sync_date
         control_df.loc[mask, column] = str(value)
     control_df.to_csv(file_location, index=False)
 
-def get_incremental_dates(base_dir,source_conn,target_conn,source_table_name,target_table_name,layer_type,validation):
-    if check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type) == "Fail":
+def get_incremental_dates(base_dir,source_conn,target_conn,source_table_name,target_table_name,layer_type,environment,validation):
+    if check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type,environment) == "Fail":
         raise RuntimeError(f"Freshness check failed for {target_table_name}")
-    return get_dates(base_dir,validation,target_table_name,layer_type,target_conn,target_table_name)
+    return get_dates(base_dir,validation,target_table_name,layer_type,target_conn,target_table_name,environment)
 
 def get_api_creds(path, layer):
     with open(path, "r") as f:
