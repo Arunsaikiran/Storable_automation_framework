@@ -143,7 +143,7 @@ def window_condition(column_sql: str) -> str:
     The validators replace :start_time (the last run, or the Fivetran minimum) and :end_time (the sync, or the Fivetran
     maximum) with the values they work out at run time. The YAML holds only the placeholders, never a date.
     """
-    return f"{column_sql} > :start_time AND {column_sql} <= :end_time"
+    return f"{column_sql} >= :start_time AND {column_sql} <= :end_time"
 
 
 def incremental_window(pairs, column: str, source_rules: dict):
