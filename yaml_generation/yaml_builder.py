@@ -561,9 +561,11 @@ def upsert_count_file(config_dir, layer: str, entries: dict):
 def unmapped_types(columns, excluded, datatype_map) -> list:
     """'column (type)' for each source column whose type has no datatype_map key. excluded columns are not checked.
 
-    The match is exact: the validator looks the catalogue's DATA_TYPE up as it is (datatype_map[...]).
+    The match ignores case, as the validator's lookup does: 'USER-DEFINED' in the catalogue matches 'user-defined' in the sheet.
     """
-    return [f"{name} ({dtype})" for name, dtype in columns if name not in excluded and dtype not in datatype_map]
+    known = {str(key).strip().lower() for key in datatype_map}
+    return [f"{name} ({dtype})" for name, dtype in columns
+            if name not in excluded and str(dtype).strip().lower() not in known]
 
 
 def schema_file_path(config_dir) -> Path:

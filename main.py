@@ -119,6 +119,12 @@ def main():
                 schema_validation='yes' if generate_only else args.schema_validation[0],
                 log=logger,
             )
+        except ValueError as exc:
+            # CHANGE: YAML generation. A ValueError is an input problem the user can fix (a filter workbook row, the schema mapping
+            # sheet, an argument or a setting). Its message says what to fix, so it is logged without a traceback.
+            logger.error("YAML generation did not run, so nothing was validated. Fix this and run again: %s", exc)
+            close_all_databases()
+            sys.exit(1)
         except Exception:
             # CHANGE: YAML generation. Any error, not only ValueError, ends the run here: nothing is validated from an old copy of the YAML.
             logger.error("YAML generation did not run, so nothing was validated", exc_info=True)

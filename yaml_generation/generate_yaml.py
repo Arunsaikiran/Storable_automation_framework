@@ -205,7 +205,8 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                     reason = (f"the schema query (information_schema) returns no column for {args.source_schema}.{table}, so "
                               f"the validator would not find it; check the role's access to the table")
                 elif gaps:
-                    reason = f"source type(s) with no row in the '{sheet}' sheet: {', '.join(gaps)}"
+                    reason = (f"source type(s) with no row in the '{sheet}' sheet: {', '.join(gaps)}. Add a row for each "
+                              f"missing type (source_data_type and its Snowflake target_data_type) and run again")
                 else:
                     reason = None
                 if reason:

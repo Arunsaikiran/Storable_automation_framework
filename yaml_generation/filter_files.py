@@ -428,7 +428,8 @@ def schema_mapping(source_type, folder=None, log=None):
                 continue
             label = f"{name}, sheet '{sheet.title}' row {number}"
             if not source or not target:
-                raise ValueError(f"{label}: source_data_type and target_data_type must both be filled")
+                raise ValueError(f"{label}: source_data_type and target_data_type must both be filled; fill the empty cell "
+                                 f"or clear the row")
             if check and check not in PRECISION_CHECKS:
                 raise ValueError(f"{label}: precision_check is {check!r}; expected one of {', '.join(PRECISION_CHECKS)} or empty")
             if source.lower() in first:
@@ -442,7 +443,9 @@ def schema_mapping(source_type, folder=None, log=None):
     finally:
         workbook.close()
     if not datatype_map:
-        raise ValueError(f"{name}, sheet '{sheet_name}': no type mapping row")
+        raise ValueError(f"{name}, sheet '{sheet_name}' has no type mapping row, so no schema can be checked. Fill the sheet: "
+                         f"one row per source data type, with source_data_type (as the source catalogue writes it, e.g. "
+                         f"'character varying') and target_data_type (the Snowflake type, e.g. 'text'), under the header row")
     log.info("Type mapping %s / %s: %d type(s)", name, sheet_name, len(datatype_map))
     return datatype_map, precision_checks
 
