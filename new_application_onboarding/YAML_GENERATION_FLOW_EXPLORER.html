@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YAML generation: flow explorer</title>
+<style>
+  :root {
+    --navy: #141B4D; --navy2: #2a3a8f; --ink: #1d1d1f; --muted: #5b6070; --line: #dfe2ea; --soft: #f5f7fb;
+    --new: #2563eb; --upd: #d97706; --same: #16a34a; --pres: #64748b; --fail: #dc2626; --file: #7c3aed;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; color: var(--ink); background: #fff; line-height: 1.5; }
+  main { max-width: 1180px; margin: 0 auto; padding: 2em 1.4em 4em; }
+  .hero { background: linear-gradient(135deg, var(--navy), var(--navy2)); color: #fff; border-radius: 16px; padding: 1.8em 2em; }
+  .hero h1 { margin: 0 0 0.25em; font-size: 1.9em; }
+  .hero p { margin: 0; opacity: 0.9; }
+  .tabs { display: flex; gap: 0.5em; margin: 1.4em 0 1.2em; flex-wrap: wrap; }
+  .tabs button { border: 2px solid var(--navy); background: #fff; color: var(--navy); border-radius: 999px; padding: 0.5em 1.1em;
+                 font-size: 1em; font-weight: 600; cursor: pointer; }
+  .tabs button.on { background: var(--navy); color: #fff; }
+  .view { display: none; } .view.on { display: block; }
+  h2 { color: var(--navy); margin: 0 0 0.5em; font-size: 1.3em; }
+  .lede { color: var(--muted); margin: 0 0 1.2em; }
+  code, .loc { font-family: Consolas, monospace; font-size: 0.88em; }
+  .loc { color: var(--file); background: #f3edff; border-radius: 4px; padding: 0.05em 0.4em; white-space: nowrap;
+         border-left: 3px solid var(--c, var(--file)); }
+  /* One colour per file, the same in every tab (FILES in the script) */
+  .fchip { font-family: Consolas, monospace; font-size: 0.85em; padding: 0.28em 0.75em; border-radius: 999px; border: 2px solid var(--c);
+           color: var(--c); background: #fff; opacity: 0.4; transition: all 0.3s; white-space: nowrap; }
+  .fchip.lit { opacity: 1; background: var(--c); color: #fff; }
+  .fchip.now { box-shadow: 0 0 0 4px rgba(20,27,77,0.18); transform: scale(1.08); }
+  button.fchip { cursor: pointer; }
+  .ftag { font-family: Consolas, monospace; font-size: 0.74em; color: #fff; background: var(--c); border-radius: 6px; padding: 0.08em 0.45em; white-space: nowrap; }
+  .chip { display: inline-block; color: #fff; font-weight: 700; font-size: 0.8em; border-radius: 6px; padding: 0.2em 0.55em; }
+  .c-NEW { background: var(--new); } .c-UPDATED { background: var(--upd); } .c-UNCHANGED { background: var(--same); }
+  .c-PRESENT { background: var(--pres); } .c-FAILED { background: var(--fail); } .c-PASS { background: var(--same); }
+
+  /* ---- Play a run ---- */
+  .game { display: grid; grid-template-columns: 1.05fr 1fr; gap: 1.2em; align-items: start; }
+  @media (max-width: 880px) { .game { grid-template-columns: 1fr; } }
+  .qcard { border: 2px solid var(--navy); border-radius: 14px; padding: 1.1em 1.2em; margin-bottom: 0.9em; background: #fff;
+           animation: pop 0.25s ease-out; }
+  .qcard.done { border-color: var(--line); background: var(--soft); }
+  .qcard .ico { float: right; font-size: 1.7em; line-height: 1; }
+  .strip { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35em; margin: 0 0 1.1em; padding: 0.8em 1em; border-radius: 14px;
+           background: var(--soft); border: 1px solid var(--line); }
+  .strip .lab, .legend .lab { font-size: 0.78em; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.3em; }
+  .strip .sep { color: #b6bdd3; }
+  .qcard .step { font-size: 0.8em; font-weight: 700; color: var(--navy2); letter-spacing: 0.05em; text-transform: uppercase; }
+  .qcard h3 { margin: 0.2em 0 0.7em; font-size: 1.08em; }
+  .opts { display: flex; flex-wrap: wrap; gap: 0.5em; }
+  .opts button { border: 1px solid var(--navy); background: #eef1ff; color: var(--navy); border-radius: 10px; padding: 0.6em 1em;
+                 cursor: pointer; font-size: 0.95em; text-align: left; transition: transform 0.15s, box-shadow 0.15s; }
+  .opts button:hover { background: var(--navy); color: #fff; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(20,27,77,0.2); }
+  .opts button small { display: block; opacity: 0.75; font-size: 0.82em; }
+  .qcard.done .opts button { display: none; }
+  .qcard .picked { display: none; font-weight: 600; color: var(--navy); }
+  .qcard.done .picked { display: block; }
+  .trace { position: sticky; top: 1em; border-radius: 14px; background: #0f1535; color: #dfe4ff; padding: 1.1em 1.2em; min-height: 300px; }
+  .trace h3 { margin: 0 0 0.6em; color: #fff; font-size: 1.05em; }
+  .trace ol { margin: 0; padding: 0; list-style: none; counter-reset: t; }
+  .trace li { margin: 0.5em 0; padding: 0.35em 0.6em 0.35em 2.3em; position: relative; border-left: 3px solid var(--c, #3b4380);
+              background: rgba(255,255,255,0.04); border-radius: 0 8px 8px 0; animation: pop 0.25s ease-out; }
+  .trace li::before { counter-increment: t; content: counter(t); position: absolute; left: 0.5em; top: 0.4em; width: 1.4em; height: 1.4em;
+                      border-radius: 50%; background: var(--c, #3b4380); color: #fff; font-size: 0.78em; font-weight: 700; text-align: center; line-height: 1.4em; }
+  .trace li.empty { border: 0; background: none; padding-left: 0; } .trace li.empty::before { display: none; }
+  .trace .loc { background: #2b2f63; color: #c9b8ff; }
+  .trace .empty { color: #8f97c9; }
+  .outcome { border-radius: 14px; padding: 1.1em 1.2em; color: #fff; margin-bottom: 0.9em; animation: pop 0.3s ease-out; }
+  .outcome h3 { margin: 0 0 0.4em; }
+  .outcome p { margin: 0.25em 0; }
+  .outcome .touch { display: flex; flex-wrap: wrap; gap: 0.35em; margin: 0.3em 0 0.4em; } .outcome .fchip { border-color: #fff; }
+  .again { margin-top: 0.6em; border: 2px solid #fff; background: transparent; color: #fff; border-radius: 999px; padding: 0.4em 1em;
+           cursor: pointer; font-weight: 600; }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ---- Code tree ---- */
+  .treewrap { display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.2em; align-items: start; }
+  @media (max-width: 880px) { .treewrap { grid-template-columns: 1fr; } }
+  .tree, .tree ul { list-style: none; margin: 0; padding-left: 1.2em; }
+  .tree { padding-left: 0; }
+  .tree li { margin: 0.2em 0; }
+  .tree ul { border-left: 2px dashed #c8cde0; margin-left: 0.6em; }
+  .node { display: inline-flex; align-items: center; gap: 0.5em; border: 1px solid var(--line); border-radius: 10px; padding: 0.35em 0.7em;
+          background: #fff; cursor: pointer; box-shadow: 0 1px 2px rgba(20,27,77,0.06); }
+  .node:hover { border-color: var(--navy2); }
+  .node.sel { outline: 3px solid #c7d2fe; border-color: var(--navy2); }
+  .node .tog { width: 1.1em; text-align: center; color: var(--navy2); font-weight: 700; }
+  .node .fn { font-family: Consolas, monospace; font-weight: 700; color: var(--navy); }
+  .node .what { color: var(--muted); font-size: 0.88em; }
+  .node.when { background: #fff8e6; border-color: #f2d48a; }
+  .node.when .fn { color: #8a5a00; font-family: "Segoe UI", Arial, sans-serif; }
+  .hidden { display: none; }
+  .panel { position: sticky; top: 1em; border: 2px solid var(--navy); border-radius: 14px; padding: 1.1em 1.2em; background: var(--soft); }
+  .panel h3 { margin: 0 0 0.2em; font-family: Consolas, monospace; color: var(--navy); }
+  .panel dl { margin: 0.6em 0 0; }
+  .panel dt { font-weight: 700; color: var(--navy2); margin-top: 0.6em; font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.04em; }
+  .panel dd { margin: 0.15em 0 0; }
+  .toolbar { margin-bottom: 0.8em; display: flex; gap: 0.5em; flex-wrap: wrap; }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4em; align-items: center; margin-bottom: 0.8em; }
+  .tree.focus .node { opacity: 0.35; } .tree.focus .node.hl { opacity: 1; outline: 3px solid var(--c); }
+  .toolbar button { border: 1px solid var(--navy); background: #fff; color: var(--navy); border-radius: 8px; padding: 0.35em 0.8em; cursor: pointer; }
+
+  /* ---- Shared: workbook rows, warnings ---- */
+  .sheet { overflow-x: auto; margin: 0.6em 0 1.2em; }
+  .sheet table { border-collapse: collapse; font-size: 0.85em; }
+  .sheet th, .sheet td { border: 1px solid #cfd5e3; padding: 0.35em 0.6em; white-space: nowrap; }
+  .sheet th { background: #e8ecf8; } .sheet th.new { background: #dcfce7; }
+  .limit { border-left: 5px solid var(--upd); background: #fffbeb; border-radius: 8px; padding: 0.7em 1em; margin-bottom: 0.6em; }
+  .limit b { color: #92400e; }
+  footer { margin-top: 2.4em; color: var(--muted); font-size: 0.88em; border-top: 1px solid var(--line); padding-top: 0.9em; }
+
+  /* ---- Files ---- */
+  .files { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 1em; }
+  .fcard { border: 2px solid var(--line); border-radius: 14px; padding: 1em 1.2em; background: #fff; }
+  .fcard.core { border-color: var(--navy); }
+  .fcard h3 { margin: 0 0 0.15em; font-family: Consolas, monospace; color: var(--navy); font-size: 1.05em; }
+  .fcard .role { color: var(--muted); font-size: 0.92em; margin-bottom: 0.5em; }
+  .fcard dt { font-weight: 700; color: var(--navy2); margin-top: 0.55em; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.04em; }
+  .fcard dd { margin: 0.15em 0 0; font-size: 0.94em; }
+  .fcard ul { margin: 0.2em 0 0; padding-left: 1.1em; } .fcard li { margin: 0.12em 0; }
+  .fgroup { margin: 1.4em 0 0.6em; color: var(--navy); font-size: 1.05em; }
+  .fcard.sel { border-color: var(--c, var(--navy)); border-width: 3px; box-shadow: 0 8px 24px rgba(20,27,77,0.14); animation: pop 0.25s ease-out; }
+  .fcard.sel h3 { color: var(--c, var(--navy)); }
+  #files.pick .fcard:not(.sel), #files.pick .fgroup { display: none; }
+  #files.pick .files { display: block; }
+  .mapwrap { border: 2px solid var(--navy); border-radius: 16px; padding: 1em 1.1em; background: linear-gradient(180deg, #fbfcff, #eef2fb); margin-bottom: 1.2em; }
+  .mapbar { display: flex; gap: 0.5em; align-items: center; flex-wrap: wrap; margin-bottom: 0.4em; }
+  .mapbar button { border: 1px solid var(--navy); background: #fff; color: var(--navy); border-radius: 8px; padding: 0.4em 0.9em; cursor: pointer; font-weight: 600; }
+  .mapbar button.primary { background: var(--navy); color: #fff; }
+  .mapbar .count { color: var(--muted); font-size: 0.88em; margin-left: auto; }
+  #caption { min-height: 3.4em; background: #0f1535; color: #dfe4ff; border-radius: 10px; padding: 0.75em 1em; margin-top: 0.5em; }
+  #caption code { color: #fff; }
+  svg.map { width: 100%; height: auto; display: block; }
+  svg.map .nd { cursor: pointer; transition: opacity 0.3s; }
+  svg.map .nd rect { fill: #fff; stroke: var(--c); stroke-width: 2.5; transition: fill 0.25s; }
+  svg.map .nd.data rect { stroke-dasharray: 6 4; fill: #fafbff; }
+  svg.map .nd .t { font: 700 15px Consolas, monospace; fill: var(--c); }
+  svg.map .nd .s { font: 12px "Segoe UI", Arial, sans-serif; fill: #5b6070; }
+  svg.map .nd:hover rect, svg.map .nd.on rect { fill: var(--c); }
+  svg.map .nd:hover text, svg.map .nd.on text { fill: #fff; }
+  svg.map.touring .nd:not(.on) { opacity: 0.3; }
+  svg.map .ed path { fill: none; stroke: #b6bdd3; stroke-width: 2; }
+  svg.map .ed text { font: 600 11.5px "Segoe UI", Arial, sans-serif; fill: #5b6070; stroke: #f4f6fc; stroke-width: 4px; paint-order: stroke; }
+  svg.map .ed.on path { stroke: var(--navy2); stroke-width: 3.5; stroke-dasharray: 9 6; animation: flow 0.7s linear infinite; }
+  svg.map .ed.on text { fill: var(--navy2); }
+  @keyframes flow { to { stroke-dashoffset: -15; } }
+
+  /* ---- Add a new source: a step-by-step conversation ---- */
+  .chatwrap { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(250px, 1fr); gap: 1.2em; align-items: start; }
+  @media (max-width: 880px) { .chatwrap { grid-template-columns: 1fr; } }
+  .bot { border: 2px solid var(--navy); border-radius: 16px 16px 16px 4px; padding: 1em 1.2em; margin-bottom: 0.8em; background: #fff;
+         animation: pop 0.25s ease-out; }
+  .bot.done { border-color: var(--line); background: var(--soft); }
+  .bot.done .opts, .bot.done .inputs { display: none; }
+  .bot .who { font-size: 0.78em; font-weight: 700; color: var(--navy2); letter-spacing: 0.05em; text-transform: uppercase; }
+  .bot h3 { margin: 0.15em 0 0.5em; font-size: 1.12em; color: var(--navy); }
+  .bot ul { margin: 0.3em 0 0.6em; padding-left: 1.2em; } .bot li { margin: 0.3em 0; }
+  .bot pre { background: #0f1535; color: #dfe4ff; border-radius: 10px; padding: 0.8em 1em; overflow-x: auto; font-size: 0.84em; margin: 0.5em 0; }
+  .bot .touch { margin: 0.2em 0 0.6em; display: flex; flex-wrap: wrap; gap: 0.35em; }
+  .bot .check { border-left: 5px solid var(--same); background: #f0fdf4; border-radius: 8px; padding: 0.5em 0.9em; margin: 0.6em 0; }
+  .bot .limit { margin: 0.6em 0; }
+  .bot.stop { border-color: var(--fail); background: #fef2f2; } .bot.win { border-color: var(--same); background: #f0fdf4; }
+  .opts button.primary { background: var(--navy); color: #fff; font-weight: 600; }
+  .opts button.primary:hover { background: var(--navy2); }
+  .me { margin: 0 0 0.8em auto; width: fit-content; max-width: 80%; background: var(--navy); color: #fff; border-radius: 16px 16px 4px 16px;
+        padding: 0.5em 1em; animation: pop 0.25s ease-out; }
+  .inputs { display: grid; gap: 0.5em; margin: 0.5em 0 0.7em; }
+  .inputs label { font-size: 0.88em; color: var(--muted); }
+  .inputs input { display: block; width: 100%; margin-top: 0.2em; border: 1px solid #b9c0d8; border-radius: 8px; padding: 0.45em 0.6em; font-size: 0.95em; }
+  .inputs .err { color: var(--fail); font-size: 0.88em; min-height: 1em; }
+  .inputs .help { display: block; font-size: 0.85em; color: var(--muted); margin-top: 0.15em; }
+  .bot .mins { font-size: 0.68em; font-weight: 600; color: var(--muted); background: #eef1f8; border-radius: 999px; padding: 0.1em 0.6em; margin-left: 0.4em; vertical-align: middle; }
+  .bot .blk { margin: 0.7em 0; }
+  .bot .blkhead { display: flex; justify-content: space-between; align-items: center; gap: 0.6em; font-size: 0.88em; font-weight: 600; color: var(--navy2); }
+  .bot .blk pre { margin-top: 0.25em; }
+  .bot button.copy { font-size: 0.8em; padding: 0.25em 0.75em; border-radius: 6px; border: 1px solid #b9c0d8; background: #fff; cursor: pointer; white-space: nowrap; }
+  .bot button.copy:hover { background: #eef1f8; }
+  .bot .copyrow { display: flex; flex-wrap: wrap; gap: 0.4em; margin: -0.7em 0 1em; }
+  .bot .sheetname { font-size: 0.85em; color: var(--muted); margin-top: 0.7em; }
+  .bot a.dl { display: inline-block; background: var(--navy2); color: #fff; padding: 0.45em 1em; border-radius: 8px; text-decoration: none; font-weight: 600; }
+  .plan li small { color: var(--muted); }
+  .plan { position: sticky; top: 1em; border: 2px solid var(--navy); border-radius: 14px; padding: 1.1em 1.2em; background: var(--soft); }
+  .plan h3 { margin: 0 0 0.5em; color: var(--navy); font-size: 1.05em; }
+  .bar { height: 8px; background: #e3e7f3; border-radius: 999px; overflow: hidden; margin-bottom: 0.8em; }
+  .bar div { height: 100%; width: 0; background: var(--same); transition: width 0.3s; }
+  .plan ol { margin: 0; padding-left: 1.4em; } .plan li { margin: 0.35em 0; color: var(--muted); }
+  .plan li.now { color: var(--navy); font-weight: 700; } .plan li.ok { color: var(--same); } .plan li.ok::after { content: " ✔"; }
+  .plan li.skip { color: var(--muted); text-decoration: line-through; }
+  .plan .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+
+<header class="hero">
+  <h1>YAML generation: flow explorer</h1>
+  <p>Play a run and watch which code fires, open the call tree one function at a time, or add a new source step by step.</p>
+</header>
+
+<nav class="tabs">
+  <button data-view="play" class="on">&#9654; Play a run</button>
+  <button data-view="guide">&#129517; Add a new source, step by step</button>
+  <button data-view="files">&#128193; Files</button>
+  <button data-view="tree">&#127795; Code tree</button>
+</nav>
+
+<!-- ============================== PLAY ============================== -->
+<section id="play" class="view on">
+  <h2>Play a run</h2>
+  <p class="lede">Answer one question at a time. Each answer opens the next question. The dark panel shows the code that runs, with its file and line, and the strip lights up each file as the run reaches it.</p>
+  <div class="strip" id="strip"></div>
+  <div class="game">
+    <div id="questions"></div>
+    <aside class="trace"><h3>What the code does</h3><ol id="trace"><li class="empty">Pick an application to start.</li></ol></aside>
+  </div>
+</section>
+
+<!-- ============================== GUIDE ============================== -->
+<section id="guide" class="view">
+  <h2>Add a new source, step by step</h2>
+  <p class="lede">The guide asks for a few names, then gives you one step at a time: the file to open, the text to paste (every block has a <b>Copy</b> button, already filled in with your names) and how you know it's done. A new application on PostgreSQL or SQL Server takes about 20 to 30 minutes. The panel on the right keeps the whole plan in view. The same steps, as a document: <code>new_application_onboarding/new_application_onboarding_setup.md</code>.</p>
+  <div class="chatwrap">
+    <div id="chat"></div>
+    <aside class="plan"><h3>Your plan</h3><div class="bar"><div id="bar"></div></div><ol id="planlist"><li class="empty">The steps appear here once you choose what you're adding.</li></ol></aside>
+  </div>
+</section>
+
+
+<!-- ============================== FILES ============================== -->
+<section id="files" class="view">
+  <h2>Files: why each one exists</h2>
+  <p class="lede">A map of one run. Press <b>Play the flow</b> to follow a run from file to file, one hop at a time, or click a box to read about that file. Solid boxes are code; dashed boxes are what the code reads or writes.</p>
+  <div class="mapwrap">
+    <div class="mapbar"><button class="primary" id="tourPlay">&#9654; Play the flow</button><button id="tourPrev" title="Previous hop">&#9664;</button><button id="tourNext" title="Next hop">&#9654;</button>
+      <button id="showAll">Show every file</button><span class="count" id="tourCount"></span></div>
+    <svg class="map" id="map" viewBox="0 0 1080 520" role="img" aria-label="Map of the files in a YAML generation run"></svg>
+    <div id="caption">Press <b>Play the flow</b>, or click a box.</div>
+  </div>
+  <h3 class="fgroup">Framework files</h3><div class="files"><div class="fcard core"><h3>main.py</h3><div class="role">The entry point: one command, one run, start to end</div><dl><dt>Why this file exists</dt><dd>The framework already had main.py to run the validators. YAML generation was added as one step <b>before</b> the validators, so the user runs the same command as before and the YAML is made ready automatically. No separate CLI.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">main.py:14</span> <code>main()</code>: parses flags, builds paths, runs generation, then the validators, exits 0 / 1 / 2</li><li><span class="loc">main.py:95</span> <code>if yaml_generation</code>: check every requested table's YAML against the live structure, rewrite where it differs, keep only ready tables</li><li><span class="loc">main.py:142</span> <code>if not yaml_generation</code>: named tables only, create a YAML only when it is missing</li><li><span class="loc">main.py:202</span> <code>schema_ctx</code>: schema validation gets the tables as requested; count and data get the ready list</li><li><span class="loc">main.py:245</span> exit: 0 all matched, 2 differences, 1 system error or a FAILED table</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Calls <code>utility.parse_arguments()</code>, <code>generate_yaml.run_for_validation()</code> / <code>tables_missing_yaml()</code>, then the four validators.</dd><dt>If someone asks</dt><dd><i>Why import yaml_generation inside the if?</i> So a run on silver / reports / sanity never needs the folder. <i>Why exit 1 on a FAILED table?</i> A table we could not build YAML for is a failure, never a silent skip.</dd></dl></div><div class="fcard core"><h3>utils/utility.py</h3><div class="role">Shared helpers of the framework: arguments, logging, output paths, summaries, incremental window</div><dl><dt>Why this file exists</dt><dd>Existing framework file. YAML generation only touched what it needed: the new flags and their defaults. The incremental window helpers here are what fill <code>:start_time</code> and <code>:end_time</code> in the generated SQL.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">utils/utility.py:447</span> <code>parse_arguments()</code>: all flags; <code>--yaml_generation</code> and <code>--filter_files</code> default to yes on bronze, no elsewhere (<span class="loc">utils/utility.py:572</span>)</li><li><span class="loc">utils/utility.py:23</span> <code>get_config_output_paths()</code>: finds the YAML files for the run and where results go</li><li><span class="loc">utils/utility.py:322</span> <code>create_summary()</code> and the summary Excel writers: the PASS/FAIL report</li><li><span class="loc">utils/utility.py:608</span> <code>check_freshness()</code>: is Snowflake synced recently enough</li><li><span class="loc">utils/utility.py:634</span> <code>get_dates()</code>: the window from <code>control_table.csv</code> + Fivetran API</li><li><span class="loc">utils/utility.py:677</span> <code>update_control_table()</code>: move the window forward after the check</li><li><span class="loc">utils/utility.py:701</span> <code>get_incremental_dates()</code>: freshness + dates in one call</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by main.py and by the validators. Does not call the generator.</dd><dt>If someone asks</dt><dd><i>Where do incremental dates come from?</i> Not from the workbook: the window is the validators' (control table last sync to Fivetran sync time), applied as <code>updated_at &gt; :start_time AND updated_at &lt;= :end_time</code>.</dd></dl></div><div class="fcard core"><h3>validators/</h3><div class="role">The existing checks: schema, count, data (and integrity on sanity)</div><dl><dt>Why this file exists</dt><dd>Existing framework files. They read the YAML the generator wrote in <code>config/</code>, run the source and Snowflake queries, and compare. YAML generation only makes sure that YAML is there and up to date before they start.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">validators/schema_validation.py:17</span> <code>validate_schema()</code>: column structure</li><li><span class="loc">validators/count_validation.py:40</span> <code>validate_count()</code>: the two counts must be equal</li><li><span class="loc">validators/data_validation.py:21</span> <code>validate_data()</code>: rows sorted by the key, then compared</li><li><span class="loc">validators/integrity_check.py:40</span> <code>validate_integrity()</code>: sanity layer only</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by main.py. Uses <code>db/factory.get_database()</code> and, for an incremental run, <code>utility.get_incremental_dates()</code>.</dd><dt>If someone asks</dt><dd><i>How are json columns compared?</i> A generated YAML lists them in <code>json_columns</code>; they are compared as flattened text (<span class="loc">utils/json_normalize.py:88</span>).</dd></dl></div></div>
+  <h3 class="fgroup">yaml_generation/ code</h3><div class="files"><div class="fcard core"><h3>yaml_generation/generate_yaml.py</h3><div class="role">The orchestrator: the only file main.py talks to</div><dl><dt>Why this file exists</dt><dd>Keeps main.py small. It ties the other files together: read the workbook, group tables, open connections, generate the YAML, and tell main.py which tables are ready.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/generate_yaml.py:77</span> <code>resolve_args()</code>: check flags, fill <code>{env}</code> (DEV, STG, QAT, PRD) into the Snowflake name</li><li><span class="loc">yaml_generation/generate_yaml.py:98</span> <code>generate()</code>: per location, per table: columns, reconcile, filters, window, key, write data YAML + count entry</li><li><span class="loc">yaml_generation/generate_yaml.py:232</span> <code>config_dir_for()</code>: which config folder a layer and run type writes to</li><li><span class="loc">yaml_generation/generate_yaml.py:237</span> <code>tables_missing_yaml()</code>: file check only, no database, for <code>--yaml_generation no</code></li><li><span class="loc">yaml_generation/generate_yaml.py:249</span> <code>workbook_spelling()</code>: use the workbook's spelling of a table name (names ignore case)</li><li><span class="loc">yaml_generation/generate_yaml.py:261</span> <code>run_for_validation()</code>: the entry point; returns (results, ready_tables)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by main.py. Calls filter_files, settings, db_rules, yaml_builder and <code>db/factory.get_database()</code>.</dd><dt>If someone asks</dt><dd><i>Statuses?</i> NEW, UPDATED, UNCHANGED, PRESENT are ready; FAILED is not. <i>Does it delete YAML?</i> Never. <i>Why group by location?</i> One run can hold tables from different schemas or applications on the same engine.</dd></dl></div><div class="fcard core"><h3>yaml_generation/filter_files.py</h3><div class="role">The master workbook reader: the one source of truth</div><dl><dt>Why this file exists</dt><dd>Where each table lives (application, source schema, Snowflake database and schema) and its row filter come from the Excel the team already maintains. Nothing about location is on the command line or in code, so adding a table means adding a row.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/filter_files.py:91</span> <code>WORKBOOKS</code>: postgres = edge_bronze_master.xlsx, mssql = sitelink_bronze_master.xlsx</li><li><span class="loc">yaml_generation/filter_files.py:96</span> <code>Location</code> / <code>Row</code>: where a table lives, and its filter cell</li><li><span class="loc">yaml_generation/filter_files.py:324</span> <code>read()</code>: reads the layer's workbook, one Row per table; refuses a blank location or a target without <code>{env}</code></li><li><span class="loc">yaml_generation/filter_files.py:389</span> <code>filters()</code>: each filter cell becomes a source WHERE and a Snowflake WHERE</li><li><span class="loc">yaml_generation/filter_files.py:264</span> <code>convert()</code> with <code>_plan()</code> <span class="loc">yaml_generation/filter_files.py:176</span> and <code>_where()</code> <span class="loc">yaml_generation/filter_files.py:250</span>: joins become <code>col IN (SELECT id FROM ...)</code>; the Snowflake side adds <code>_FIVETRAN_ACTIVE = TRUE</code></li><li><span class="loc">yaml_generation/filter_files.py:131</span> <code>Refused</code>: OR, BETWEEN, outer joins, subqueries are refused, not guessed</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml. Uses db_rules for the engine names.</dd><dt>If someone asks</dt><dd><i>Why filters at all?</i> Big tables (notes 100M rows, account_balance_taxes 35M) cannot be loaded into RAM; the filter keeps a slice, applied the same way on both sides for count and data. <i>Why convert joins?</i> The framework query is one table per side; a sub-select keeps it one table.</dd></dl></div><div class="fcard core"><h3>yaml_generation/yaml_builder.py</h3><div class="role">Builds the YAML: column matching, the SQL, the files. No database calls</div><dl><dt>Why this file exists</dt><dd>Pure logic, so it is easy to unit test. Given two column lists it decides what to compare and writes SQL that turns every value into text the same way on both sides, so PostgreSQL / SQL Server and Snowflake can be compared row by row.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/yaml_builder.py:83</span> <code>check_filter()</code>: refuses <code>; { } -- /* */</code> and line breaks (SQL injection guard)</li><li><span class="loc">yaml_generation/yaml_builder.py:147</span> <code>incremental_window()</code>: adds <code>&gt; :start_time AND &lt;= :end_time</code> on the window column</li><li><span class="loc">yaml_generation/yaml_builder.py:179</span> <code>reconcile()</code>: normalise names, exact match, apply exclusions; a one-sided column is kept with a MISSING token</li><li><span class="loc">yaml_generation/yaml_builder.py:226</span> <code>comparability_problems()</code>: types that cannot become text (rowversion) fail the table</li><li><span class="loc">yaml_generation/yaml_builder.py:261</span> <code>value_expression()</code>: booleans, timestamps, NULL become the same text on both sides</li><li><span class="loc">yaml_generation/yaml_builder.py:334</span> <code>build_data_entry()</code> / <span class="loc">yaml_generation/yaml_builder.py:363</span> <code>build_count_entry()</code>: the two SELECTs and the count queries</li><li><span class="loc">yaml_generation/yaml_builder.py:466</span> <code>write_data_file()</code>: writes only when the text changed (NEW / UPDATED / UNCHANGED)</li><li><span class="loc">yaml_generation/yaml_builder.py:526</span> <code>upsert_count_file()</code>: adds or replaces this table in the layer's count YAML, keeps the others</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml. Uses db_rules for how to quote and cast per engine.</dd><dt>If someone asks</dt><dd><i>Why not fuzzy-match columns?</i> A wrong match would hide a real difference. <i>Why a MISSING token instead of dropping the column?</i> Fail, don't skip: the difference shows up in the report.</dd></dl></div><div class="fcard core"><h3>yaml_generation/db_rules.py</h3><div class="role">Per-engine rules: how to read a catalogue and how to write a value as text</div><dl><dt>Why this file exists</dt><dd>PostgreSQL, SQL Server and Snowflake each have different catalogues, quoting and casting. Keeping those differences in one dictionary means a new engine is one new block, not changes all over the code.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/db_rules.py:30</span> <code>RULES</code>: one block per engine (postgres, mssql, snowflake ...)</li><li><span class="loc">yaml_generation/db_rules.py:145</span> <code>kind_of()</code>: data type to kind (text, number, boolean, timestamp, json)</li><li><span class="loc">yaml_generation/db_rules.py:169</span> <code>quote()</code>: quote a name the engine's way</li><li><span class="loc">yaml_generation/db_rules.py:185</span> <code>list_tables()</code>: is the schema visible? An empty listing is refused</li><li><span class="loc">yaml_generation/db_rules.py:201</span> <code>list_columns()</code>: pg_catalog for PostgreSQL, INFORMATION_SCHEMA otherwise</li><li><span class="loc">yaml_generation/db_rules.py:223</span> <code>primary_key_columns()</code>: the rules workbook key wins, else the source primary key</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml (catalogue reads) and yaml_builder (casting).</dd><dt>If someone asks</dt><dd><i>Why pg_catalog?</i> It shows columns and keys even where INFORMATION_SCHEMA hides them for our role. <i>No primary key?</i> The data YAML FAILS with a log line; the count is still written.</dd></dl></div><div class="fcard core"><h3>yaml_generation/settings.py</h3><div class="role">The optional settings you edit: exclusions and table rules</div><dl><dt>Why this file exists</dt><dd>Things that are not a location: columns to leave out and per-table overrides (key, filters, window column). Optional: without them the run is normal.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/settings.py:64</span> <code>load_exclusions()</code>: <code>settings/exclusions.yaml</code>, the engine's section + snowflake (Fivetran columns)</li><li><span class="loc">yaml_generation/settings.py:83</span> <code>load_table_rules()</code>: rows of the rules workbook per engine and schema</li><li><span class="loc">yaml_generation/settings.py:141</span> <code>pick_rules_file()</code>: the one .xlsx in <code>settings/</code> (dev_rules.xlsx)</li><li><span class="loc">yaml_generation/settings.py:43</span> <code>INCREMENTAL_COLUMNS</code>: updated_at for postgres, dupdated for mssql</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml.</dd><dt>If someone asks</dt><dd><i>Which filter wins?</i> A filter in the rules workbook beats the filter workbook for the same side. <i>Why exclude Fivetran columns?</i> They exist only in Snowflake (_FIVETRAN_SYNCED, ...).</dd></dl></div></div>
+  <h3 class="fgroup">yaml_generation/ data and tests</h3><div class="files"><div class="fcard"><h3>master_files/*.xlsx</h3><div class="role">edge_bronze_master.xlsx, sitelink_bronze_master.xlsx</div><dl><dt>Why this file exists</dt><dd>The data behind filter_files.py: one row per table.</dd><dt>Main pieces</dt><dd><ul><li>Target Table Name, source_application, source_database (the real database: fms, DevT5000), source_schema, target_application, target_database (<code>{env}_...</code>), target_schema</li><li>Historical / Incremental filter cells (optional)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Read by filter_files.read()</dd><dt>If someone asks</dt><dd><i>Add a table?</i> Add a row. <i>Add an application on a known engine?</i> Its rows in that layer's workbook, if the connection can reach it. The step-by-step tab checks that.</dd></dl></div><div class="fcard"><h3>settings/: exclusions.yaml, dev_rules.xlsx, templates/</h3><div class="role">The settings files</div><dl><dt>Why this file exists</dt><dd>The data behind settings.py.</dd><dt>Main pieces</dt><dd><ul><li>exclusions.yaml: columns left out, per engine</li><li>dev_rules.xlsx: per-table key, exclusions, filters</li><li>templates/table_rules_template.xlsx: blank copy to start from</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Read by settings.py</dd><dt>If someone asks</dt><dd><i>Why a template?</i> So a new rules file has the right headers.</dd></dl></div><div class="fcard"><h3>config/&lt;run_type&gt;/&lt;layer&gt;/</h3><div class="role">The YAML the generator writes and the validators read</div><dl><dt>Why this file exists</dt><dd>The hand-off between the two halves of a run: yaml_builder.py writes here, the validators read from here.</dd><dt>Main pieces</dt><dd><ul><li><code>data_validation/&lt;table&gt;.yaml</code>: one file per table, the two normalised SELECTs</li><li><code>count_validation/&lt;layer&gt;.yaml</code>: one file per layer, one entry per table</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Written by yaml_builder (<code>write_data_file()</code>, <code>upsert_count_file()</code>); found by <code>utility.get_config_output_paths()</code>.</dd><dt>If someone asks</dt><dd><i>Is old YAML deleted?</i> Never. A table no longer in the workbook is logged and left as it is.</dd></dl></div><div class="fcard"><h3>tests/</h3><div class="role">Unit tests and scenario cases (pytest)</div><dl><dt>Why this file exists</dt><dd>Each module has its own test file, so a change can be checked without a database.</dd><dt>Main pieces</dt><dd><ul><li>test_filter_files, test_generate_yaml, test_yaml_builder, test_db_rules, test_settings, test_json_normalize</li><li>test_connections, test_live_postgres: need real database access</li><li>cases/ + CASES.md: end-to-end scenarios (what if the Excel says ...)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Run with <code>pytest yaml_generation/tests</code></dd><dt>If someone asks</dt><dd><i>How do we know it works?</i> Unit tests + scenario cases + the integration runs in YAML_GENERATION_TEST_ISSUES.md.</dd></dl></div></div>
+</section>
+<!-- ============================== TREE ============================== -->
+<section id="tree" class="view">
+  <h2>Code tree</h2>
+  <p class="lede">Start at <code>main.main()</code>. Click &#9656; to open a branch and see what that function calls. Click a name for the details. Yellow boxes are conditions, not functions. The coloured tag on each box is the file and line it lives at: click a file below to light up every box in that file.</p>
+  <div class="legend" id="legend"><span class="lab">Light up a file</span></div>
+  <div class="toolbar"><button id="openAll">Open all</button><button id="closeAll">Close all</button></div>
+  <div class="treewrap">
+    <ul class="tree" id="codetree"></ul>
+    <aside class="panel" id="detail"><h3>Pick a function</h3><p>Its file, what it does, what it returns and when it fails appear here.</p></aside>
+  </div>
+</section>
+
+<footer>Written from the code on branch <code>dev-ganesh-mane</code>, 5 November 2026; the <b>Add a new source</b> guide was rewritten on 11 November 2026 (templates, copy buttons, type mapping, incremental) and updated on 12 November 2026 (type mapping ignores case; clear "Fix this and run again" messages). Every <span class="loc">file:line</span> points at the working copy of that date. The one-page summary is <code>docs/YAML_GENERATION_VISUAL_GUIDE.html</code>.</footer>
+</main>
+
+<script>
+// ---------- tabs ----------
+document.querySelectorAll(".tabs button").forEach(function (b) {
+  b.onclick = function () {
+    document.querySelectorAll(".tabs button").forEach(function (x) { x.classList.toggle("on", x === b); });
+    document.querySelectorAll(".view").forEach(function (v) { v.classList.toggle("on", v.id === b.dataset.view); });
+  };
+});
+
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+// One colour per file, used by every tab: the strip in Play, the tags in the Code tree, the boxes in Files.
+var FILES = [
+  { k: "main.py", c: "#141B4D", m: /^main\.py/ },
+  { k: "utility.py", c: "#0e7490", m: /^utils\/utility\.py/ },
+  { k: "generate_yaml.py", c: "#2563eb", m: /generate_yaml\.py/ },
+  { k: "filter_files.py", c: "#7c3aed", m: /filter_files\.py/ },
+  { k: "settings.py", c: "#db2777", m: /settings\.py/ },
+  { k: "db_rules.py", c: "#c2410c", m: /db_rules\.py/ },
+  { k: "yaml_builder.py", c: "#15803d", m: /yaml_builder\.py/ },
+  { k: "validators/", c: "#dc2626", m: /^validators\// },
+  { k: "db/", c: "#64748b", m: /^db\// },
+  { k: "json_normalize.py", c: "#0891b2", m: /json_normalize\.py/ }
+];
+function fileOf(at) { for (var i = 0; i < FILES.length; i++) if (FILES[i].m.test(at)) return FILES[i]; return null; }
+function fileByKey(k) { return FILES.filter(function (f) { return f.k === k; })[0]; }
+function locTag(p) { var f = fileOf(p); return '<span class="loc"' + (f ? ' style="--c:' + f.c + '"' : "") + ">" + p + "</span>"; }
+function fileChip(k, cls) { return '<span class="fchip ' + (cls || "") + '" data-k="' + k + '" style="--c:' + fileByKey(k).c + '">' + k + "</span>"; }
+// "text [file:line]" -> text with a location tag in the file's colour
+function fmt(s) { return esc(s).replace(/\[([^\]]+)\]/g, function (_, p) { return locTag(p); }); }
+
+// ---------- Play a run ----------
+// Each question: q, options [{label, small, set, steps, next}]. next is a question id, or "end:<id>" for an outcome.
+var Q = {
+  app: { q: "Which application are you running?", opts: [
+    { label: "Edge", small: "PostgreSQL", set: { layer: "bronze_postgres", app: "Edge" },
+      steps: ["parse_arguments(): --layer_type bronze_postgres picks the PostgreSQL engine [utils/utility.py:447]"], next: "yaml" },
+    { label: "SiteLink", small: "SQL Server", set: { layer: "bronze_mssql", app: "SiteLink" },
+      steps: ["parse_arguments(): --layer_type bronze_mssql picks the SQL Server engine [utils/utility.py:447]"], next: "yaml" },
+    { label: "Payments", small: "PostgreSQL, future", set: { layer: "bronze_postgres", app: "Payments" },
+      steps: ["Same engine as Edge: its rows go in edge_bronze_master.xlsx, with their own source_database and schemas (one workbook per layer)",
+              "One run can hold Edge and Payments tables: they are grouped by location [yaml_generation/generate_yaml.py:290]"], next: "yaml" },
+    { label: "Marketplace", small: "MySQL", set: { layer: "bronze_mysql", app: "Marketplace" },
+      steps: ["parse_arguments(): --layer_type bronze_mysql picks the MySQL engine [utils/utility.py:15]",
+              "Its rows go in mysql_bronze_master.xlsx. Historical runs work; incremental runs for MySQL are not built yet (see the Add a new source tab)"], next: "yaml" }
+  ]},
+  yaml: { q: "Did you pass --yaml_generation?", opts: [
+    { label: "Not given", small: "default: yes", set: { yaml: "yes" },
+      steps: ["parse_arguments() fills in yes on a bronze layer [utils/utility.py:572]",
+              "main.py calls run_for_validation() before any validator [main.py:96]"], next: "filters" },
+    { label: "--yaml_generation no", small: "use the YAML on disk", set: { yaml: "no" },
+      steps: ["main.py calls tables_missing_yaml(): it checks files only, no database [main.py:139]"], next: "filters" }
+  ]},
+  filters: { q: "Did you pass --filter_files?", opts: [
+    { label: "Not given", small: "default: yes", set: { filters: "yes" },
+      steps: ["filter_files.filters() turns each row's filter cell into a WHERE for both sides [yaml_generation/filter_files.py:372]"], next: "tables" },
+    { label: "--filter_files no", small: "compare whole tables", set: { filters: "no" },
+      steps: ["The workbook is still read for each table's location. The filter cells are ignored."], next: "tables" }
+  ]},
+  tables: { q: "Which tables?", opts: [
+    { label: "--tables all", small: "every workbook row", set: { all: true },
+      steps: ["filter_files.read(): every row of the layer's master workbook. Never the whole source schema. [yaml_generation/filter_files.py:333]"],
+      next: function (s) { return s.yaml === "no" ? "end:allno" : "change"; } },
+    { label: "--tables units events", small: "named tables", set: { all: false },
+      steps: ["The named tables are checked against the workbook rows [yaml_generation/generate_yaml.py:284]"], next: "inbook" }
+  ]},
+  inbook: { q: "Is the table listed in the master workbook?", opts: [
+    { label: "Yes", steps: ["Its row gives source_database, source_schema, target_database and target_schema (Location) [yaml_generation/filter_files.py:104]"],
+      next: function (s) { return s.yaml === "no" ? "ondisk" : "change"; } },
+    { label: "No", next: "end:nobook",
+      steps: ["FAILED: no row in the master workbook, so its schema is not known [yaml_generation/generate_yaml.py:285]"] }
+  ]},
+  ondisk: { q: "Is its YAML already in config/?", opts: [
+    { label: "Yes", next: "end:present",
+      steps: ["Used as it is. No schema check, so a new source column is not compared until a run with yes."] },
+    { label: "No", set: { status: "NEW" },
+      steps: ["run_for_validation(create_only=True) creates only the missing YAML [main.py:144]"], next: "exists" }
+  ]},
+  change: { q: "Has the source or Snowflake structure changed since the YAML was written?", opts: [
+    { label: "No change", set: { status: "UNCHANGED" }, steps: ["The rebuilt YAML text equals the file: it is not touched"], next: "exists" },
+    { label: "A column was added, renamed or dropped", set: { status: "UPDATED" },
+      steps: ["reconcile() matches the columns by name. A column on one side only is kept and compared as missing [yaml_generation/yaml_builder.py:179]"], next: "exists" },
+    { label: "There is no YAML yet", set: { status: "NEW" }, steps: ["A new file will be written"], next: "exists" }
+  ]},
+  exists: { q: "Is the table in the source and in Snowflake, and can your role read it?", opts: [
+    { label: "Yes", steps: ["db_rules.list_columns() reads both catalogues [yaml_generation/db_rules.py:201]"], next: "pk" },
+    { label: "No", next: "end:missing",
+      steps: ["FAILED: not in the source or not in Snowflake. Its old YAML is kept, and nothing is deleted. [yaml_generation/generate_yaml.py:151]"] }
+  ]},
+  pk: { q: "Does it have a primary key, or key_columns in the rules workbook?", opts: [
+    { label: "Yes", steps: ["primary_key_columns() reads the key [yaml_generation/db_rules.py:223]"], next: "run" },
+    { label: "No", next: "end:nokey",
+      steps: ["The data YAML FAILS with the reason in the log. The count YAML is still written. [yaml_generation/generate_yaml.py:191]"] }
+  ]},
+  run: { q: "Which --run_type?", opts: [
+    { label: "historical", small: "default", steps: ["No time window: the whole (filtered) table is compared"], next: "end:write" },
+    { label: "incremental", next: "end:write",
+      steps: ["incremental_window() adds updated_at > :start_time AND <= :end_time (dupdated on SQL Server) [yaml_generation/yaml_builder.py:147]",
+              "At validation time: freshness check, then the window from control_table.csv and Fivetran [utils/utility.py:701]"] }
+  ]}
+};
+
+var END = {
+  allno: { color: "#475569", title: "The YAML on disk is validated",
+    lines: ["With --yaml_generation no and --tables all, nothing is created or checked. main.py skips creation for 'all'.",
+            "Run without the flag (the default is yes) to refresh the YAML."] },
+  nobook: { color: "#dc2626", title: "FAILED: exit code 1",
+    lines: ["Add a row for the table to its application's workbook. The other tables of the run are still validated."], chip: "FAILED" },
+  present: { color: "#475569", title: "PRESENT: validated as it is",
+    lines: ["The validators run on the existing YAML. To pick up a schema change, run without --yaml_generation no."], chip: "PRESENT" },
+  missing: { color: "#dc2626", title: "FAILED: exit code 1",
+    lines: ["Check the table name, source_schema, target_database and target_schema in the workbook, and the role's read access."], chip: "FAILED" },
+  nokey: { color: "#dc2626", title: "Data FAILED, count written: exit code 1",
+    lines: ["Add key_columns for the table in yaml_generation/settings/ (rules workbook), or a primary key in the source."], chip: "FAILED" },
+  write: { color: "#166534", title: "Written, then validated", dynamic: true }
+};
+
+var ICON = { app: "&#127970;", yaml: "&#9881;&#65039;", filters: "&#128269;", tables: "&#128203;", inbook: "&#128215;", ondisk: "&#128190;",
+             change: "&#128260;", exists: "&#128272;", pk: "&#128273;", run: "&#9201;&#65039;" };
+var STRIP = ["main.py", "utility.py", "generate_yaml.py", "filter_files.py", "settings.py", "db_rules.py", "yaml_builder.py", "validators/"];
+var state, step, touched;
+function light(f) {
+  if (touched.indexOf(f.k) < 0) touched.push(f.k);
+  document.querySelectorAll("#strip .fchip").forEach(function (ch) {
+    ch.classList.toggle("lit", touched.indexOf(ch.dataset.k) >= 0);
+    ch.classList.toggle("now", ch.dataset.k === f.k);
+  });
+}
+function startGame() {
+  state = { status: "NEW" }; step = 0; touched = [];
+  document.getElementById("strip").innerHTML = '<span class="lab">Files this run reaches</span>' +
+    STRIP.map(function (k) { return fileChip(k); }).join('<span class="sep">&rarr;</span>');
+  document.getElementById("questions").innerHTML = "";
+  document.getElementById("trace").innerHTML = '<li class="empty">Pick an application to start.</li>';
+  ask("app");
+}
+function addTrace(lines) {
+  var t = document.getElementById("trace");
+  var empty = t.querySelector(".empty"); if (empty) empty.remove();
+  lines.forEach(function (l) {
+    var li = document.createElement("li"), m = l.match(/\[([^\]]+)\]/), f = m && fileOf(m[1]);
+    if (f) { li.style.setProperty("--c", f.c); light(f); }
+    li.innerHTML = fmt(l);
+    t.appendChild(li);
+  });
+}
+function ask(id) {
+  if (id.indexOf("end:") === 0) { return finish(id.slice(4)); }
+  var node = Q[id], card = document.createElement("div");
+  step += 1;
+  card.className = "qcard";
+  card.innerHTML = '<span class="ico">' + (ICON[id] || "") + '</span><div class="step">Question ' + step + '</div><h3>' + esc(node.q) + '</h3><div class="opts"></div><div class="picked"></div>';
+  node.opts.forEach(function (o) {
+    var b = document.createElement("button");
+    b.innerHTML = esc(o.label) + (o.small ? "<small>" + esc(o.small) + "</small>" : "");
+    b.onclick = function () {
+      Object.assign(state, o.set || {});
+      card.classList.add("done");
+      card.querySelector(".picked").textContent = "✔ " + o.label;
+      addTrace(o.steps || []);
+      ask(typeof o.next === "function" ? o.next(state) : o.next);
+    };
+    card.querySelector(".opts").appendChild(b);
+  });
+  document.getElementById("questions").appendChild(card);
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function finish(id) {
+  var e = END[id], lines = e.lines || [], chip = e.chip;
+  if (e.dynamic) {
+    chip = state.status;
+    addTrace(["write_data_file() writes only when the text changed: " + state.status + " [yaml_generation/yaml_builder.py:466]",
+              "upsert_count_file() adds or replaces the table in the layer's count file [yaml_generation/yaml_builder.py:526]",
+              "validate_count(): the two counts must be equal [validators/count_validation.py:40]",
+              "validate_data(): rows sorted by the key, then DataFrame.equals() [validators/data_validation.py:156]"]);
+    lines = ["Status " + state.status + " for " + (state.app || "the table") + ". The validators run next.",
+             "Exit code 0 when every check matches, 2 when a check finds differences, 1 on a system error or a FAILED table."];
+    if (state.filters === "yes") lines.push("The workbook's row filter is in both queries, so only part of a big table is loaded.");
+  }
+  var box = document.createElement("div");
+  box.className = "outcome";
+  box.style.background = e.color;
+  box.innerHTML = "<h3>" + (chip ? '<span class="chip c-' + chip + '">' + chip + "</span> " : "") + esc(e.title) + "</h3>" +
+    lines.map(function (l) { return "<p>" + fmt(l) + "</p>"; }).join("") +
+    (touched.length ? '<p><b>Files this run went through:</b></p><div class="touch">' +
+      STRIP.filter(function (k) { return touched.indexOf(k) >= 0; }).map(function (k) { return fileChip(k, "lit"); }).join("") + "</div>" : "") +
+    '<button class="again">↻ Play again</button>';
+  box.querySelector(".again").onclick = startGame;
+  document.getElementById("questions").appendChild(box);
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+startGame();
+
+// ---------- Code tree ----------
+// n: name, at: file:line, w: one line, d: details, r: returns, f: fails when, when: true for a condition box, k: children
+var TREE = { n: "main.main()", at: "main.py:14", w: "one run, start to end",
+  d: "The whole orchestration in one function: set up the run, make the YAML ready (generation), build the context, run the validators, write the summary, exit with 0, 1 or 2.",
+  r: "Exit code: 0 all matched, 2 differences found, 1 system error or a FAILED table [main.py:236]", k: [
+
+  { n: "1. Set up the run", at: "main.py:15", w: "run id, logger, arguments", k: [
+    { n: "generate_runid()", at: "utils/utility.py:19", w: "run_id and run_at", d: "A unique id for this run. It names the log file and the output folder." },
+    { n: "get_logger()", at: "utils/utility.py:388", w: "console logger", d: "The logger every file writes to. A file handler is added once the log path is known." },
+    { n: "parse_arguments()", at: "utils/utility.py:447", w: "the command line",
+      d: "Reads --layer_type, --tables, --environment, --run_type, the four validation flags, --yaml_generation and --filter_files. --source_schema, --target_database and --target_schema are gone: the workbook gives them.",
+      r: "args", f: "An unknown or missing argument: argparse exits with 2", k: [
+      { n: "default flags", at: "utils/utility.py:572", w: "yes on bronze, no on other layers", when: true,
+        d: "When --yaml_generation or --filter_files is not given, it is 'yes' for bronze_postgres and bronze_mssql and 'no' for silver, reports and sanity. An explicit 'yes' on another layer is refused (parser.error)." }
+    ]},
+    { n: "workbook_spelling()", at: "yaml_generation/generate_yaml.py:249", w: "addresses becomes Addresses",
+      d: "Bronze layers with named tables only. Table names ignore case: the name is rewritten the way the filter workbook writes it, so the YAML file names match. A name not in the workbook is kept as typed (run_for_validation reports it).", k: [
+      { n: "filter_files.read()", at: "yaml_generation/filter_files.py:324", w: "the layer's workbook rows" },
+      { n: "filter_files.spelled()", at: "yaml_generation/filter_files.py:383", w: "match names without case" }
+    ]},
+    { n: "config_path and validation_dirs", at: "main.py:40", w: "historical or incremental; which validators",
+      d: "config/historical or config/incremental, and the list of validations asked for (schema, count, data, integrity)." }
+  ]},
+
+  { n: "2. Output paths and the log file", at: "main.py:59", w: "where YAML is read and results go", k: [
+    { n: "get_config_output_paths()", at: "utils/utility.py:23", w: "configpaths, outputpaths, logpath",
+      d: "Finds the YAML files for each validation and the output folders. With --yaml_generation yes it is called with no tables first (the YAML may not exist yet) and again after generation with the ready tables [main.py:132].",
+      f: "An unsupported layer_type: no log path, ValueError" },
+    { n: "add_file_handler()", at: "utils/utility.py:409", w: "validation_<run_id>.log", d: "From here every log line also goes to the run's log file, including every YAML generation line." }
+  ]},
+
+  { n: "3a. if --yaml_generation yes", at: "main.py:96", w: "the default on bronze", when: true,
+    d: "The YAML of every requested table is checked against the live source and Snowflake structure, rewritten where it differs, before any validator runs. Only the tables that are ready are validated. With data and count both 'no', the YAML is still written for both kinds (generate only).", k: [
+    { n: "run_for_validation()", at: "yaml_generation/generate_yaml.py:261", w: "the orchestrator of YAML generation",
+      d: "Reads the workbook, groups the tables by location, loads settings, opens the connections, reads the filters, and calls generate() once per location.",
+      r: "(results, ready_tables). results are (table, kind, status, detail) rows.",
+      f: "Raises ValueError, with nothing written, for a bad argument, a bad workbook row, a settings problem or a connection that cannot open. main.py logs only its message (no traceback), starting 'Fix this and run again:', and exits 1 [main.py:122]. Any other error is logged with its traceback [main.py:128].", k: [
+
+      { n: "check the layer", at: "yaml_generation/generate_yaml.py:278", w: "bronze_postgres to postgres", when: true,
+        d: "The engine must be in db_rules.SOURCE_TYPES (postgres, mssql, athena, redshift)." },
+      { n: "resolve_args()  (flags only)", at: "yaml_generation/generate_yaml.py:77", w: "check the flags",
+        d: "Refuses data and count both 'no', and 'all' mixed with names. Checks --environment against ENV_TOKENS (dev DEV, stg STG, qat QAT, prod PRD, local DEV).",
+        f: "An unknown --environment" },
+      { n: "config_dir_for()", at: "yaml_generation/generate_yaml.py:232", w: "config/<run_type>/<layer>", d: "Where the YAML is written, and where main.py reads it." },
+
+      { n: "filter_files.read()", at: "yaml_generation/filter_files.py:324", w: "the source of truth",
+        d: "Reads the layer's workbook from master_files/ (WORKBOOKS: postgres = edge_bronze_master.xlsx, mssql = sitelink_bronze_master.xlsx). One Row per table, with its Location and the filter cell for this run type.",
+        r: "{table: Row}", f: "No workbook for the layer, the file or sheet missing, a blank location cell, a source_database that is not the layer's engine, a target that is not Snowflake, a target_database without {env}. The error names the file and row.", k: [
+        { n: "_sheet_rows()", at: "yaml_generation/filter_files.py:295", w: "find the sheet with the columns",
+          d: "The first sheet that has 'Target Table Name' and the six location columns. Other sheets (Count, Testing) are ignored.", k: [
+          { n: "_header()", at: "yaml_generation/filter_files.py:284", w: "match headers loosely",
+            d: "Trims, lower-cases and drops a trailing dot, so 'Historical Filter to apply.' matches." }
+        ]},
+        { n: "FILTER_HEADERS[run_type]", at: "yaml_generation/filter_files.py:92", w: "which filter column", when: true,
+          d: "historical reads 'Historical Filter to apply', incremental reads 'Incremental filters to apply'. A missing column is a warning: no filter." },
+        { n: "engine_of()", at: "yaml_generation/filter_files.py:289", w: "PostgreSQL to postgres",
+          d: "Maps the workbook's engine name to a db_rules.RULES key, by label or key, in any case.", r: "postgres, mssql, snowflake ... or None" },
+        { n: "{env} check", at: "yaml_generation/filter_files.py:368", w: "target_database must hold {env}", when: true,
+          d: "Without {env}, every environment would be compared against one database, so the row is refused." },
+        { n: "duplicate table", at: "yaml_generation/filter_files.py:371", w: "first row wins", when: true, d: "A table listed twice (any case) keeps its first row; the second is logged and ignored." },
+        { n: "Location / Row", at: "yaml_generation/filter_files.py:96", w: "where a table lives",
+          d: "Location = application, engine, source schema, Snowflake database ({env} kept), Snowflake schema. Row = table, Location, filter cell, label (file and row number for messages)." }
+      ]},
+      { n: "requested tables", at: "yaml_generation/generate_yaml.py:297", w: "'all' or the named ones", when: true,
+        d: "'all' is every workbook row. Named tables are matched without case (spelled). A named table with no row is FAILED here: without a row its schema is not known." },
+      { n: "group by location", at: "yaml_generation/generate_yaml.py:300", w: "one group per application and schema",
+        d: "Tables with the same Location are generated together, so one run can hold tables of several applications or schemas on the same engine." },
+
+      { n: "settings.pick_rules_file()", at: "yaml_generation/settings.py:141", w: "the rules workbook",
+        d: "The one .xlsx in yaml_generation/settings/ (dev_rules.xlsx). None is fine: no overrides.", f: "More than one file, or a bad file: 'Settings problem', exit 1" },
+      { n: "settings.load_table_rules()", at: "yaml_generation/settings.py:83", w: "per location: key, exclusions, filters, window column",
+        d: "Rows for this engine and source schema. Each becomes a TableRule: key_columns, exclude_columns, source_where, target_where, incremental_column.",
+        f: "Bad headers, or a row with no source_type or table_name" },
+      { n: "settings.load_exclusions()", at: "yaml_generation/settings.py:64", w: "columns left out on both sides",
+        d: "settings/exclusions.yaml: this engine's section plus the snowflake section (the Fivetran columns)." },
+      { n: "get_database()  x2", at: "db/factory.py:14", w: "source and Snowflake connections",
+        d: "The same cached connections the validators use later, from creds/<env>.yaml. Snowflake opens a browser for SSO once.", f: "A missing creds file or block: ValueError, exit 1" },
+
+      { n: "if --filter_files yes", at: "yaml_generation/generate_yaml.py:324", w: "read the filter cells", when: true,
+        d: "With --filter_files no, the locations are still read from the workbook, but every table is compared in full.", k: [
+        { n: "filter_files.filters()", at: "yaml_generation/filter_files.py:389", w: "filter cell to two WHEREs",
+          d: "For each requested row: an empty cell or 'compare full' means no filter. Otherwise the cell becomes a source WHERE and a Snowflake WHERE, written for that row's own schema.",
+          r: "{table: (source_where, target_where)}", f: "A cell it cannot read is logged with file and row, and that table is loaded in full", k: [
+          { n: "_count_statement()", at: "yaml_generation/filter_files.py:309", w: "add 'select count(*) from'", d: "A cell holds 'units j join ... where ...'. The prefix is added so it reads as one statement." },
+          { n: "BASE_TABLE check", at: "yaml_generation/filter_files.py:122", w: "the cell is about this table", when: true, d: "A cell whose FROM names another table is refused." },
+          { n: "convert()", at: "yaml_generation/filter_files.py:264", w: "joins to sub-selects",
+            d: "Each join becomes 'column IN (SELECT id FROM schema.table WHERE ...)'. The Snowflake side uses {env}_DB.SCHEMA and adds _FIVETRAN_ACTIVE = TRUE inside every sub-select.", k: [
+            { n: "_plan()", at: "yaml_generation/filter_files.py:176", w: "parse the statement", d: "Reads the table, its alias, its joins and its AND conditions (_split_and, _masked keep quoted text safe).", f: "Refused: OR, BETWEEN, outer joins, subqueries, quoted names, bind parameters" },
+            { n: "_where()", at: "yaml_generation/filter_files.py:250", w: "write one side", d: "Writes the conditions for one side, nesting a sub-select for each join." }
+          ]},
+          { n: "check_filter()  x2", at: "yaml_generation/yaml_builder.py:83", w: "refuse unsafe text", d: "Refuses ; { } -- /* */ and line breaks. The Snowflake side may hold {env}." }
+        ]}
+      ]},
+
+      { n: "for each location", at: "yaml_generation/generate_yaml.py:329", w: "one group at a time", when: true,
+        d: "resolve_args() again with the group's schemas and Snowflake database: {env}_EDGE_BRONZE becomes DEV_EDGE_BRONZE to read the catalogue, and {env} is kept for the YAML. A ValueError FAILS that group's tables; the next group still runs.", k: [
+        { n: "resolve_args()  (with location)", at: "yaml_generation/generate_yaml.py:94", w: "fill {env}" },
+        { n: "generate()", at: "yaml_generation/generate_yaml.py:98", w: "write the YAML for one group",
+          d: "For each table: read both column lists, match them, add filters and the window, find the key, write the data YAML and collect the count entry. One table failing does not stop the others. Nothing is deleted.",
+          r: "results rows: NEW, UPDATED, UNCHANGED, PRESENT or FAILED", k: [
+          { n: "db_rules.list_tables()  x2", at: "yaml_generation/db_rules.py:185", w: "are both schemas visible?",
+            d: "Lists the source schema and the Snowflake schema. An empty listing means a wrong schema or no access: refused before anything is written.", f: "Empty listing: ValueError for the group" },
+          { n: "for each table", at: "yaml_generation/generate_yaml.py:131", w: "the per-table steps", when: true, k: [
+            { n: "rule + filters", at: "yaml_generation/generate_yaml.py:132", w: "which filter wins", when: true,
+              d: "The rules workbook filter wins for a side it sets; otherwise the filter workbook's. A table with no filter is compared in full (logged)." },
+            { n: "if create_only and the YAML exists", at: "yaml_generation/generate_yaml.py:138", w: "--yaml_generation no", when: true,
+              d: "The table is PRESENT and is not read or rewritten (data_file_path, count_table_names)." },
+            { n: "TableSpec", at: "yaml_generation/yaml_builder.py:103", w: "the table pair", d: "Source type, schema, table, Snowflake database ({env}), schema. Snowflake holds the name in upper case." },
+            { n: "db_rules.list_columns()  x2", at: "yaml_generation/db_rules.py:201", w: "both catalogues",
+              d: "PostgreSQL from pg_catalog; SQL Server and Snowflake from INFORMATION_SCHEMA. Names and data types.", f: "No columns on a side: the table is FAILED (not there, or no read access); its YAML is left as it is" },
+            { n: "reconcile()", at: "yaml_generation/yaml_builder.py:179", w: "match the columns",
+              d: "Normalises the names and matches them exactly. Applies the exclusions (exclusions.yaml + the table rule). A column on one side only is kept and compared with a MISSING token, so its rows differ (fail, don't skip).", k: [
+              { n: "normalize_name()", at: "yaml_generation/yaml_builder.py:70", w: "Unit Name to unit_name" },
+              { n: "db_rules.kind_of()", at: "yaml_generation/db_rules.py:145", w: "type to kind", d: "text, number, boolean, timestamp, json ..." },
+              { n: "comparability_problems()", at: "yaml_generation/yaml_builder.py:226", w: "types that cannot be text", d: "For example the SQL Server rowversion. The table is FAILED unless the column is excluded." }
+            ]},
+            { n: "plain_text_columns()", at: "yaml_generation/yaml_builder.py:383", w: "warn: compared as plain text", d: "Columns with no special rule; logged because they may FAIL on format." },
+            { n: "if --run_type incremental", at: "yaml_generation/generate_yaml.py:175", w: "add the window", when: true,
+              d: "Window column: incremental_column from the rules workbook, or updated_at (postgres) / dupdated (mssql) from settings.INCREMENTAL_COLUMNS.", k: [
+              { n: "incremental_window()", at: "yaml_generation/yaml_builder.py:147", w: "> :start_time AND <= :end_time",
+                d: "The same window on both sides. If the column is missing on a side it is still written by name, so the query fails there (logged).", k: [
+                { n: "window_condition()", at: "yaml_generation/yaml_builder.py:138", w: "the SQL text of the window" }
+              ]}
+            ]},
+            { n: "if data validation", at: "yaml_generation/generate_yaml.py:186", w: "the data YAML", when: true, k: [
+              { n: "db_rules.primary_key_columns()", at: "yaml_generation/db_rules.py:223", w: "the row key",
+                d: "key_columns from the rules workbook wins. Otherwise the source primary key." },
+              { n: "missing_key_columns()", at: "yaml_generation/yaml_builder.py:247", w: "key on both sides?", f: "No key, or a key column not on both sides: the data YAML FAILS with a log line; the count is still written" },
+              { n: "build_data_entry()", at: "yaml_generation/yaml_builder.py:334", w: "the two SELECTs",
+                d: "One normalised SELECT per side: each value becomes text the same way on both sides (booleans, timestamps, NULL token). json, jsonb, hstore are listed in json_columns.", k: [
+                { n: "key_expression()", at: "yaml_generation/yaml_builder.py:253", w: "sourcecolumn / targetcolumn" },
+                { n: "side_item() / value_expression()", at: "yaml_generation/yaml_builder.py:319", w: "one column as text", d: "Uses the engine's casting rules from db_rules.RULES and quote()." },
+                { n: "source_ref() / target_ref()", at: "yaml_generation/yaml_builder.py:308", w: "schema.table and {env}_DB.SCHEMA.TABLE" },
+                { n: "_select() / _checked()", at: "yaml_generation/yaml_builder.py:300", w: "assemble and check the SQL", d: "Adds the filters and the window (Filters.source_parts / target_parts) and the Fivetran filter on Snowflake." },
+                { n: "flattened_columns()", at: "yaml_generation/yaml_builder.py:326", w: "json_columns" }
+              ]},
+              { n: "data_header()", at: "yaml_generation/yaml_builder.py:393", w: "comment lines at the top", d: "Key, column matching summary, filters and the time stamp, as comments in the YAML." },
+              { n: "write_data_file()", at: "yaml_generation/yaml_builder.py:466", w: "NEW / UPDATED / UNCHANGED",
+                d: "config/<run_type>/<layer>/data_validation/<table>.yaml. Compares with the file ignoring the stamp line; writes only when the text differs." }
+            ]},
+            { n: "if count validation", at: "yaml_generation/generate_yaml.py:210", w: "collect the count entry", when: true, k: [
+              { n: "build_count_entry()", at: "yaml_generation/yaml_builder.py:363", w: "two count(*) queries", d: "Same filters and window as the data query." }
+            ]},
+            { n: "except: one table failed", at: "yaml_generation/generate_yaml.py:212", w: "the batch goes on", when: true, d: "Unexpected error: the table is FAILED, logged with the traceback." }
+          ]},
+          { n: "other_environment_tables()", at: "yaml_generation/yaml_builder.py:549", w: "warn: other env in count file" },
+          { n: "upsert_count_file()", at: "yaml_generation/yaml_builder.py:526", w: "the layer's count file",
+            d: "Adds or replaces the tables in count_validation/bronze_<engine>.yaml and keeps every other table. Writes only when something changed.", r: "NEW / UPDATED / UNCHANGED per table" }
+        ]},
+        { n: "if --tables all", at: "yaml_generation/generate_yaml.py:341", w: "YAML not in the workbook", when: true,
+          d: "generated_tables(): a generated YAML whose table is no longer in the workbook is logged, left unchanged (never deleted) and not validated." }
+      ]},
+      { n: "log every result", at: "yaml_generation/generate_yaml.py:347", w: "YAML <status> <table> <kind>" },
+      { n: "ready_tables", at: "yaml_generation/generate_yaml.py:352", w: "what the validators get", when: true,
+        d: "A table is ready when it has no table-level FAILED, at least one NEW, UPDATED, UNCHANGED or PRESENT, and its count (if asked) is ready. A FAILED data YAML does not block the count." }
+    ]},
+    { n: "back in main.py", at: "main.py:120", w: "use the results", when: true,
+      d: "Not-ready tables are logged as 'Not validated'. Any FAILED sets system_error (exit 1 at the end). No ready table: exit 1 now. Then get_config_output_paths() again with the ready tables, and the data YAML list keeps only the tables whose data YAML is ready." }
+  ]},
+
+  { n: "3b. if --yaml_generation no", at: "main.py:143", w: "use the YAML on disk", when: true,
+    d: "Bronze, named tables only. A YAML that is missing is created; one that exists is used as it is.", k: [
+    { n: "tables_missing_yaml()", at: "yaml_generation/generate_yaml.py:237", w: "files only, no database", d: "The named tables whose data file or count entry is missing." },
+    { n: "run_for_validation(create_only=True)", at: "main.py:150", w: "create only the missing ones", d: "Same path as 3a. Existing YAML is PRESENT and left alone." },
+    { n: "drop FAILED, re-read paths", at: "main.py:166", w: "validate what has YAML", d: "FAILED tables are removed and set system_error. A data YAML that is still not there is logged and left out." }
+  ]},
+
+  { n: "4. Build the context", at: "main.py:184", w: "what every validator reads", k: [
+    { n: "data_context()", at: "utils/utility.py:591", w: "DataContext dataclass",
+      d: "run_id, run_at, validation_dirs, layer_type, outputpaths, configpaths, BASE_DIR, environment, tables (the ready list), run_type, report_pack." },
+    { n: "schema_ctx", at: "main.py:202", w: "the tables as requested", d: "Schema validation gets the requested tables (so a FAILED table is still reported); count and data get the ready list." }
+  ]},
+
+  { n: "5. Run the validators", at: "main.py:204", w: "in the order asked", d: "Each returns (failures, system_error). A crash is logged and counts as a system error; the next validator still runs.", k: [
+    { n: "validate_integrity()", at: "validators/integrity_check.py:40", w: "sanity layer only", when: true },
+    { n: "validate_schema()", at: "validators/schema_validation.py:17", w: "column structure", d: "Reads the schema YAML, queries both catalogues, writes create_summary_schema()." },
+    { n: "validate_count()", at: "validators/count_validation.py:40", w: "two numbers", d: "Reads count_validation/<layer>.yaml. Runs both count queries; PASS when they are equal.", k: [
+      { n: "get_database()", at: "db/factory.py:14", w: "same cached connections" },
+      { n: "if incremental: get_incremental_dates()", at: "utils/utility.py:701", w: "fill :start_time and :end_time", when: true, k: [
+        { n: "check_freshness()", at: "utils/utility.py:608", w: "is Snowflake recent enough?", d: "max(updated_at) / max(dupdated) on both sides; more than 2 hours apart fails.", f: "RuntimeError: freshness check failed" },
+        { n: "get_dates()", at: "utils/utility.py:634", w: "control table + Fivetran",
+          d: "Previous sync date from control_table.csv, latest succeeded_at from the Fivetran API (creds/api.yaml), then min/max _fivetran_start in that range from Snowflake.", f: "No control table row for the table: seed a value first" }
+      ]},
+      { n: "DataFrame.equals()", at: "validators/count_validation.py:154", w: "PASS or FAIL" },
+      { n: "create_summary_count()", at: "validators/count_validation.py:14", w: "the summary row" },
+      { n: "update_control_table()", at: "utils/utility.py:677", w: "move the window forward", d: "Incremental only: writes the new sync date to control_table.csv, on PASS and on FAIL." }
+    ]},
+    { n: "validate_data()", at: "validators/data_validation.py:21", w: "row by row", d: "Reads each data YAML, runs both SELECTs, compares the rows.", r: "PASS, or FAIL with missing rows and per-column differences in the output Excel", k: [
+      { n: "if incremental: get_incremental_dates()", at: "utils/utility.py:701", w: "same window as count", when: true },
+      { n: "astype(str) + lower-case columns", at: "validators/data_validation.py:139", w: "both sides as text" },
+      { n: "flatten_columns()", at: "utils/json_normalize.py:88", w: "json, jsonb, hstore", d: "Only for json_columns in a generated YAML: compared as flattened text, so key order and spacing do not matter." },
+      { n: "set_index(key) + sort", at: "validators/data_validation.py:147", w: "line rows up by key" },
+      { n: "DataFrame.equals()", at: "validators/data_validation.py:156", w: "PASS or FAIL", k: [
+        { n: "on FAIL: index.difference() / compare()", at: "validators/data_validation.py:189", w: "missing in source / target, mismatches", d: "Written to the output Excel per table." }
+      ]},
+      { n: "create_summary()", at: "utils/utility.py:322", w: "the summary row and Excel" },
+      { n: "update_control_table()", at: "utils/utility.py:677", w: "incremental only", when: true }
+    ]}
+  ]},
+
+  { n: "6. Finish", at: "main.py:226", w: "duration, failure counts, exit", k: [
+    { n: "close_all_databases()", at: "db/factory.py:74", w: "close the cached connections" },
+    { n: "sys.exit()", at: "main.py:245", w: "0 / 2 / 1", d: "1 when any system error or FAILED table, else 2 when any validation failed, else 0." }
+  ]}
+]};
+
+var uid = 0;
+function build(node, parent) {
+  var li = document.createElement("li"), id = "n" + (uid++);
+  var hasKids = node.k && node.k.length;
+  var f = node.at && fileOf(node.at);
+  li.innerHTML = '<span class="node' + (node.when ? " when" : "") + '" id="' + id + '"' + (f ? ' data-k="' + f.k + '" style="--c:' + f.c + '"' : "") +
+    '><span class="tog">' + (hasKids ? "▸" : "•") + '</span><span class="fn">' + esc(node.n) + '</span><span class="what">' + esc(node.w || "") + "</span>" +
+    (f ? '<span class="ftag">' + esc(node.at.split("/").pop()) + "</span>" : "") + "</span>";
+  parent.appendChild(li);
+  var span = li.firstChild;
+  var ul = null;
+  if (hasKids) {
+    ul = document.createElement("ul"); ul.className = "hidden"; li.appendChild(ul);
+    node.k.forEach(function (c) { build(c, ul); });
+  }
+  span.onclick = function () {
+    if (ul) { ul.classList.toggle("hidden"); span.querySelector(".tog").textContent = ul.classList.contains("hidden") ? "▸" : "▾"; }
+    document.querySelectorAll(".node.sel").forEach(function (x) { x.classList.remove("sel"); });
+    span.classList.add("sel");
+    show(node);
+  };
+}
+function show(node) {
+  var html = "<h3>" + esc(node.n) + "</h3>" + (node.at ? locTag(esc(node.at)) : "") + "<dl>";
+  html += "<dt>What it does</dt><dd>" + fmt(node.d || node.w || "") + "</dd>";
+  if (node.r) html += "<dt>Returns</dt><dd>" + fmt(node.r) + "</dd>";
+  if (node.f) html += "<dt>Fails when</dt><dd>" + fmt(node.f) + "</dd>";
+  if (node.k) html += "<dt>Calls</dt><dd>" + node.k.map(function (c) { return "<code>" + esc(c.n) + "</code>"; }).join(", ") + "</dd>";
+  document.getElementById("detail").innerHTML = html + "</dl>";
+}
+build(TREE, document.getElementById("codetree"));
+// Open the root so the first level shows.
+document.querySelector("#codetree > li > .node").click();
+function setAll(open) {
+  document.querySelectorAll("#codetree ul").forEach(function (u) { u.classList.toggle("hidden", !open); });
+  document.querySelectorAll("#codetree .node").forEach(function (n) {
+    if (n.parentNode.querySelector("ul")) n.querySelector(".tog").textContent = open ? "▾" : "▸";
+  });
+}
+document.getElementById("openAll").onclick = function () { setAll(true); };
+document.getElementById("closeAll").onclick = function () { setAll(false); focusFile(null); };
+// The file legend: click a file to light up its boxes and open the branches that hold them.
+var focused = null;
+FILES.forEach(function (f) {
+  if (!document.querySelector('#codetree .node[data-k="' + f.k + '"]')) return;
+  var b = document.createElement("button");
+  b.className = "fchip lit"; b.dataset.k = f.k; b.style.setProperty("--c", f.c); b.textContent = f.k;
+  b.onclick = function () { focusFile(focused === f.k ? null : f.k); };
+  document.getElementById("legend").appendChild(b);
+});
+function focusFile(k) {
+  focused = k;
+  document.getElementById("codetree").classList.toggle("focus", !!k);
+  document.querySelectorAll("#legend .fchip").forEach(function (b) { b.classList.toggle("now", b.dataset.k === k); });
+  document.querySelectorAll("#codetree .node").forEach(function (n) {
+    var on = !!k && n.dataset.k === k;
+    n.classList.toggle("hl", on);
+    if (!on) return;
+    for (var el = n.parentNode.parentNode; el.id !== "codetree"; el = el.parentNode) {
+      if (el.tagName === "UL") { el.classList.remove("hidden"); el.parentNode.querySelector(".tog").textContent = "▾"; }
+    }
+  });
+}
+
+// ---------- Files: the map ----------
+// Boxes: id, x, y, file key (colour), title, subtitle, card (the h3 of its card below), data (dashed: read or written, not code).
+var NODES = [
+  { id: "main", x: 30, y: 210, k: "main.py", t: "main.py", s: "entry point, one run", card: "main.py" },
+  { id: "utility", x: 30, y: 440, k: "utility.py", t: "utils/utility.py", s: "flags, paths, window", card: "utils/utility.py" },
+  { id: "generate", x: 300, y: 210, k: "generate_yaml.py", t: "generate_yaml.py", s: "the orchestrator", card: "yaml_generation/generate_yaml.py" },
+  { id: "validators", x: 300, y: 440, k: "validators/", t: "validators/", s: "schema, count, data", card: "validators/" },
+  { id: "filter", x: 600, y: 20, k: "filter_files.py", t: "filter_files.py", s: "where tables live", card: "yaml_generation/filter_files.py" },
+  { id: "settings", x: 600, y: 130, k: "settings.py", t: "settings.py", s: "exclusions, rules", card: "yaml_generation/settings.py" },
+  { id: "dbrules", x: 600, y: 240, k: "db_rules.py", t: "db_rules.py", s: "read the catalogues", card: "yaml_generation/db_rules.py" },
+  { id: "builder", x: 600, y: 350, k: "yaml_builder.py", t: "yaml_builder.py", s: "build the YAML", card: "yaml_generation/yaml_builder.py" },
+  { id: "master", x: 880, y: 20, k: "filter_files.py", t: "master_files/", s: "<app>_bronze_master.xlsx", card: "master_files/*.xlsx", data: true },
+  { id: "settingsdir", x: 880, y: 130, k: "settings.py", t: "settings/", s: "exclusions.yaml, dev_rules.xlsx", card: "settings/", data: true },
+  { id: "dbs", x: 880, y: 240, k: "db_rules.py", t: "Source + Snowflake", s: "catalogues: columns, keys", card: "yaml_generation/db_rules.py", data: true },
+  { id: "config", x: 880, y: 350, k: "yaml_builder.py", t: "config/", s: "data + count YAML", card: "config/", data: true }
+];
+var EDGES = [
+  { id: "e1", d: "M120,272 L120,436", l: "1 flags", x: 128, y: 360, a: "start" },
+  { id: "e2", d: "M210,241 L296,241", l: "2 make YAML", x: 253, y: 232 },
+  { id: "e3", d: "M480,241 C545,241 540,51 596,51", l: "3 workbook", x: 592, y: 42, a: "end" },
+  { id: "e4", d: "M480,241 C545,241 540,161 596,161", l: "4 settings", x: 592, y: 152, a: "end" },
+  { id: "e5", d: "M480,241 C545,241 540,271 596,271", l: "5 columns", x: 592, y: 292, a: "end" },
+  { id: "e6", d: "M480,241 C545,241 540,381 596,381", l: "6 write", x: 592, y: 372, a: "end" },
+  { id: "d1", d: "M780,51 L876,51", l: "reads", x: 828, y: 43 },
+  { id: "d2", d: "M780,161 L876,161", l: "reads", x: 828, y: 153 },
+  { id: "d3", d: "M780,271 L876,271", l: "queries", x: 828, y: 263 },
+  { id: "d4", d: "M780,381 L876,381", l: "writes", x: 828, y: 373 },
+  { id: "e7", d: "M170,272 C170,370 390,360 390,436", l: "7 validate", x: 262, y: 352 },
+  { id: "e8", d: "M970,412 C970,480 700,471 484,471", l: "8 read the YAML", x: 760, y: 463 },
+  { id: "e9", d: "M300,471 L214,471", l: "9 window", x: 257, y: 462 }
+];
+// One hop of "Play the flow": the boxes and arrows it lights, and what happens.
+var TOUR = [
+  { n: ["main"], e: [], t: "You run one command, `python main.py --layer_type bronze_postgres --tables units ...`. **main.py** runs the whole thing, start to end." },
+  { n: ["main", "utility"], e: ["e1"], t: "**1.** main.py asks `utility.parse_arguments()` for the flags. On a layer in `BRONZE_LAYERS`, `--yaml_generation` and `--filter_files` default to yes." },
+  { n: ["main", "generate"], e: ["e2"], t: "**2.** main.py calls `generate_yaml.run_for_validation()` before any validator. **generate_yaml.py** is the only YAML generation file main.py talks to." },
+  { n: ["generate", "filter", "master"], e: ["e3", "d1"], t: "**3.** `filter_files.read()` opens the layer's master workbook. A table's row says where it lives (database, schema, Snowflake name) and holds its row filter." },
+  { n: ["generate", "settings", "settingsdir"], e: ["e4", "d2"], t: "**4.** **settings.py** loads `exclusions.yaml` and the rules workbook: columns to leave out, and a key, filter or window column per table." },
+  { n: ["generate", "dbrules", "dbs"], e: ["e5", "d3"], t: "**5.** **db_rules.py** reads the columns and the primary key from the source catalogue and from Snowflake." },
+  { n: ["generate", "builder", "config"], e: ["e6", "d4"], t: "**6.** **yaml_builder.py** matches the columns, writes the two SELECTs and the count queries, and saves them in `config/`: NEW, UPDATED or UNCHANGED." },
+  { n: ["main", "validators", "config"], e: ["e7", "e8"], t: "**7, 8.** Back in main.py, the **validators** read that YAML, run both sides and compare the count and the rows." },
+  { n: ["validators", "utility"], e: ["e9"], t: "**9.** For `--run_type incremental`, **utility.py** gives the window (`:start_time`, `:end_time`) from `control_table.csv` and Fivetran." },
+  { n: ["main"], e: [], t: "main.py writes the summary and exits: **0** all matched, **2** differences, **1** a FAILED table or a system error. Click any box to read about its file." }
+];
+(function drawMap() {
+  var svg = document.getElementById("map"), NS = "http://www.w3.org/2000/svg", html = "";
+  EDGES.forEach(function (e) {
+    html += '<g class="ed" id="' + e.id + '"><path d="' + e.d + '" marker-end="url(#ah)"></path>' +
+            '<text x="' + e.x + '" y="' + e.y + '" text-anchor="' + (e.a || "middle") + '">' + esc(e.l) + "</text></g>";
+  });
+  NODES.forEach(function (n) {
+    html += '<g class="nd' + (n.data ? " data" : "") + '" id="m-' + n.id + '" style="--c:' + fileByKey(n.k).c + '" tabindex="0">' +
+            '<rect x="' + n.x + '" y="' + n.y + '" width="180" height="62" rx="12"></rect>' +
+            '<text class="t" x="' + (n.x + 90) + '" y="' + (n.y + 27) + '" text-anchor="middle">' + esc(n.t) + "</text>" +
+            '<text class="s" x="' + (n.x + 90) + '" y="' + (n.y + 47) + '" text-anchor="middle">' + esc(n.s) + "</text></g>";
+  });
+  svg.innerHTML = '<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">' +
+                  '<path d="M0,0 L10,5 L0,10 z" fill="#8a93b5"></path></marker></defs>' + html;
+  NODES.forEach(function (n) {
+    var g = document.getElementById("m-" + n.id);
+    g.onclick = function () { tourStop(); pickCard(n); };
+    g.onkeydown = function (ev) { if (ev.key === "Enter") g.onclick(); };
+  });
+})();
+document.querySelectorAll("#files .loc").forEach(function (t) { var f = fileOf(t.textContent); if (f) t.style.setProperty("--c", f.c); });
+// Name each file card by its heading, so a box can open its card.
+document.querySelectorAll("#files .fcard").forEach(function (c) { c.dataset.name = c.querySelector("h3").textContent; });
+function pickCard(n) {
+  var sec = document.getElementById("files"), c = fileByKey(n.k).c;
+  document.querySelectorAll("#map .nd").forEach(function (g) { g.classList.toggle("on", g.id === "m-" + n.id); });
+  document.querySelectorAll("#files .fcard").forEach(function (card) {
+    var on = card.dataset.name.indexOf(n.card) === 0;
+    card.classList.toggle("sel", on);
+    if (on) card.style.setProperty("--c", c);
+  });
+  sec.classList.add("pick");
+  document.getElementById("caption").innerHTML = gfmt("**" + n.t + "**: " + n.s + ". Its card is below." + (n.id === "dbs" ? " The catalogues are read by db_rules.py." : ""));
+}
+var tourAt = -1, tourTimer = null;
+function tourShow(i) {
+  tourAt = Math.max(0, Math.min(TOUR.length - 1, i));
+  var h = TOUR[tourAt], svg = document.getElementById("map");
+  svg.classList.add("touring");
+  document.getElementById("files").classList.remove("pick");
+  document.querySelectorAll("#map .nd").forEach(function (g) { g.classList.toggle("on", h.n.indexOf(g.id.slice(2)) >= 0); });
+  document.querySelectorAll("#map .ed").forEach(function (g) { g.classList.toggle("on", h.e.indexOf(g.id) >= 0); });
+  document.getElementById("caption").innerHTML = gfmt(h.t);
+  document.getElementById("tourCount").textContent = "Hop " + (tourAt + 1) + " of " + TOUR.length;
+}
+function tourStop() {
+  clearInterval(tourTimer); tourTimer = null;
+  document.getElementById("tourPlay").innerHTML = "&#9654; Play the flow";
+  document.getElementById("map").classList.remove("touring");
+  document.querySelectorAll("#map .ed").forEach(function (g) { g.classList.remove("on"); });
+}
+document.getElementById("tourPlay").onclick = function () {
+  if (tourTimer) return tourStop();
+  tourShow(tourAt >= TOUR.length - 1 ? 0 : tourAt + 1);
+  this.innerHTML = "&#10074;&#10074; Pause";
+  tourTimer = setInterval(function () {
+    if (tourAt >= TOUR.length - 1) { tourStop(); document.getElementById("map").classList.add("touring"); tourShow(tourAt); return; }
+    tourShow(tourAt + 1);
+  }, 3600);
+};
+document.getElementById("tourNext").onclick = function () { clearInterval(tourTimer); tourTimer = null; document.getElementById("tourPlay").innerHTML = "&#9654; Play the flow"; tourShow(tourAt + 1); };
+document.getElementById("tourPrev").onclick = function () { clearInterval(tourTimer); tourTimer = null; document.getElementById("tourPlay").innerHTML = "&#9654; Play the flow"; tourShow(tourAt - 1); };
+document.getElementById("showAll").onclick = function () {
+  tourStop();
+  document.getElementById("files").classList.remove("pick");
+  document.querySelectorAll("#map .nd").forEach(function (g) { g.classList.remove("on"); });
+  document.querySelectorAll("#files .fcard").forEach(function (c) { c.classList.remove("sel"); });
+  document.getElementById("caption").innerHTML = "Every file is listed below. Press <b>Play the flow</b>, or click a box.";
+};
+
+// ---------- Add a new source: a step-by-step conversation ----------
+// The guide asks what is being added and a few real names, builds a plan (plan() below), then shows one step at a time.
+// A step is { t: title, min: minutes, files: [...], body: [...], blocks: [{label, text}], code, sheet: {name, head, rows},
+//             download: true, warn: [...], check, optional, ask: [{label, stop}] }.
+// Every block and sheet gets a Copy button; sheet rows are copied tab-separated, so they paste into Excel cells.
+// Text: `code` and [file:line] are formatted; **bold** is bold. Every file:line was read from the working copy on 2026-11-11.
+var PRESETS = {
+  Edge: { app: "Edge", engine: "postgres", label: "PostgreSQL", layer: "bronze_postgres", workbook: "edge_bronze_master.xlsx",
+          db: "fms", schema: "public", tdb: "{env}_EDGE_BRONZE", tschema: "STOREDGE_FMS_PUBLIC", incol: "updated_at", table: "units" },
+  SiteLink: { app: "SiteLink", engine: "mssql", label: "SQL Server", layer: "bronze_mssql", workbook: "sitelink_bronze_master.xlsx",
+              db: "DevT5000", schema: "dbo", tdb: "{env}_SITELINK_BRONZE", tschema: "AWSDEV_DEVT5000_DBO", incol: "dupdated", table: "Units" }
+};
+// new_application_onboarding/templates/TEMPLATE_bronze_master.xlsx, embedded so the guide can hand it out offline.
+var TEMPLATE_XLSX = "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";
+var G = { c: {}, steps: [], state: [], i: 0 };
+
+function gfmt(s) {
+  return String(s).split("`").map(function (p, i) {
+    return i % 2 ? "<code>" + esc(p) + "</code>" : fmt(p).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  }).join("");
+}
+function greeting() { var h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; }
+function bot(html, cls) {
+  var d = document.createElement("div");
+  d.className = "bot" + (cls ? " " + cls : "");
+  d.innerHTML = '<div class="who">Guide</div>' + html;
+  document.getElementById("chat").appendChild(d);
+  d.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  return d;
+}
+function me(text) {
+  var d = document.createElement("div");
+  d.className = "me"; d.textContent = text;
+  document.getElementById("chat").appendChild(d);
+}
+// Buttons under a bubble. Clicking one closes the bubble, echoes the answer, and runs go().
+function choices(card, list) {
+  var box = document.createElement("div"); box.className = "opts";
+  list.forEach(function (o) {
+    var b = document.createElement("button");
+    if (o.primary) b.className = "primary";
+    b.innerHTML = esc(o.label) + (o.small ? "<small>" + esc(o.small) + "</small>" : "");
+    b.onclick = function () { card.classList.add("done"); me(o.say || o.label); o.go(); };
+    box.appendChild(b);
+  });
+  card.appendChild(box);
+}
+// Copies text, with a fallback for browsers that block the clipboard on a local file.
+function copyText(text, button) {
+  var shown = function () { var was = button.textContent; button.textContent = "Copied ✔"; setTimeout(function () { button.textContent = was; }, 1500); };
+  var old = function () {
+    var t = document.createElement("textarea"); t.value = text; t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select(); try { document.execCommand("copy"); } catch (e) {} document.body.removeChild(t); shown();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(shown, old); else old();
+}
+
+function gStart() {
+  G = { c: {}, steps: [], state: [], i: 0 };
+  document.getElementById("chat").innerHTML = "";
+  drawPlan();
+  var card = bot("<h3>" + greeting() + " &#128075;</h3><p>I'll walk you through adding a new source to the framework, one step at a time. " +
+                 "Most of it is copy and paste: every grey block and every sheet has a <b>Copy</b> button, already filled in with your names.</p>" +
+                 "<p>A new application on PostgreSQL or SQL Server takes about <b>20 to 30 minutes</b>. A brand-new engine takes longer, because it needs a developer.</p>" +
+                 "<p><b>Are you adding a new source today?</b></p>");
+  choices(card, [
+    { label: "Yes, let's add one", primary: true, go: gKind },
+    { label: "Not now, just looking", go: function () {
+        var d = bot("<p>No problem. <b>Play a run</b> shows what one run does, and <b>Code tree</b> shows the functions behind it. Come back here whenever you're ready.</p>");
+        choices(d, [{ label: "↻ Start over", go: gStart }]);
+      } }
+  ]);
+}
+
+function gKind() {
+  var card = bot("<h3>What are you adding?</h3><p>The steps depend on how much of it the framework already knows.</p>");
+  choices(card, [
+    { label: "More tables for Edge or SiteLink", small: "the application is already set up: about 10 minutes", go: function () {
+        var d = bot("<h3>Which application?</h3>");
+        choices(d, [
+          { label: "Edge", small: "PostgreSQL", go: function () { gDetails("more", PRESETS.Edge); } },
+          { label: "SiteLink", small: "SQL Server", go: function () { gDetails("more", PRESETS.SiteLink); } }
+        ]);
+      } },
+    { label: "A new application on PostgreSQL or SQL Server", small: "e.g. Payments, Insurance, Molo: about 20 to 30 minutes", go: function () {
+        var d = bot("<h3>Which engine does it run on?</h3>");
+        choices(d, [
+          { label: "PostgreSQL", go: function () { gDetails("app", PRESETS.Edge); } },
+          { label: "SQL Server", go: function () { gDetails("app", PRESETS.SiteLink); } }
+        ]);
+      } },
+    { label: "A new engine or a layer of its own", small: "e.g. MySQL, or bronze_newbook: needs a developer", go: function () {
+        gDetails("engine", null);
+      } }
+  ]);
+}
+
+// Asks for the real names that fill in every template. An empty optional field keeps a <...> marker to fill in later.
+function gDetails(kind, preset) {
+  var F = [];
+  if (kind !== "more") F.push({ k: "app", label: "Application name", ph: "Marketplace", help: "The name people use for it. It also names the Snowflake database below." });
+  if (kind === "engine") {
+    F.push({ k: "engine", label: "Engine key (lower case)", ph: "mysql", help: "The layer becomes bronze_<key>. Letters, digits and _ only." });
+    F.push({ k: "label", label: "Engine name, as people write it", ph: "MySQL", help: "Shown in messages, and the start of the mapping sheet's name." });
+  }
+  if (kind !== "more") {
+    F.push({ k: "db", label: "Source database: the real name on the server, not the engine", ph: "e.g. payments", dflt: "<source database>",
+             help: "Not sure? Leave it empty: step 1 has a query that shows it." });
+    F.push({ k: "schema", label: "Source schema", ph: preset && preset.engine === "mssql" ? "e.g. dbo" : "e.g. public", dflt: "<source schema>",
+             help: "The schema the tables live in on the source." });
+    F.push({ k: "tdb", label: "Snowflake database (keep {env})", ph: "{env}_<APPLICATION>_BRONZE",
+             help: "Leave it empty to use {env}_<APPLICATION>_BRONZE. {env} becomes DEV, STG or PRD at run time." });
+    F.push({ k: "tschema", label: "Snowflake schema", ph: "e.g. PAYMENTS_PUBLIC", dflt: "<Snowflake schema>",
+             help: "Not sure? Leave it empty: step 1 has a query that shows it." });
+  }
+  F.push({ k: "table", label: "One small table to try first", ph: preset && kind === "more" ? preset.table : "accounts",
+           help: "Pick a small one: the first runs read it in full." });
+  var card = bot("<h3>A few names, so every template shows your real values</h3><div class=\"inputs\">" +
+    F.map(function (f) {
+      return '<label>' + esc(f.label) + '<input data-k="' + f.k + '" placeholder="' + esc(f.ph) + '"><span class="help">' + esc(f.help) + "</span></label>";
+    }).join("") + '<div class="err"></div></div>');
+  choices(card, [{ label: "Continue", primary: true, say: "", go: function () {} }]);
+  var btn = card.querySelector(".opts button");
+  btn.onclick = function () {
+    var v = {}, err = "";
+    F.forEach(function (f) {
+      var typed = card.querySelector('input[data-k="' + f.k + '"]').value.trim();
+      v[f.k] = typed || (f.dflt !== undefined ? f.dflt : (f.k === "tdb" ? "" : f.ph));
+    });
+    if (v.engine && !/^[a-z][a-z0-9_]*$/.test(v.engine)) err = "The engine key is lower-case letters, digits and _ only, e.g. mysql.";
+    if (v.app && !/^[A-Za-z][A-Za-z0-9 _-]*$/.test(v.app)) err = "The application name starts with a letter, e.g. Marketplace.";
+    if (v.tdb && v.tdb.indexOf("{env}") < 0) err = "The Snowflake database must keep {env}, e.g. {env}_PAYMENTS_BRONZE.";
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(v.table)) err = "The table name is letters, digits and _ only.";
+    if (err) { card.querySelector(".err").textContent = err; return; }
+    card.classList.add("done");
+    var c = Object.assign({}, preset || {}, { kind: kind, table: v.table });
+    if (kind !== "more") {
+      var APP = v.app.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+      c.app = v.app; c.db = v.db; c.schema = v.schema; c.tschema = v.tschema;
+      c.tdb = v.tdb || "{env}_" + APP + "_BRONZE";
+      c.existing = preset ? preset.app : ""; c.presetTschema = preset ? preset.tschema : "";
+    }
+    if (kind === "engine") {
+      c.engine = v.engine; c.label = v.label; c.layer = "bronze_" + v.engine;
+      c.workbook = v.engine + "_bronze_master.xlsx"; c.incol = "updated_at";
+    }
+    me(F.map(function (f) { return f.label.split(":")[0].split(" (")[0] + ": " + (f.k === "tdb" ? c.tdb : v[f.k]); }).join(" · "));
+    G.c = c;
+    gIncremental();
+  };
+}
+
+function gIncremental() {
+  var card = bot("<h3>Will these tables also run with <code>--run_type incremental</code>?</h3><p>Historical compares the whole table (or its filter). " +
+                 "Incremental compares only what Fivetran loaded since the last run, and needs a few more pieces: a control table row, the Fivetran connection and the freshness check.</p>" +
+                 "<p>Not sure? Choose <b>Historical only</b>. You can add incremental later.</p>");
+  choices(card, [
+    { label: "Yes, historical and incremental", go: function () { G.c.incr = true; gPlan(); } },
+    { label: "Historical only for now", primary: true, go: function () { G.c.incr = false; gPlan(); } }
+  ]);
+}
+
+function gPlan() {
+  G.steps = plan(G.c); G.state = []; G.i = 0;
+  var mins = G.steps.reduce(function (a, s) { return a + (s.min || 0); }, 0);
+  drawPlan();
+  bot("<p>Here's the plan for <b>" + esc(G.c.app) + "</b>: <b>" + G.steps.length + " steps</b>, about <b>" + mins + " minutes</b>, listed on the right. " +
+      "Each step names the file to open, gives you the text to paste, and says how you know it's done. Steps marked <i>optional</i> can be skipped.</p>");
+  gStep(0);
+}
+
+function drawPlan() {
+  var ol = document.getElementById("planlist");
+  if (!G.steps.length) { ol.innerHTML = '<li class="empty">The steps appear here once you choose what you\'re adding.</li>'; }
+  else ol.innerHTML = G.steps.map(function (s, i) {
+    var cls = G.state[i] || (i === G.i ? "now" : "");
+    return '<li class="' + cls + '">' + esc(s.t) + (s.min ? " <small>~" + s.min + " min</small>" : "") + "</li>";
+  }).join("");
+  var done = G.state.filter(Boolean).length;
+  document.getElementById("bar").style.width = (G.steps.length ? 100 * done / G.steps.length : 0) + "%";
+}
+
+function gStep(i) {
+  G.i = i; drawPlan();
+  if (i >= G.steps.length) return gFinish();
+  var s = G.steps[i], copies = [];
+  var copyBtn = function (text, label) { copies.push(text); return '<button class="copy" data-copy="' + (copies.length - 1) + '">' + esc(label) + "</button>"; };
+  var tsv = function (rows) { return rows.map(function (r) { return r.map(function (x) { return x == null ? "" : String(x); }).join("\t"); }).join("\n"); };
+  var html = '<div class="who">Step ' + (i + 1) + " of " + G.steps.length + "</div><h3>" + gfmt(s.t) +
+             (s.min ? ' <span class="mins">about ' + s.min + " min</span>" : "") + (s.optional ? ' <span class="mins">optional</span>' : "") + "</h3>";
+  if (s.files) html += '<div class="touch">' + s.files.map(function (f) { return locTag(esc(f)); }).join("") + "</div>";
+  if (s.body) html += "<ul>" + s.body.map(function (b) { return "<li>" + gfmt(b) + "</li>"; }).join("") + "</ul>";
+  if (s.download) html += '<p><a class="dl" download="TEMPLATE_bronze_master.xlsx" href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' +
+                          TEMPLATE_XLSX + '">&#11015; Download the workbook template</a></p>';
+  (s.blocks || []).concat(s.code ? [{ label: "Paste this", text: s.code }] : []).forEach(function (b) {
+    html += '<div class="blk"><div class="blkhead"><span>' + gfmt(b.label) + "</span>" + copyBtn(b.text, "Copy") + "</div><pre>" + esc(b.text) + "</pre></div>";
+  });
+  if (s.sheet) {
+    var sh = s.sheet, rows = sh.rows || [sh.row];
+    html += (sh.name ? '<div class="sheetname">Sheet <b>' + esc(sh.name) + "</b></div>" : "") +
+            '<div class="sheet"><table><tr>' + sh.head.map(function (h) { return "<th>" + esc(h) + "</th>"; }).join("") + "</tr>" +
+            rows.map(function (r) { return "<tr>" + r.map(function (x) { return "<td>" + esc(x == null ? "" : x) + "</td>"; }).join("") + "</tr>"; }).join("") +
+            "</table></div><div class=\"copyrow\">" +
+            copyBtn(tsv(rows), "Copy the rows (paste into the first empty row, column A)") +
+            copyBtn(tsv([sh.head].concat(rows)), "Copy headers + rows (paste into cell A1 of an empty sheet)") + "</div>";
+  }
+  (s.warn || []).forEach(function (w) { html += '<div class="limit">' + gfmt(w) + "</div>"; });
+  if (s.check) html += '<div class="check"><b>Done when:</b> ' + gfmt(s.check) + "</div>";
+  var card = bot(html);
+  card.querySelector(".who").remove();   // the step label replaces "Guide"
+  card.querySelectorAll("button.copy").forEach(function (b) { b.onclick = function () { copyText(copies[+b.dataset.copy], b); }; });
+  var next = function (state) { return function () { G.state[i] = state; gStep(i + 1); }; };
+  var list = s.ask ? s.ask.map(function (a) {
+      return { label: a.label, primary: !a.stop, go: a.stop ? function () { gStop(a.stop); } : next("ok") };
+    }) : [{ label: "✔ I'm done, next step", primary: true, say: "Done with step " + (i + 1) + ".", go: next("ok") }];
+  if (s.optional) list.push({ label: "Not needed for my tables", say: "Skipping step " + (i + 1) + ".", go: next("skip") });
+  if (i > 0) list.push({ label: "◀ Back a step", say: "Take me back to step " + i + ".",
+                          go: function () { G.state[i - 1] = undefined; gStep(i - 1); } });
+  choices(card, list);
+}
+
+function gStop(lines) {
+  var d = bot("<h3>&#9940; Stop here for now</h3>" + lines.map(function (l) { return "<p>" + gfmt(l) + "</p>"; }).join(""), "stop");
+  choices(d, [{ label: "◀ Back to that step", go: function () { gStep(G.i); } }, { label: "↻ Start over", go: gStart }]);
+}
+
+function gFinish() {
+  var c = G.c, files = [];
+  G.steps.forEach(function (s, i) { if (G.state[i] === "ok") (s.files || []).forEach(function (f) { if (files.indexOf(f) < 0) files.push(f); }); });
+  var d = bot("<h3>&#127881; All done. " + esc(c.app) + " is ready to validate.</h3><p>You went through " + files.length +
+    " file(s):</p><div class=\"touch\">" + files.map(function (f) { return locTag(esc(f)); }).join("") + "</div>" +
+    "<p>From now on, adding a table to " + esc(c.app) + " is one row in <code>" + esc(c.workbook) + "</code> (plus a mapping row for any new type).</p>", "win");
+  choices(d, [
+    { label: "Copy the checklist", say: "Copy the checklist.", go: function () {
+        var text = "Add a new source: " + c.app + " (" + c.layer + ")\n" + G.steps.map(function (s, i) {
+          return (i + 1) + ". " + s.t + (G.state[i] === "skip" ? " (not needed)" : "") + (s.files ? "\n   " + s.files.join(", ") : "");
+        }).join("\n");
+        var shown = bot("<p>Here's the checklist. It's on your clipboard too, if the browser allowed it.</p><pre>" + esc(text) + "</pre>");
+        if (navigator.clipboard) navigator.clipboard.writeText(text).catch(function () {});
+        choices(shown, [{ label: "↻ Start over", go: gStart }]);
+      } },
+    { label: "↻ Start over", go: gStart }
+  ]);
+}
+
+// The steps for one source. c holds the names: app, engine, label, layer, workbook, db, schema, tdb, tschema, incol, table.
+function plan(c) {
+  var S = [], pg = c.engine === "postgres", ms = c.engine === "mssql", newEngine = c.kind === "engine";
+  var DEV = function (s) { return String(s).replace("{env}", "DEV"); };
+  var TABLE = c.table.toUpperCase(), TSCHEMA = String(c.tschema).toUpperCase();
+  var mapSheet = (pg ? "Postgres" : ms ? "MSSQL" : c.label) + " schema mapping";
+
+  // ---- step texts shared by the routes ----
+  var whereSql = pg ? "-- Run on the PostgreSQL source\nSELECT current_database() AS source_database, table_schema AS source_schema, table_name\n" +
+                      "FROM information_schema.tables\nWHERE table_name ILIKE '" + c.table + "';"
+               : ms ? "-- Run on the SQL Server source\nSELECT DB_NAME() AS source_database, TABLE_SCHEMA AS source_schema, TABLE_NAME\n" +
+                      "FROM INFORMATION_SCHEMA.TABLES\nWHERE TABLE_NAME = '" + c.table + "';"
+               : "-- Run on the " + c.label + " source (most engines have information_schema)\nSELECT table_catalog, table_schema, table_name\n" +
+                 "FROM information_schema.tables\nWHERE LOWER(table_name) = LOWER('" + c.table + "');";
+  var snowWhereSql = "-- Run in Snowflake (role FR_PLATFORM_READER)\nSELECT table_catalog, table_schema, table_name\nFROM " + DEV(c.tdb) +
+                     ".information_schema.tables\nWHERE table_name = '" + TABLE + "';";
+  var facts = "APPLICATION ..........: " + c.app + "\nENGINE ...............: " + c.label + "\nLAYER (--layer_type) .: " + c.layer +
+              "\nWORKBOOK .............: yaml_generation/master_files/" + c.workbook + "\nSOURCE DATABASE ......: " + c.db +
+              "\nSOURCE SCHEMA ........: " + c.schema + "\nSNOWFLAKE DATABASE ...: " + c.tdb + "\nSNOWFLAKE SCHEMA .....: " + c.tschema +
+              "\nFIRST TABLE ..........: " + c.table;
+  var factsStep = {
+    t: "Collect the facts (keep them open while you work)", min: c.kind === "more" ? 1 : 5,
+    body: ["Every later step uses these values. Anything still showing `<...>` needs a real value: the two queries below find them.",
+           "**Source database** is the database's real name on the server (like `fms`), never the engine (`PostgreSQL`).",
+           "**Snowflake database** keeps `{env}`. The run swaps it for DEV, STG or PRD."],
+    blocks: [{ label: "Your facts (paste into a note and fill any gaps)", text: facts },
+             { label: "Don't know the source database or schema? Run this on the source:", text: whereSql },
+             { label: "Don't know the Snowflake database or schema? Run this in Snowflake:", text: snowWhereSql }],
+    check: "Every line of the facts has a real value."
+  };
+
+  var row = {
+    t: "Add one row per table to the master workbook", min: 5,
+    files: ["yaml_generation/master_files/" + c.workbook],
+    body: ["Open the workbook. The tables sheet is the first sheet with these headers; its name doesn't matter. Headers, sheet names and table names ignore case.",
+           "Copy the row below and paste it under the last row. For more tables, paste it again and change only **Target Table Name**.",
+           "**source_database** is the real database name (`" + c.db + "`), not the engine. An engine name stops the run [yaml_generation/filter_files.py:372].",
+           "**target_database** keeps `{env}`. A row without it is refused [yaml_generation/filter_files.py:378].",
+           "The two **filter** cells are optional: empty compares the whole table. A big table should have one so it isn't loaded into memory in full: the table and alias, any joins, then a `where` line. Or write `compare full`."],
+    sheet: { head: ["Target Table Name", "Historical Filter to apply.", "Incremental filters to apply", "source_application", "source_database",
+                    "source_schema", "target_application", "target_database", "target_schema"],
+             rows: [[c.table, "", "", c.app, c.db, c.schema, "Snowflake", c.tdb, c.tschema]] },
+    check: "Every location cell is filled. A blank one stops the run and names the file and row [yaml_generation/filter_files.py:369]."
+  };
+  if (c.kind === "app") row.body.unshift("Each layer has **one** workbook, so the " + c.app + " rows go in `" + c.workbook + "`, under " + c.existing +
+    "'s. The generator groups rows by location and generates each group on its own [yaml_generation/generate_yaml.py:375].");
+
+  var typesSql = ms ? "-- Run on the source: the types your tables use\nSELECT DISTINCT DATA_TYPE\nFROM [" + c.db + "].INFORMATION_SCHEMA.COLUMNS\n" +
+                      "WHERE TABLE_SCHEMA = '" + c.schema + "' AND TABLE_NAME IN ('" + c.table + "')\nORDER BY 1;"
+                    : "-- Run on the source: the types your tables use\nSELECT DISTINCT data_type\nFROM information_schema.columns\n" +
+                      "WHERE table_schema = '" + c.schema + "' AND table_name IN ('" + c.table + "')\nORDER BY 1;";
+  var snowTypesSql = "-- Run in Snowflake: the type each column landed as\nSELECT column_name, data_type\nFROM " + DEV(c.tdb) +
+                     ".information_schema.columns\nWHERE table_schema = '" + TSCHEMA + "' AND table_name = '" + TABLE + "'\nORDER BY ordinal_position;";
+  var mapRows = pg ? [["integer", "number", "numeric", ""], ["bigint", "number", "", ""], ["numeric", "number", "", ""],
+                      ["character varying", "text", "character", ""], ["text", "text", "", ""], ["boolean", "boolean", "", ""], ["date", "date", "", ""],
+                      ["timestamp without time zone", "timestamp_ntz", "datetime", ""], ["timestamp with time zone", "timestamp_tz", "", ""], ["jsonb", "variant", "", ""]]
+              : ms ? [["int", "number", "numeric", ""], ["bigint", "number", "numeric", ""], ["decimal", "number", "numeric", ""], ["money", "number", "numeric", ""],
+                      ["nvarchar", "text", "character", ""], ["bit", "boolean", "", ""], ["datetime", "timestamp_ntz", "datetime", ""], ["float", "float", "", ""]]
+              : [["NUMBER", "number", "numeric", "example: replace with your types"], ["TEXT", "text", "character", "example"], ["BOOLEAN", "boolean", "", "example"],
+                 ["DATE", "date", "", "example"], ["TIMESTAMP_NTZ", "timestamp_ntz", "datetime", "example"], ["TIMESTAMP_TZ", "timestamp_tz", "", "example"]];
+  var mapping = {
+    t: "Type mapping, for --schema_validation yes", min: 5, optional: true,
+    files: ["yaml_generation/master_files/" + c.workbook],
+    body: ["The schema check compares each column's type on both sides. The **" + mapSheet + "** sheet says which Snowflake type each source type should land as.",
+           "**Every type your tables use needs a row.** A missing type fails only that table's schema check; the log names the columns, for example `ID (NUMBER)`, and says to add a row. Other tables go on.",
+           "**An empty sheet stops the whole run** before anything is written, with one line: `Fix this and run again: ... sheet '" + mapSheet + "' has no type mapping row`. Fill the sheet and run again.",
+           (newEngine ? "Paste the rows below into the sheet, then replace them with the types query 1 returns."
+                      : "The sheet already has the common types shown below. Run query 1, and add a row only for a type that isn't there yet."),
+           "**Case doesn't matter, on either side**: `USER-DEFINED`, `user-defined` and `User-Defined` are the same type.",
+           "**target_data_type** is the Snowflake type: `number`, `text`, `boolean`, `float`, `date`, `timestamp_ntz`, `timestamp_tz` or `variant`. Query 2 shows what Snowflake actually made of each column.",
+           "**precision_check** is empty or one of `numeric`, `datetime`, `character`. It turns on the matching length or precision comparison for that type.",
+           "Both type cells must be filled; a row with only one fails the run and names the row."],
+    blocks: [{ label: "1. List the types your tables use (run on the source; add more table names inside IN (...))", text: typesSql },
+             { label: "2. See the Snowflake type of each column (run in Snowflake)", text: snowTypesSql }],
+    sheet: { name: mapSheet, head: ["source_data_type", "target_data_type", "precision_check", "notes"], rows: mapRows },
+    check: "Each type from query 1 has a row in **" + mapSheet + "**."
+  };
+
+  var rules = {
+    t: "Table rules, only where a table needs one", optional: true, min: 3,
+    files: ["yaml_generation/settings/dev_rules.xlsx"],
+    body: ["Most tables need no rule. Add a row to the **table_rules** sheet only when a table needs one of these, and leave the other cells empty:",
+           "**key_columns**: the key, comma separated, for a table with no primary key. Without a key its data check fails, though its count is still written [yaml_generation/generate_yaml.py:236]. The example row names `id`: change it or clear it.",
+           "**exclude_columns**: columns to leave out for this one table. Columns to leave out for the whole engine go in `settings/exclusions.yaml`.",
+           "**source_where / target_where**: a filter that wins over the master workbook's filter for that side.",
+           "**incremental_column**: the change column, when it isn't `" + (c.incol || "updated_at") + "`."],
+    sheet: { name: "table_rules", head: ["source_type", "source_schema", "table_name", "key_columns", "exclude_columns", "source_where", "target_where", "incremental_column"],
+             rows: [[c.engine, c.schema, c.table, "id", "", "", "", ""]] },
+    check: "Each table that needs a rule has a row with source_type `" + c.engine + "`, its source_schema and its table_name."
+  };
+
+  var snowflake = {
+    t: "Check that Snowflake can see the table", min: 2,
+    files: ["creds/dev.yaml"],
+    body: ["The run reads Snowflake with the role `FR_PLATFORM_READER`. It needs read access to `" + DEV(c.tdb) + "`.",
+           "Run this once in Snowflake for the table you're trying first."],
+    code: "SELECT COUNT(*) FROM " + DEV(c.tdb) + "." + TSCHEMA + "." + TABLE + " WHERE _FIVETRAN_ACTIVE = TRUE;",
+    check: "It returns a number, not **does not exist or not authorized**. If it fails, ask for read access on that database for `FR_PLATFORM_READER`."
+  };
+
+  var controlLine = c.table.toLowerCase() + ",2026-11-01 00:00:00.000 +0000,2026-11-01 00:00:00.000 +0000," + c.layer;
+  var control = {
+    t: "Incremental: add the table to the control table", min: 2,
+    files: ["control_table.csv"],
+    body: ["The control table remembers when each table was last checked. The incremental run compares only what Fivetran loaded after that.",
+           "Add one line per table at the end of the file: the table name in **lower case**, the last count run, the last data run, the layer.",
+           "The two dates are where the first window starts. Use a recent date, or the date of the last historical run.",
+           "Without the line, the incremental run stops with **No … found … seed a value first** [utils/utility.py:655]."],
+    blocks: [{ label: "Add this line (columns: table, count_validation_last_run_date, data_validation_last_run_date, layer)", text: controlLine }],
+    check: "Each table has one line for `" + c.layer + "`."
+  };
+  var devOnly = "Both incremental queries name the **DEV** Snowflake database whatever `--environment` says [utils/utility.py:610] [utils/utility.py:666], " +
+                "so an incremental run on stg or prod still reads DEV. Run incremental on dev only until that's fixed.";
+
+  var base = "python main.py --layer_type " + c.layer + " --tables " + c.table + " --run_type historical --environment dev";
+  var run = {
+    t: "Run one small table, one check at a time", min: 5,
+    files: ["main.py"],
+    body: ["Run the three commands in order. Each writes the YAML for its check first, then validates [utils/utility.py:570].",
+           "Read the **YAML** lines in the log. **NEW / UPDATED / UNCHANGED / PRESENT**: the YAML is ready. **FAILED**: the reason is on the same line and nothing was changed. Fix it (usually a workbook cell or a mapping row) and run again.",
+           "A line `ERROR ... Fix this and run again: ...` means an input problem (workbook row, mapping sheet, flag, creds): the message names the file, sheet and row to fix. A traceback means a code error: report it.",
+           "Exit code **0**: everything matched. **2**: a check found differences. **1**: a FAILED table or a system error.",
+           "The YAML is written to `config/historical/" + c.layer + "/`. The data YAML's source query should name `" + c.db + "." + c.schema + "." + c.table + "`.",
+           "Start small. Never run a huge table without a filter: `notes` has 100M rows."],
+    blocks: [{ label: "1. Schema check (needs the type mapping)", text: base + " --schema_validation yes --count_validation no --data_validation no" },
+             { label: "2. Row counts", text: base + " --schema_validation no --count_validation yes --data_validation no" },
+             { label: "3. Data compare (needs a primary key, or key_columns in the table rules)", text: base + " --schema_validation no --count_validation no --data_validation yes" }],
+    check: "Each run lists the table as NEW or UNCHANGED, and exits 0 or 2."
+  };
+
+  // ---- more tables for an application that is already set up ----
+  if (c.kind === "more") {
+    S.push(factsStep, row, mapping, rules);
+    if (c.incr) { control.warn = [devOnly]; S.push(control); }
+    S.push(run);
+    return S;
+  }
+
+  // ---- a new application on an engine we already have ----
+  if (c.kind === "app") {
+    S.push(factsStep);
+    S.push({
+      t: "Check that the connection we have can reach it", min: 2,
+      files: ["creds/dev.yaml", "db/factory.py:14"],
+      body: pg ? ["`creds/<env>.yaml` has **one** `postgres` block, and it connects to the database `fms`. `get_database()` opens one connection per engine [db/factory.py:14].",
+                  "PostgreSQL reads only the database it's connected to, so " + c.app + " has to live in `fms` (its own schema there is fine)."]
+               : ["`creds/<env>.yaml` has **one** `mssql` block: one server, database `DevT5000`. `get_database()` opens one connection per engine [db/factory.py:14].",
+                  "SQL Server can read another database on the **same server** by its three-part name, `[OtherDb].[dbo].[Table]`, which is how the YAML writes it, as long as the login can read that database."],
+      ask: [{ label: pg ? "Yes, it's in fms" : "Yes, same server, and the login can read it" },
+            { label: pg ? "No, it has its own database" : "No, it's on another server", stop: [
+                "**One connection per engine.** " + c.app + " can't be reached through the connection the framework opens today [db/factory.py:14].",
+                "What's needed first: a way for a workbook row to name its connection, for example a `source_connection` column that names a block in `creds/<env>.yaml`. That's a design change: agree on it before adding rows."] }]
+    });
+    S.push({
+      t: "Check that no table name is already taken", min: 2,
+      files: ["config/historical/" + c.layer + "/data_validation/"],
+      body: ["YAML is written per layer and table: `config/<run_type>/" + c.layer + "/data_validation/<table>.yaml`.",
+             "If " + c.existing + " already has a table of the same name (say `users`), the two applications would write the same file. Look in the folder above for each of your table names."],
+      ask: [{ label: "None of the names is taken" },
+            { label: "A name is already taken", stop: ["**Two applications, one file name.** Decide between a folder per application and a prefix on the table name before going on. Both change where `config_dir_for()` writes [yaml_generation/generate_yaml.py:300]."] }]
+    });
+    S.push(row, mapping, snowflake, rules);
+    if (c.incr) {
+      var sameSchema = TSCHEMA === String(c.presetTschema).toUpperCase();
+      control.warn = sameSchema ? [devOnly] : [
+        "**Incremental reads one fixed Snowflake schema per layer.** For `" + c.layer + "` that's `" + DEV(PRESETS[c.existing].tdb) + "." + c.presetTschema +
+        "` [utils/utility.py:610] [utils/utility.py:666]. The " + c.app + " tables are in `" + c.tschema + "`, so an incremental run would read the wrong table. " +
+        "Run historical only until those two queries take the schema from the workbook.", devOnly];
+      control.body.push("`creds/api.yaml` holds **one** Fivetran connection id per layer (the key `" + c.layer + "`) [utils/utility.py:733], so " + c.app +
+                        " and " + c.existing + " can't use different Fivetran connectors in the same layer.");
+      S.push(control);
+    }
+    S.push(run);
+    return S;
+  }
+
+  // ---- a new engine, or a layer of its own ----
+  S.push(factsStep, {
+    t: "Create the master workbook from the template", min: 3, download: true,
+    files: ["yaml_generation/master_files/" + c.workbook, "new_application_onboarding/templates/TEMPLATE_bronze_master.xlsx"],
+    body: ["Download the template (button below), or copy `new_application_onboarding/templates/TEMPLATE_bronze_master.xlsx`.",
+           "Save it as `yaml_generation/master_files/" + c.workbook + "`.",
+           "Rename the sheet **Postgres schema mapping** to **" + mapSheet + "**. It must match the name you register two steps from now (case doesn't matter).",
+           "Delete the example rows; the next steps give you the rows to paste. The **READ_ME** sheet explains every column and can stay: the framework skips it."],
+    check: "The file is in `yaml_generation/master_files/` with a tables sheet and a **" + mapSheet + "** sheet."
+  }, row, mapping, {
+    t: "Register the workbook (developer)", min: 3,
+    files: ["yaml_generation/filter_files.py:91", "yaml_generation/filter_files.py:98"],
+    body: ["`WORKBOOKS` says which workbook each engine reads, and `SCHEMA_SHEETS` which sheet holds its type mapping. No other file in the folder is read.",
+           "Replace the two lines with the ones below (they keep the existing entries)."],
+    code: 'WORKBOOKS = {"postgres": "edge_bronze_master.xlsx", "mssql": "sitelink_bronze_master.xlsx",\n' +
+          '             "' + c.engine + '": "' + c.workbook + '"}\n' +
+          'SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping",\n' +
+          '                 "' + c.engine + '": "' + mapSheet + '"}',
+    check: "`python yaml_generation/filter_files.py` prints **filter_files self-check passed**."
+  }, {
+    t: "Teach the generator the " + c.label + " dialect (developer)", min: 15,
+    files: ["yaml_generation/db_rules.py:33", "yaml_generation/db_rules.py:165"],
+    body: ["Add the block below to `RULES`, then change every value to " + c.label + "'s way: how a name is quoted, the text type, true/false, trim, the timestamp and date formats, the type families and the `schema_query`. The comments at the top of `db_rules.py` explain each key.",
+           "Types that can't become text (like SQL Server's rowversion) go in `refused_types`: the table then fails with a reason instead of comparing nonsense.",
+           "Add `\"" + c.engine + "\"` to `SOURCE_TYPES`, or `--layer_type " + c.layer + "` is refused with **has no YAML generation** [yaml_generation/generate_yaml.py:353].",
+           "An engine whose database is also its schema (MySQL) needs `two_part_names` (part of the MySQL work): names are written `schema`.`table`, and the workbook's source_schema holds the database name.",
+           "Only PostgreSQL has been run against a live database. Check each value on the real " + c.label + " server before you rely on it."],
+    code: '"' + c.engine + '": {\n    "label": "' + c.label + '",\n    "has_primary_keys": True,\n    "quote": (\'`\', \'`\'),          # how a name is quoted\n' +
+          '    "text_type": "CHAR",\n    "true": "1", "false": "0",\n    "trim": "TRIM({c})",\n    "timestamp": "DATE_FORMAT({c}, \'%Y-%m-%d %H:%i:%s.%f\')",\n' +
+          '    "date": "DATE_FORMAT({c}, \'%Y-%m-%d\')",\n    "boolean_types": {...}, "timestamp_types": {...}, "date_types": {...},\n' +
+          '    "text_types": {...}, "large_text_types": set(), "integer_types": {...},\n    "json_types": {...}, "refused_types": set(),\n' +
+          '    "schema_query": "... information_schema.columns ... \'{schema}\' ... \'{table_name}\' ...",\n},',
+    check: "`python -m pytest yaml_generation/tests/test_db_rules.py -q` passes, with a test for the new block next to the others."
+  }, {
+    t: "Settings: the change column and the exclusions (developer)", min: 3,
+    files: ["yaml_generation/settings.py:43", "yaml_generation/settings/exclusions.yaml"],
+    body: ["`INCREMENTAL_COLUMNS` names the column the incremental window runs on, for each engine.",
+           "`exclusions.yaml` has one section per engine: columns left out on that side **and** on the Snowflake copy. Start it empty."],
+    code: 'INCREMENTAL_COLUMNS = {"postgres": "updated_at", "mssql": "dupdated", "' + c.engine + '": "updated_at"}\n\n# exclusions.yaml\n' + c.engine + ":\n  exclude_columns: []",
+    check: "Both files name `" + c.engine + "`."
+  }, {
+    t: "A connector and its credentials (developer)", min: 20,
+    files: ["db/" + c.engine + ".py", "db/factory.py:14", "creds/dev.yaml", "creds/stg.yaml", "creds/prod.yaml", "creds/local.yaml"],
+    body: ["`db/" + c.engine + ".py`: a class like `db/postgres.py`, based on `Database` [db/base.py:4], with `connect()`, `execute_query(query)` returning a pandas DataFrame, and `close()`.",
+           "`db/factory.py`: an `elif db_type == \"" + c.engine + "\":` branch in `get_database()`. The key must be the engine key: the generator calls `get_database(\"" + c.engine + "\")` [yaml_generation/generate_yaml.py:391].",
+           "Every `creds/<env>.yaml`: a `" + c.engine + ":` block. `creds/example.yaml` lists the fields."],
+    code: "elif db_type == \"" + c.engine + "\":\n    cfg = creds[\"" + c.engine + "\"]\n    db = " + c.label.replace(/[^A-Za-z0-9]/g, "") + "(host=cfg[\"host\"], database=cfg[\"database\"], user=cfg[\"user\"], password=cfg[\"password\"])",
+    check: "A one-line script that calls `get_database(\"" + c.engine + "\", <framework folder>, \"dev\").execute_query(\"SELECT 1\")` returns a DataFrame."
+  }, {
+    t: "Open the layer to the command line (developer)", min: 2,
+    files: ["utils/utility.py:16"],
+    body: ["Add `" + c.layer + "` to the `BRONZE_LAYERS` tuple at the top of `utils/utility.py` [utils/utility.py:16]. That's the only edit: the `--layer_type` choices [utils/utility.py:451], the output paths, schema validation, the yes defaults and YAML generation all read this tuple.",
+           "The generator finds the engine by dropping `bronze_` from the layer name [yaml_generation/generate_yaml.py:351], so the layer **must** be called `" + c.layer + "`."],
+    code: 'BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql", "' + c.layer + '")',
+    warn: ["A layer named after an application, such as `bronze_newbook`, works only if `newbook` is the key **everywhere**: `RULES`, `SOURCE_TYPES`, `WORKBOOKS`, `SCHEMA_SHEETS` and `get_database()`. There is no separate layer → engine map yet."],
+    check: "`python main.py --layer_type " + c.layer + " --help` runs without **invalid choice**."
+  }, snowflake, rules);
+  if (c.incr) {
+    var tgt = DEV(c.tdb) + "." + TSCHEMA;
+    S.push({
+      t: "Incremental: the freshness check, the window and Fivetran (developer)", min: 10,
+      files: ["utils/utility.py:603", "utils/utility.py:634", "creds/api.yaml"],
+      body: ["`check_freshness()` and `get_dates()` have one branch per layer: `bronze_postgres` and `bronze_mssql` today [utils/utility.py:605] [utils/utility.py:663]. Without a branch for `" + c.layer + "` an incremental run stops with an error.",
+             "Paste the first block next to the `bronze_mssql` branch of `check_freshness()` [utils/utility.py:612], and the second next to the one in `get_dates()` [utils/utility.py:670].",
+             "`creds/api.yaml` needs the Fivetran connection id under the key `" + c.layer + "` [utils/utility.py:733]."],
+      blocks: [{ label: "check_freshness(): the newest change on each side", text:
+                   '    elif layer_type == "' + c.layer + '":\n        source_query = f"""\n        SELECT max(' + c.incol + ') as max_date from {source_table_name}\n            """\n' +
+                   '        target_query = f"""\n            SELECT max(' + c.incol + ') as max_date from ' + tgt + '.{target_table_name}\n            """' },
+               { label: "get_dates(): what Fivetran loaded since the last run", text:
+                   "    elif layer == '" + c.layer + "':\n        target_query = f\"\"\"\n        SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start\n" +
+                   "        FROM " + tgt + ".{target_table_name}\n        WHERE _FIVETRAN_ACTIVE = TRUE\n" +
+                   "        and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';\n        \"\"\"" },
+               { label: "creds/api.yaml: add this line", text: c.layer + ": <Fivetran connection id for " + c.app + ">" }],
+      warn: [devOnly],
+      check: "Both functions have a `" + c.layer + "` branch, and `creds/api.yaml` has the `" + c.layer + "` key."
+    }, control);
+  }
+  S.push({
+    t: "Run the tests (developer)", min: 3,
+    files: ["yaml_generation/tests/"],
+    body: ["The tests use fake databases, so they run without access to " + c.label + ".",
+           "Add the new engine to a test where it matters (look at the `mssql` tests in `test_db_rules.py` and `test_filter_files.py`)."],
+    code: "python -m pytest yaml_generation/tests -q\npython yaml_generation/filter_files.py\npython yaml_generation/yaml_builder.py",
+    check: "Every test passes, and both self-checks print **passed**."
+  }, run);
+  return S;
+}
+
+// Start the guide when its tab is first opened, so the greeting matches the time it's read.
+var guideStarted = false;
+document.querySelector('.tabs button[data-view="guide"]').addEventListener("click", function () {
+  if (!guideStarted) { guideStarted = true; gStart(); }
+});
+</script>
+</body>
+</html>

@@ -75,7 +75,17 @@ def test_v3_an_unmapped_type_fails_the_column_not_the_whole_table(tmp_path, monk
     assert (failures, system_error) == (1, False)
     summary = report["Sheet1"] if "Sheet1" in report else next(iter(report.values()))
     assert summary.loc[0, "datatype_validation"] == "FAIL" and pd.isna(summary.loc[0, "error_message"])
-    assert report["datatype_validation"].loc[0, "description"] == "no mapping for bit"
+    assert report["datatype_validation"].loc[0, "description"] == (
+        "no mapping for bit: add it to the filter workbook's schema mapping sheet")
+
+
+def test_type_mapping_ignores_case_on_both_sides(tmp_path, monkeypatch):
+    """The sheet may write INT -> NUMBER or int -> number; the catalogue may give INT or int. All of them match."""
+    failures, system_error, _, _ = run(
+        tmp_path, monkeypatch, [col("UnitID", "INT", precision=10, scale=0), col("Name", "NVarChar", length=50)],
+        [col("UNITID", "NUMBER", precision=38, scale=0, table="UNITS"), col("NAME", "TEXT", length=50, table="UNITS")],
+        datatype_map={"Int": "NUMBER", "NVARCHAR": "Text"}, precision_checks={"numeric": ["INT"], "character": ["nvarchar"]})
+    assert (failures, system_error) == (0, False)
 
 
 def test_v2_sql_server_precision_and_length_are_checked_from_precision_checks(tmp_path, monkeypatch):

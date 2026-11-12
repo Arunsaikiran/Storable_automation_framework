@@ -396,7 +396,8 @@ def _schema(tmp_path):
 def test_unmapped_types_names_the_column_and_skips_the_excluded_ones():
     columns = [("UnitID", "int"), ("uTS", "timestamp"), ("Shape", "geography")]
     assert yb.unmapped_types(columns, {"uTS"}, {"int": "number"}) == ["Shape (geography)"]
-    assert yb.unmapped_types([("Kind", "USER-DEFINED")], set(), {"user-defined": "variant"}) == ["Kind (USER-DEFINED)"]
+    assert yb.unmapped_types([("Kind", "USER-DEFINED")], set(), {"user-defined": "variant"}) == []   # case is ignored
+    assert yb.unmapped_types([("Kind", "bit")], set(), {"BIT": "boolean"}) == []
 
 
 def test_schema_file_new_then_unchanged_then_updated(tmp_path):

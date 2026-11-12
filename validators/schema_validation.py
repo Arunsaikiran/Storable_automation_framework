@@ -52,13 +52,16 @@ def validate_schema(ctx):
     target = config_file['target']
     source_query = config_file['sourcequery']
     target_query = config_file['targetquery']
-    datatype_map = config_file['datatype_map']
+    # CHANGE: YAML generation. Types are matched without regard to case: the mapping sheet may write 'USER-DEFINED' or
+    # 'user-defined', 'TEXT' or 'text'. The keys, the targets and the precision check lists are all lower-cased here, and
+    # the source data_type is lower-cased below; the target data_type already is.
+    datatype_map = {str(k).strip().lower(): str(v).strip().lower() for k, v in (config_file['datatype_map'] or {}).items()}
     # CHANGE: YAML generation (V2). The source types each precision check applies to, from the YAML (the mapping sheet's
     # precision_check column). A file without the key keeps the PostgreSQL types checked before.
     precision_checks = config_file.get('precision_checks') or {}
-    datetime_types = precision_checks.get('datetime', ['timestamp without time zone'])
-    numeric_types = precision_checks.get('numeric', ['integer'])
-    character_types = precision_checks.get('character', ['character varying'])
+    datetime_types = [str(t).strip().lower() for t in precision_checks.get('datetime', ['timestamp without time zone'])]
+    numeric_types = [str(t).strip().lower() for t in precision_checks.get('numeric', ['integer'])]
+    character_types = [str(t).strip().lower() for t in precision_checks.get('character', ['character varying'])]
     # CHANGE: YAML generation (V1). {env} in the target query is filled for the run's environment, as count_validation.py does,
     # so one generated YAML serves every environment. local and unknown environments read DEV, as there.
     env = {"stg": "STG", "qat": "QAT", "prod": "PRD"}.get(environment, "DEV")
@@ -118,6 +121,8 @@ def validate_schema(ctx):
                 target_df[col] = target_df[col].str.strip().str.lower()
             source_df['table_name_source'] = source_df['table_name_source'].str.lower()
             source_df['column_name_source'] = source_df['column_name_source'].str.lower()
+            # CHANGE: YAML generation. The source type is lower-cased too, so the datatype_map lookup ignores case (see above).
+            source_df['data_type_source'] = source_df['data_type_source'].str.strip().str.lower()
             # target_df['table_name_target'] = target_df['table_name_target'].str.lower()
             # target_df['column_name_target'] = target_df['column_name_target'].str.lower()
 
@@ -200,7 +205,9 @@ def validate_schema(ctx):
                 else:
                     data_type_failure_counts += 1
                     r = row[['table_name_source','column_name_source','data_type_source','data_type_target']].copy()
-                    r['description'] = "" if mapped is not None else f"no mapping for {row['data_type_source']}"
+                    # CHANGE: YAML generation. The description also says how to fix a missing mapping.
+                    r['description'] = "" if mapped is not None else (
+                        f"no mapping for {row['data_type_source']}: add it to the filter workbook's schema mapping sheet")
                     datatype_rows.append(r)
             if data_type_failure_counts == 0:
                 table_result["datatype_validation"] = {"status":"PASS"}
