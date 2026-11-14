@@ -12,6 +12,8 @@ What each key means
   has_primary_keys      whether the catalogue has primary keys the generator can read
   pg_catalog            read tables, columns and keys from pg_catalog, not information_schema (PostgreSQL only).
                         information_schema leaves out whatever the role cannot read, so a table would look missing.
+  two_part_names        MySQL only: a database is its own schema, so a table is written schema.table and the database
+                        name is left out (source_name() in yaml_builder.py). The workbook's source_schema is the MySQL database.
   quote                 how a name is quoted, as (open, close)
   text_type             the type a value is cast to, so both sides become text
   true, false           how TRUE and FALSE are written
@@ -92,6 +94,44 @@ RULES = {
             "NUMERIC_SCALE AS numeric_scale,\n"
             "DATETIME_PRECISION AS datetime_precision\n"
             "FROM {database}.INFORMATION_SCHEMA.COLUMNS\n"
+            "WHERE TABLE_SCHEMA = '{schema}'\n"
+            "AND TABLE_NAME = '{table_name}'\n"
+            "ORDER BY TABLE_NAME,ORDINAL_POSITION;"),
+    },
+    # MySQL CRM (bronze_mysql_crm). A MySQL database is also its schema, so the names are schema.table. The key is the layer's,
+    # so each MySQL application has its own creds block; ESS later is one line after this dict: RULES["mysql_ess"] = RULES["mysql_crm"].
+    "mysql_crm": {
+        "label": "MySQL CRM",   # the workbook's target_application names it so (ESS will be "MySQL ESS")
+        "has_primary_keys": True,
+        "two_part_names": True,
+        "quote": ("`", "`"),
+        "text_type": "CHAR",
+        "true": "1",
+        "false": "0",
+        "trim": "TRIM({c})",
+        "timestamp": "DATE_FORMAT({c}, '%Y-%m-%d %H:%i:%s.%f')",
+        "date": "DATE_FORMAT({c}, '%Y-%m-%d')",
+        "boolean_types": {"bit"},
+        "timestamp_types": {"datetime", "timestamp"},
+        "date_types": {"date"},
+        "text_types": {"varchar", "char", "enum"},
+        "large_text_types": {"text", "tinytext", "mediumtext", "longtext"},
+        "integer_types": {"int", "bigint", "smallint", "mediumint", "tinyint"},
+        "json_types": {"json"},
+        "refused_types": set(),
+        # MySQL's COLUMNS has no NUMERIC_PRECISION_RADIX. The validator does not read it, so NULL is selected in its place.
+        "schema_query": (
+            "SELECT\n"
+            "TABLE_NAME AS table_name,\n"
+            "COLUMN_NAME AS column_name,\n"
+            "DATA_TYPE AS data_type,\n"
+            "CHARACTER_MAXIMUM_LENGTH AS character_maximum_length,\n"
+            "CHARACTER_OCTET_LENGTH AS character_octet_length,\n"
+            "NUMERIC_PRECISION AS numeric_precision,\n"
+            "NULL AS numeric_precision_radix,\n"
+            "NUMERIC_SCALE AS numeric_scale,\n"
+            "DATETIME_PRECISION AS datetime_precision\n"
+            "FROM INFORMATION_SCHEMA.COLUMNS\n"
             "WHERE TABLE_SCHEMA = '{schema}'\n"
             "AND TABLE_NAME = '{table_name}'\n"
             "ORDER BY TABLE_NAME,ORDINAL_POSITION;"),
@@ -188,9 +228,7 @@ RULES = {
     },
 }
 
-
-
-SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "newbook"]
+SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "newbook", "mysql_crm"]
 TARGET_TYPES = ["snowflake"]
 
 # Lengths and precisions in a type name, e.g. "(10,2)" or "(3)".

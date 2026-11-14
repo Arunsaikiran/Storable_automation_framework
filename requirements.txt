@@ -8,4 +8,6 @@ snowflake-connector-python[secure-local-storage]
 redshift_connector
 awswrangler
 openpyxl
+# CHANGE: YAML generation. MySQL connector for bronze_mysql (db/mysql.py).
+pymysql
 certifi==2026.7.22

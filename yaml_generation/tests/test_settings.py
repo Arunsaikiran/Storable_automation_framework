@@ -128,8 +128,8 @@ def test_a_row_without_source_type_is_refused_with_its_row(tmp_path):
 
 
 def test_an_unknown_source_type_is_refused(tmp_path):
-    path = _rules(tmp_path, [_row("units", source_type="mysql")])
-    with pytest.raises(ValueError, match="found 'mysql'"):
+    path = _rules(tmp_path, [_row("units", source_type="oracle")])
+    with pytest.raises(ValueError, match="found 'oracle'"):
         settings.load_table_rules(path, "postgres")
 
 

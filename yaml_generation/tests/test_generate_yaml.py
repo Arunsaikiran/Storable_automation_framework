@@ -692,6 +692,21 @@ def test_a_second_schema_run_is_unchanged_and_another_environment_too(run_env):
     assert statuses(results) == {("units", "schema_validation"): "UNCHANGED"}, "one file serves every environment"
 
 
+def test_catalogue_types_in_capitals_match_the_lower_case_mapping(run_env):
+    """The workbook's types match ignoring case, so NUMBER finds 'number'. The validator looks the catalogue's spelling up
+    exactly, so that spelling is written into the YAML's maps too."""
+    run_env.dbs["source"] = FakeDB({("edge", "units"): [("id", "INTEGER"), ("unit_name", "CHARACTER VARYING"),
+                                                         ("updated_at", "TIMESTAMP WITHOUT TIME ZONE")]})
+    results, _ = _schema_only(run_env, tables=["units"])
+    assert statuses(results) == {("units", "schema_validation"): "NEW"}
+    doc = schema_doc(run_env.root)
+    assert doc["datatype_map"]["INTEGER"] == "number" and doc["datatype_map"]["integer"] == "number"
+    assert doc["datatype_map"]["CHARACTER VARYING"] == "text"
+    assert doc["datatype_map"]["TIMESTAMP WITHOUT TIME ZONE"] == "timestamp_ntz"
+    assert "INTEGER" in doc["precision_checks"]["numeric"] and "integer" in doc["precision_checks"]["numeric"]
+    assert "CHARACTER VARYING" in doc["precision_checks"]["character"]
+
+
 def test_a_source_type_with_no_mapping_row_fails_that_tables_schema_and_names_it(run_env, workbook_folder, caplog):
     write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"], ["notes"], ["lookup"]],
                           mapping=[row for row in TYPE_MAPPING if row[0] != "text"])

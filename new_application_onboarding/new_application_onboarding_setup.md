@@ -4,33 +4,43 @@ This page is for onboarding a new application. Read it top to bottom once. Then 
 
 Everything about the source and the target (database names, schemas, table names, types) comes from the **master workbook** in `yaml_generation/master_files/`. Nothing else is read for them.
 
-**Prefer clicking to reading?** Open `docs/YAML_GENERATION_FLOW_EXPLORER.html` in a browser and choose the **Add a new source, step by step** tab. It asks for your names once, then gives you every step with paste-ready text and a **Copy** button.
+**Prefer clicking to reading?** Open `new_application_onboarding/YAML_GENERATION_FLOW_EXPLORER.html` in a browser and choose the **Add a new source, step by step** tab. It asks for your names once, then gives you every step with paste-ready text and a **Copy** button.
+
+**Want an AI assistant to make the changes?** Fill in `templates/AI_ONBOARDING_PROMPT.md` and paste it into the assistant. The explorer also builds the same prompt for you, already filled in.
 
 ## What is in this folder
 
 | Item | What it is |
 |---|---|
 | `new_application_onboarding_setup.md` | This guide: the questions, with examples. |
-| `templates/TEMPLATE_bronze_master.xlsx` | The workbook to copy. It has the right sheet names and headers, one example row, and a `READ_ME` sheet that explains each column. |
+| `YAML_GENERATION_FLOW_EXPLORER.html` | The same steps as a click-through guide, with copy buttons and the AI prompt. |
+| `templates/TEMPLATE_bronze_master.xlsx` | The workbook to copy. It has the two standard sheets (`Sheet1` and `Postgres schema mapping`) with the right headers and one example row each, and nothing else. |
+| `templates/AI_ONBOARDING_PROMPT.md` | The master prompt for an AI assistant: the facts to fill in, the files for each route, the house rules and the checks. |
 
 ## Step 0: Choose the route (decide this first)
 
-The framework reads **one workbook per layer**. A layer is the `--layer_type` you run, such as `bronze_postgres`. So the first question is where the new application goes.
+The framework reads **one workbook per layer**. A layer is the `--layer_type` you run, such as `bronze_postgres`. Two questions decide the route.
 
-**Question 0: Which route?**
+**Question 1: Can an existing layer's connection reach the tables?** Today that means Edge's PostgreSQL database `fms`, or SiteLink's SQL Server.
 
-- **Route A: same engine, same layer.** The new application is on PostgreSQL or SQL Server, which the framework already supports. Its rows go into the existing workbook for that layer (for PostgreSQL, `edge_bronze_master.xlsx`). No code change for the workbook. Its tables run with the existing `--layer_type`.
-- **Route B: new layer.** The new application gets its own layer (for example `bronze_newbook`) and its own workbook. This needs a developer, because the code has to know the new layer (see Step 7).
+- **Route A: more tables** for Edge or SiteLink. You add one row per table to that layer's workbook. No code change.
+- **Route B: a new application in an existing layer.** The application's tables are reachable through Edge's or SiteLink's connection. Its rows go into that layer's workbook (for PostgreSQL, `edge_bronze_master.xlsx`), and its tables run with the existing `--layer_type`. No code change.
+
+**Question 2 (only if the answer to question 1 is no): does the framework already have a connector for its database?** A connector is the class in `db/` that opens the connection. There is one for **PostgreSQL, SQL Server, MySQL, Snowflake, Athena and Redshift**: they are the branches of `get_database()` in `db/factory.py`.
+
+- **Route C: a layer of its own that reuses a connector.** Example: Newbook's source is Snowflake, so `bronze_newbook` builds the existing `Snowflake` class from its own creds block. A developer adds the layer's entries (Step 7). There's **no new file in `db/`, no new import and no new package**.
+- **Route D: a layer of its own on a completely new engine.** Example: before `bronze_mysql_crm` there was no MySQL connector. A developer does everything in route C, and also writes the connector `db/<key>.py`, imports it at the top of `db/factory.py` and adds its driver to `requirements.txt` (Step 7).
 
 Prompt to answer:
 
 ```
-Route (A or B):
+Route (A, B, C or D):
 Why:
-Engine it runs on (PostgreSQL / SQL Server / other):
+Engine it runs on (PostgreSQL / SQL Server / MySQL / Snowflake / other):
+Connector it reuses (route C only):
 ```
 
-Example answer: `Route B. Why: it is a new application with its own tables. Engine: PostgreSQL.`
+Example answers: `Route C. Why: its own Snowflake database, and we have the Snowflake connector. Engine: Snowflake. Connector: Snowflake.` or `Route D. Why: Oracle, and there is no Oracle connector. Engine: Oracle.`
 
 > If you are not sure, answer `Route ?` and say what you know. We will decide together.
 
@@ -41,14 +51,14 @@ These names appear in the workbook and in the logs.
 | Prompt | What to enter | Example | Rules |
 |---|---|---|---|
 | Application name | The name people use for it | `NewApp` | Letters and numbers. Used as `<application>` in the file name. |
-| Layer name | The `--layer_type` you run (Route B only) | `bronze_newbook` | Ask a developer to confirm it. |
+| Layer name | The `--layer_type` you run (routes C and D only) | `bronze_newbook` | `bronze_` plus a new lower-case key. The same key names the workbook, the rules block and the creds block. It can't be one already in use (`postgres`, `mssql`, `mysql`, `athena`, `redshift`, `snowflake`, `newbook`). |
 | Engine | The database engine of the source | `PostgreSQL` | One of the engines the framework supports, or tell us it is new (Step 6). |
 
 Prompt to answer:
 
 ```
 Application name:
-Layer name (Route B only):
+Layer name (routes C and D only):
 Engine:
 ```
 
@@ -91,12 +101,14 @@ Target schema:
 
 Copy `templates/TEMPLATE_bronze_master.xlsx` and rename it. Then:
 
-**Sheet 1: the tables sheet.** Any sheet name works, as long as it has these headers. Names are matched **ignoring case**, so `Target Table Name` and `target table name` are the same.
+Every master workbook has the **same two sheets and nothing else**: `Sheet1` and `<Engine> schema mapping`. Don't add columns or sheets (counts, notes, test results). Anyone who copies the file later copies them too. Keep that kind of work in a separate file.
+
+**Sheet 1: `Sheet1`, the tables sheet.** It has exactly these nine headers, in this order. Names are matched **ignoring case**, so `Target Table Name` and `target table name` are the same.
 
 | Column header | What to put in it | Example row |
 |---|---|---|
 | `Target Table Name` | The table name | `units` |
-| `Historical Filter to apply.` | An optional SQL condition, or empty for the whole table | (empty) |
+| `Historical Filter to apply` | An optional SQL condition, or empty for the whole table | (empty) |
 | `Incremental filters to apply` | An optional SQL condition, or empty | (empty) |
 | `source_application` | The application name | `NewApp` |
 | `source_database` | The real source database name (Step 2) | `fms` |
@@ -125,8 +137,6 @@ units             | (empty)           | (empty)             | NewApp            
 
 Each source type the tables use needs one row. If a type has no row, that table's schema check **fails** and the framework writes nothing for it. The message names the missing types.
 
-**Sheet 3: `READ_ME`.** It is optional and is skipped by the framework. Keep it, or delete it.
-
 Prompt to answer:
 
 ```
@@ -152,9 +162,9 @@ Target type for each (Snowflake type, if you know it; otherwise write "not sure"
 
 If you write "not sure", the developer checks the Snowflake column type with `DESCRIBE TABLE`.
 
-## Step 6: A new database engine (only if the engine is not supported yet)
+## Step 6: A new database engine (route D only)
 
-A new engine needs one block of rules in `db_rules.py`. Here is what each field means, with the PostgreSQL value as an example.
+A new engine needs one block of rules in `db_rules.py`. For route C, skip this step: the layer copies the block of the database it reuses (`newbook` for Snowflake), and changes only the key and the label. Here is what each field means, with the PostgreSQL value as an example.
 
 | Field | What it means | PostgreSQL example |
 |---|---|---|
@@ -182,18 +192,32 @@ Type names for boolean, date, timestamp, text, integer (copy from the database):
 Anything that cannot be compared as text:
 ```
 
-A new engine also needs a connector in `db/` and a layer in `main.py`. A developer does that.
+A new engine also needs a connector in `db/`. A developer writes it (Step 7, route D).
 
-## Step 7: What a developer must add in code (not done by this folder)
+## Step 7: What a developer must add in code (routes C and D)
 
-This folder does not change the code. For a **Route B** (new layer), a developer adds these:
+This folder does not change the code. Routes A and B need no code change. In each file below, **add** the new entry and keep every entry that's already there. Use the same key (`<key>`, the layer without `bronze_`) everywhere. Mark every edit outside `yaml_generation/` with a `# CHANGE: YAML generation.` comment.
 
-1. `yaml_generation/filter_files.py`, `WORKBOOKS`: the layer name and its workbook file. Currently it has only `postgres` and `mssql`.
-2. `yaml_generation/filter_files.py`, `SCHEMA_SHEETS`: the layer name and its mapping sheet name.
-3. `yaml_generation/db_rules.py`, `RULES`: one block with the layer's name as key. The framework reads `RULES[<layer>]` for the label. For a layer on an existing engine, copy that engine's block.
-4. `main.py`: confirm the new `--layer_type` is accepted and that the right connector is used.
+**Routes C and D:**
 
-Ask the developer to confirm steps 3 and 4 before the run.
+1. `yaml_generation/filter_files.py`: add `"<key>"` to `WORKBOOKS` (its workbook file) and to `SCHEMA_SHEETS` (its mapping sheet name).
+2. `yaml_generation/db_rules.py`: add a `"<key>"` block to `RULES`, and `"<key>"` to `SOURCE_TYPES`. Route C copies the reused database's block. Route D writes a new one (Step 6).
+3. `yaml_generation/settings.py`: add `"<key>"` to `INCREMENTAL_COLUMNS`. `yaml_generation/settings/exclusions.yaml`: add a `<key>:` block.
+4. `db/factory.py`: add an `elif db_type == "<key>":` branch in `get_database()`, before the final `else`.
+   - **Route C:** the branch builds the **existing** class from `file['<key>']`, the way the `newbook` branch builds `Snowflake`. Don't add an import or a package: the class is already imported.
+   - **Route D:** the branch builds the new class from step 6 below.
+5. `creds/<env>.yaml` (every environment; kept local, never committed) and `creds/example.yaml` (field names only): add a `<key>:` block. For route C, copy the reused connector's block and point it at the new database.
+6. `utils/utility.py`: add `"bronze_<key>"` at the end of `BRONZE_LAYERS`. The `--layer_type` choices and the YAML generation all read this one tuple.
+
+**Route D also needs:**
+
+7. `db/<key>.py` (new file): the connector class. It's based on `Database` in `db/base.py`, with `connect()`, `execute_query(query)` returning a pandas DataFrame, and `close()`. Copy `db/mysql.py`, the newest connector.
+8. `db/factory.py`, at the top: `from db.<key> import <Class>`, with the other imports. Without it the branch from item 4 fails with `NameError`.
+9. `requirements.txt`: add the driver package (MySQL uses `pymysql`), then run `pip install -r requirements.txt`.
+
+**Incremental runs (routes C and D):** add a `bronze_<key>` branch to `check_freshness()` and to `get_dates()` in `utils/utility.py`. Also add the Fivetran connection id under `bronze_<key>` in `creds/api.yaml`, and one line per table in `control_table.csv`.
+
+Then run `python -m pytest yaml_generation/tests -q` and `python yaml_generation/filter_files.py`. Both must pass before the first run.
 
 ## Step 8: Run it
 
@@ -225,9 +249,10 @@ What the result means:
 Copy this block, fill it in, and send it back.
 
 ```
-ROUTE (A or B) and why:
+ROUTE (A, B, C or D) and why:
 ENGINE:
-LAYER NAME (route B only):
+CONNECTOR IT REUSES (route C only):
+LAYER NAME (routes C and D only):
 
 APPLICATION NAME:
 
@@ -244,6 +269,6 @@ TABLES (one per line):
 SOURCE TYPES IN USE:
 TARGET TYPE for each (or "not sure"):
 
-NEW ENGINE? (yes/no). If yes, fill the Step 6 prompts.
+NEW ENGINE, NO CONNECTOR YET? (yes = route D: fill the Step 6 prompts)
 ANYTHING ELSE:
 ```

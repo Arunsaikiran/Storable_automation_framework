@@ -12,8 +12,8 @@ import requests
 from utils.exceptions import NoNewDataError,NoNewSyncError
 
 # CHANGE: YAML generation. The bronze layers that have YAML generation, filter workbooks and schema validation. Every layer
-# check below and in main.py reads this one tuple, so a new bronze layer (bronze_mysql) is added here once, not at each check.
-BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql", "bronze_newbook")
+# check below and in main.py reads this one tuple, so a new bronze layer (bronze_mysql_ess) is added here once, not at each check.
+BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql", "bronze_newbook", "bronze_mysql_crm")  # CHANGE: YAML generation. bronze_mysql_crm added (MySQL, CRM). One layer per MySQL application: ESS will be bronze_mysql_ess.
 
 
 #Generating runids

@@ -110,11 +110,29 @@ class TableSpec:
     target_database: str  # Snowflake database name as written in the YAML, e.g. {env}_EDGE_BRONZE
     target_schema: str    # e.g. EDGE, SITELINK
     source_database: str = None  # e.g. fms, DevT5000: the workbook's source_database. None writes schema.table only.
+    # CHANGE: YAML generation. The target engine, the db_rules.RULES key of the row's target_application (filter_files.Location).
+    # Snowflake unless the workbook names another, e.g. MySQL CRM compared against itself while CRM has no Snowflake target.
+    target_type: str = "snowflake"
 
     @property
     def target_table(self) -> str:
-        """Snowflake table name: upper case, as the existing framework files show it (gate_access_event -> GATE_ACCESS_EVENT)."""
-        return self.table.upper()
+        """Snowflake table name: upper case, as the existing framework files show it (gate_access_event -> GATE_ACCESS_EVENT).
+        Another target keeps the source spelling."""
+        return self.table.upper() if self.target_type == "snowflake" else self.table
+
+    # CHANGE: YAML generation (MySQL onboarding). The schema as the YAML writes it. An engine with no schema level (rules
+    # two_part_names, MySQL) is given its database as the schema by filter_files when the workbook cell is blank, so the queries
+    # read `dev`.`units`. That copy is not written back as source_schema / target_schema: the workbook left it blank, and it is
+    # the source of truth. None leaves the key out, as source_database is left out when there is none.
+    @property
+    def yaml_source_schema(self):
+        same = RULES[self.source_type].get("two_part_names") and self.source_schema == self.source_database
+        return None if same else self.source_schema
+
+    @property
+    def yaml_target_schema(self):
+        same = RULES[self.target_type].get("two_part_names") and self.target_schema == self.target_database
+        return None if same else self.target_schema
 
 
 @dataclass
@@ -129,12 +147,14 @@ class Filters:
     target_where: str = None
     source_window: str = None
     target_window: str = None
+    # The Fivetran rule, on a Snowflake target only (None for another target: it has no _FIVETRAN_ACTIVE column).
+    target_active: str = FIVETRAN_FILTER
 
     def source_parts(self) -> list:
         return [f"({part})" for part in (self.source_where, self.source_window) if part]
 
     def target_parts(self) -> list:
-        return [FIVETRAN_FILTER] + [f"({part})" for part in (self.target_where, self.target_window) if part]
+        return [self.target_active] * bool(self.target_active) + [f"({part})" for part in (self.target_where, self.target_window) if part]
 
 
 def window_condition(column_sql: str) -> str:
@@ -146,7 +166,7 @@ def window_condition(column_sql: str) -> str:
     return f"{column_sql} > :start_time AND {column_sql} <= :end_time"
 
 
-def incremental_window(pairs, column: str, source_rules: dict):
+def incremental_window(pairs, column: str, source_rules: dict, target_rules: dict = None):
     """(source_window, target_window, missing) on the incremental column. missing lists the sides ("source", "target")
     that do not compare it, because the column is absent there or excluded.
 
@@ -159,8 +179,10 @@ def incremental_window(pairs, column: str, source_rules: dict):
         if name == norm:
             source, target = s, t
     missing = [side for side, name in (("source", source), ("target", target)) if name is None]
+    target_rules = target_rules or RULES["snowflake"]
+    snowflake = target_rules is RULES["snowflake"]
     return (window_condition(quote(source or norm, source_rules)),
-            window_condition(quote(target or norm.upper(), RULES["snowflake"])), missing)
+            window_condition(quote(target or (norm.upper() if snowflake else norm), target_rules)), missing)
 
 
 @dataclass
@@ -311,8 +333,10 @@ def source_name(database, schema: str, table: str, rules: dict) -> str:
     """A source table as written in SQL: database.schema.table, e.g. "fms"."public"."units" or [DevT5000].[dbo].[Units].
 
     The database is left out when it is None. PostgreSQL accepts a database name only when it is the one connected to.
+    MySQL (rules two_part_names) has no database level: its database is its schema, so the name is `dev`.`units`.
     """
-    return ".".join(quote(part, rules) for part in (database, schema, table) if part)
+    parts = (schema, table) if rules.get("two_part_names") else (database, schema, table)
+    return ".".join(quote(part, rules) for part in parts if part)
 
 
 def source_ref(spec: TableSpec, rules: dict) -> str:
@@ -320,10 +344,18 @@ def source_ref(spec: TableSpec, rules: dict) -> str:
     return source_name(spec.source_database, spec.source_schema, spec.table, rules)
 
 
+def target_name(database, schema: str, table: str, target_type: str = "snowflake") -> str:
+    """A target table as written in SQL. Snowflake: the database unquoted (matched in any case), the table in upper case.
+    Another target is written as its source would be, e.g. `dev`.`units` for MySQL."""
+    rules = RULES[target_type]
+    if target_type != "snowflake":
+        return source_name(database, schema, table, rules)
+    return f"{database}.{quote(schema, rules)}.{quote(table.upper(), rules)}"
+
+
 def target_ref(spec: TableSpec) -> str:
-    """The Snowflake table as written in FROM. The database name is unquoted, so Snowflake matches it in any case."""
-    snow = RULES["snowflake"]
-    return f"{spec.target_database}.{quote(spec.target_schema, snow)}.{quote(spec.target_table, snow)}"
+    """The target table as written in FROM (target_name())."""
+    return target_name(spec.target_database, spec.target_schema, spec.target_table, spec.target_type)
 
 
 def side_item(column, alias: str, data_type, rules: dict, missing_token: str) -> str:
@@ -347,7 +379,7 @@ def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters) -> d
     Every key column must be on both sides of pairs. generate() checks that before it calls this.
     """
     source_rules = RULES[spec.source_type]
-    snow = RULES["snowflake"]
+    snow = RULES[spec.target_type]
     key = key_expression(key_columns)
     source_items = [side_item(s, alias_for(n), s_type, source_rules, MISSING_IN_SOURCE) for s, s_type, _, _, n in pairs]
     target_items = [side_item(t, alias_for(n), t_type, snow, MISSING_IN_TARGET) for _, _, t, t_type, n in pairs]
@@ -355,13 +387,13 @@ def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters) -> d
         "source_table_name": spec.table,
         "source": spec.source_type,
         **({"source_database": spec.source_database} if spec.source_database else {}),
-        "source_schema": spec.source_schema,
+        **({"source_schema": spec.yaml_source_schema} if spec.yaml_source_schema else {}),
         "sourcecolumn": key,
         "sourcequery": _select(source_items, source_ref(spec, source_rules), filters.source_parts()),
         "target_table_name": spec.target_table,
-        "target": "snowflake",
+        "target": spec.target_type,
         "target_database": spec.target_database,
-        "target_schema": spec.target_schema,
+        **({"target_schema": spec.yaml_target_schema} if spec.yaml_target_schema else {}),
         "targetcolumn": key,
         "targetquery": _select(target_items, target_ref(spec), filters.target_parts(), placeholders=True),
     }
@@ -382,13 +414,13 @@ def build_count_entry(spec: TableSpec, filters: Filters) -> dict:
         "source_table_name": spec.table,
         "source": spec.source_type,
         **({"source_database": spec.source_database} if spec.source_database else {}),
-        "source_schema": spec.source_schema,
+        **({"source_schema": spec.yaml_source_schema} if spec.yaml_source_schema else {}),
         "sourcequery": _checked(source_sql + (f" WHERE {source_where}" if source_where else "") + ";"),
         "target_table_name": spec.target_table,
-        "target": "snowflake",
+        "target": spec.target_type,
         "target_database": spec.target_database,
-        "target_schema": spec.target_schema,
-        "targetquery": _checked(target_sql + f" WHERE {target_where};", placeholders=True),
+        **({"target_schema": spec.yaml_target_schema} if spec.yaml_target_schema else {}),
+        "targetquery": _checked(target_sql + (f" WHERE {target_where}" if target_where else "") + ";", placeholders=True),
     }
 
 
@@ -407,8 +439,11 @@ def data_header(spec: TableSpec, key: str, rec: Reconciliation, filters: Filters
     source_rules = RULES[spec.source_type]
     lines = [
         f"{GENERATED_MARK} on {stamp}. Do not hand-edit; main.py --yaml_generation yes rewrites it when the structure changes.",
-        f"# Source: {source_rules['label']} {'.'.join(p for p in (spec.source_database, spec.source_schema, spec.table) if p)}",
-        f"# Target: {spec.target_database}.{spec.target_schema}.{spec.target_table} (Snowflake, _FIVETRAN_ACTIVE = TRUE)",
+        # CHANGE: YAML generation (MySQL onboarding). The schemas as the YAML writes them (yaml_*_schema): dev.units for MySQL.
+        f"# Source: {source_rules['label']} {'.'.join(p for p in (spec.source_database, spec.yaml_source_schema, spec.table) if p)}",
+        f"# Target: {'.'.join(p for p in (spec.target_database, spec.yaml_target_schema, spec.target_table) if p)} "
+        f"({RULES[spec.target_type]['label']}"
+        f"{', _FIVETRAN_ACTIVE = TRUE' if filters.target_active else ''})",
         f"# Key: {key}   Columns compared: {len(rec.pairs)}",
     ]
     if filters.source_where:
@@ -526,11 +561,13 @@ def generated_tables(config_dir, layer: str, target_database: str, source_schema
                     continue
             doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             entry = (((doc.get("tables") or {}).get(path.stem) or {}).get("validations") or {}).get("data_validation") or {}
-            if entry.get("source_schema") == source_schema:
+            # CHANGE: YAML generation (MySQL onboarding). A MySQL entry has no source_schema (TableSpec.yaml_source_schema):
+            # its source_database is the schema it was read from.
+            if entry.get("source_schema", entry.get("source_database")) == source_schema:
                 names.add(path.stem)
     for table, block in _count_tables(config_dir, layer).items():
         entry = ((block or {}).get("validations") or {}).get("count_validation") or {}
-        if entry.get("target_database") == target_database and entry.get("source_schema") == source_schema:
+        if entry.get("target_database") == target_database and entry.get("source_schema", entry.get("source_database")) == source_schema:
             names.add(table)
     return names
 
@@ -562,6 +599,7 @@ def unmapped_types(columns, excluded, datatype_map) -> list:
     """'column (type)' for each source column whose type has no datatype_map key. excluded columns are not checked.
 
     The match ignores case, as the validator's lookup does: 'USER-DEFINED' in the catalogue matches 'user-defined' in the sheet.
+    generate_yaml writes each catalogue spelling into the YAML's map.
     """
     known = {str(key).strip().lower() for key in datatype_map}
     return [f"{name} ({dtype})" for name, dtype in columns

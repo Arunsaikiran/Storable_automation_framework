@@ -398,6 +398,7 @@ def test_unmapped_types_names_the_column_and_skips_the_excluded_ones():
     assert yb.unmapped_types(columns, {"uTS"}, {"int": "number"}) == ["Shape (geography)"]
     assert yb.unmapped_types([("Kind", "USER-DEFINED")], set(), {"user-defined": "variant"}) == []   # case is ignored
     assert yb.unmapped_types([("Kind", "bit")], set(), {"BIT": "boolean"}) == []
+    assert yb.unmapped_types([("Kind", "NUMBER")], set(), {"int": "number"}) == ["Kind (NUMBER)"]
 
 
 def test_schema_file_new_then_unchanged_then_updated(tmp_path):
@@ -439,3 +440,19 @@ def test_the_schema_file_queries_are_block_text_the_validator_can_format(tmp_pat
     text = yb.schema_file_path(tmp_path).read_text(encoding="utf-8")
     assert "sourcequery: |-" in text and "targetquery: |-" in text
     assert yb.schema_table_names(tmp_path) == {"Units"}
+
+
+def test_a_mysql_target_is_written_as_mysql_with_no_fivetran_rule():
+    """CRM compared against itself: the target is mysql_crm, `dev`.`users`, its own spelling, no _FIVETRAN_ACTIVE."""
+    from yaml_generation.yaml_builder import FIVETRAN_FILTER, Filters, TableSpec, build_count_entry, build_data_entry
+    spec = TableSpec("mysql_crm", "dev", "Users", "dev", "dev", source_database="dev", target_type="mysql_crm")
+    pairs = [("id", "int", "id", "int", "id")]
+    entry = build_data_entry(spec, pairs, ["id"], Filters(target_active=None))
+    count = build_count_entry(spec, Filters(target_active=None))
+    assert entry["target"] == count["target"] == "mysql_crm" and entry["target_table_name"] == "Users"
+    assert "FROM `dev`.`Users`" in entry["targetquery"] and FIVETRAN_FILTER not in entry["targetquery"]
+    assert count["targetquery"] == count["sourcequery"].replace("source_row_count", "target_row_count") \
+        == "SELECT COUNT(*) AS target_row_count FROM `dev`.`Users`;"
+    # The blank workbook schema cells are not written back as the database copy filter_files reads the tables with.
+    assert not {"source_schema", "target_schema"} & (set(entry) | set(count))
+    assert entry["source_database"] == entry["target_database"] == "dev"
