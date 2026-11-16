@@ -329,7 +329,7 @@ def test_a_filter_with_a_line_break_is_refused():
 # --- the incremental window and the JSON columns ---------------------------------------------------------------
 
 def test_window_condition_is_greater_than_the_last_run_and_up_to_the_sync():
-    assert yb.window_condition('"updated_at"') == '"updated_at" > :start_time AND "updated_at" <= :end_time'
+    assert yb.window_condition('"updated_at"') == '"updated_at" >= :start_time AND "updated_at" <= :end_time'
 
 
 def test_window_is_added_after_the_filters_on_each_side():
@@ -341,25 +341,25 @@ def test_window_is_added_after_the_filters_on_each_side():
 def test_incremental_window_is_written_by_name_on_each_side_and_reports_the_missing_side():
     pairs = _pairs(("updated_at", "timestamp without time zone", "UPDATED_AT", "TIMESTAMP_NTZ"), ("id", "integer", "ID", "NUMBER"))
     assert yb.incremental_window(pairs, "Updated At", PG) == (
-        '"updated_at" > :start_time AND "updated_at" <= :end_time',
-        '"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time', [])
+        '"updated_at" >= :start_time AND "updated_at" <= :end_time',
+        '"UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time', [])
     assert yb.incremental_window(pairs, "created_at", PG) == (
-        '"created_at" > :start_time AND "created_at" <= :end_time',
-        '"CREATED_AT" > :start_time AND "CREATED_AT" <= :end_time', ["source", "target"])
+        '"created_at" >= :start_time AND "created_at" <= :end_time',
+        '"CREATED_AT" >= :start_time AND "CREATED_AT" <= :end_time', ["source", "target"])
     assert yb.incremental_window([("updated_at", "text", None, None, "updated_at")], "updated_at", PG) == (
-        '"updated_at" > :start_time AND "updated_at" <= :end_time',
-        '"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time', ["target"])
+        '"updated_at" >= :start_time AND "updated_at" <= :end_time',
+        '"UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time', ["target"])
 
 
 def test_a_data_entry_with_a_window_has_the_placeholders_on_both_sides():
-    filters = yb.Filters(source_window='"updated_at" > :start_time AND "updated_at" <= :end_time',
-                         target_window='"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time')
+    filters = yb.Filters(source_window='"updated_at" >= :start_time AND "updated_at" <= :end_time',
+                         target_window='"UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time')
     entry = _data_entry(filters)
-    assert entry["sourcequery"].endswith('WHERE ("updated_at" > :start_time AND "updated_at" <= :end_time);')
+    assert entry["sourcequery"].endswith('WHERE ("updated_at" >= :start_time AND "updated_at" <= :end_time);')
     assert entry["targetquery"].endswith(
-        'WHERE _FIVETRAN_ACTIVE = TRUE\n  AND ("UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time);')
+        'WHERE _FIVETRAN_ACTIVE = TRUE\n  AND ("UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time);')
     count = yb.build_count_entry(SPEC, filters)
-    assert count["sourcequery"].endswith('WHERE ("updated_at" > :start_time AND "updated_at" <= :end_time);')
+    assert count["sourcequery"].endswith('WHERE ("updated_at" >= :start_time AND "updated_at" <= :end_time);')
 
 
 def test_json_columns_are_listed_and_selected_as_text_on_both_sides():
@@ -456,3 +456,18 @@ def test_a_mysql_target_is_written_as_mysql_with_no_fivetran_rule():
     # The blank workbook schema cells are not written back as the database copy filter_files reads the tables with.
     assert not {"source_schema", "target_schema"} & (set(entry) | set(count))
     assert entry["source_database"] == entry["target_database"] == "dev"
+
+
+def test_env_placeholder_is_kept_on_the_source_side_too_and_filled_for_the_run():
+    """Newbook: source_database {env}_NEWBOOK_AU_BRONZE stays as written in the YAML; the run reads DEV_NEWBOOK_AU_BRONZE."""
+    from types import SimpleNamespace
+    from yaml_generation.generate_yaml import resolve_args
+    spec = yb.TableSpec("newbook_login", "NB_LOGIN", "endpoints", "{env}_NEWBOOK_AU_BRONZE", "NB_LOGIN",
+                     source_database="{env}_NEWBOOK_AU_BRONZE")
+    count = yb.build_count_entry(spec, yb.Filters())
+    assert '"{env}_NEWBOOK_AU_BRONZE"' in count["sourcequery"] and "{env}_NEWBOOK_AU_BRONZE" in count["targetquery"]
+    args = resolve_args(SimpleNamespace(data_validation="yes", count_validation="yes", schema_validation="no", tables=["x"],
+                                        environment="prod", source_database="{env}_NEWBOOK_AU_BRONZE",
+                                        target_template="{env}_NEWBOOK_AU_BRONZE"))
+    assert (args.source_database_live, args.target_database) == ("PRD_NEWBOOK_AU_BRONZE", "PRD_NEWBOOK_AU_BRONZE")
+    assert args.source_database == "{env}_NEWBOOK_AU_BRONZE"

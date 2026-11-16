@@ -51,7 +51,7 @@ These names appear in the workbook and in the logs.
 | Prompt | What to enter | Example | Rules |
 |---|---|---|---|
 | Application name | The name people use for it | `NewApp` | Letters and numbers. Used as `<application>` in the file name. |
-| Layer name | The `--layer_type` you run (routes C and D only) | `bronze_newbook` | `bronze_` plus a new lower-case key. The same key names the workbook, the rules block and the creds block. It can't be one already in use (`postgres`, `mssql`, `mysql`, `athena`, `redshift`, `snowflake`, `newbook`). |
+| Layer name | The `--layer_type` you run (routes C and D only) | `bronze_newbook` | `bronze_` plus a new lower-case key. The same key names the workbook, the rules block and the creds block. It can't be one already in use (`postgres`, `mssql`, `mysql`, `athena`, `redshift`, `snowflake`, `newbook`, `newbook_common`, `newbook_corporation`, `newbook_instances`, `newbook_login`). |
 | Engine | The database engine of the source | `PostgreSQL` | One of the engines the framework supports, or tell us it is new (Step 6). |
 
 Prompt to answer:

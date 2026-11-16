@@ -92,7 +92,10 @@ from yaml_generation.yaml_builder import ENV_PLACEHOLDER, FIVETRAN_FILTER, check
 FOLDER = Path(__file__).resolve().parent / "master_files"
 # The workbook each layer reads, by its engine (--layer_type bronze_<engine>). A new layer adds its workbook here.
 WORKBOOKS = {"postgres": "edge_bronze_master.xlsx", "mssql": "sitelink_bronze_master.xlsx", "newbook": "newbook_bronze_master.xlsx",
-             "mysql_crm": "crm_bronze_master.xlsx"}
+             "mysql_crm": "crm_bronze_master.xlsx",
+             # CHANGE: YAML generation. One workbook per Newbook schema (--layer_type bronze_newbook_<app>).
+             "newbook_common": "newbook_common_bronze_master.xlsx", "newbook_corporation": "newbook_corporation_bronze_master.xlsx",
+             "newbook_instances": "newbook_instances_bronze_master.xlsx", "newbook_login": "newbook_login_bronze_master.xlsx"}
 # The headers, as matched: trimmed, lower case, a trailing dot dropped. The same layout for every application.
 TABLE_HEADER = "target table name"
 LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
@@ -103,7 +106,10 @@ REQUIRED_HEADERS = [name for name in LOCATION_HEADERS if name != "source_schema"
 FILTER_HEADERS = {"historical": "historical filter to apply", "incremental": "incremental filters to apply"}
 # The type mapping sheet of each workbook, read for the schema validation YAML (schema_mapping()). Matched without regard to case.
 SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping", "newbook" : "Newbook schema mapping",
-                 "mysql_crm": "MySQL schema mapping"}
+                 "mysql_crm": "MySQL schema mapping",
+                 # CHANGE: YAML generation. The four Newbook workbooks share the Newbook sheet name.
+                 "newbook_common": "Newbook schema mapping", "newbook_corporation": "Newbook schema mapping",
+                 "newbook_instances": "Newbook schema mapping", "newbook_login": "Newbook schema mapping"}
 MAPPING_HEADERS = ["source_data_type", "target_data_type"]          # required; precision_check and notes are optional
 PRECISION_CHECKS = ("datetime", "numeric", "character")
 

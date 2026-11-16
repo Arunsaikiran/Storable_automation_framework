@@ -66,7 +66,7 @@ def test_pg_04_incremental_run_has_the_window_and_the_incremental_filter(postgre
     world = postgres_filter_files
     assert pg_run(world, "units", run_type="incremental", yaml="yes", filters="yes") == 0
     text = read(world.yaml("incremental", "bronze_postgres", "units"))
-    assert '"updated_at" > :start_time AND "updated_at" <= :end_time' in text
+    assert '"updated_at" >= :start_time AND "updated_at" <= :end_time' in text
     assert "updated_at > '2025-01-01'" in text
 
 
@@ -287,7 +287,7 @@ def test_ms_08_incremental_window_uses_dupdated(world):
     """Q: On an incremental run, is the SQL Server window on dUpdated (not updated_at)?"""
     assert ms_run(world, "Units", run_type="incremental", yaml="yes") == 0
     text = read(world.yaml("incremental", "bronze_mssql", "Units"))
-    assert "[dUpdated] > :start_time AND [dUpdated] <= :end_time" in text
+    assert "[dUpdated] >= :start_time AND [dUpdated] <= :end_time" in text
     assert "updated_at" not in text
 
 
@@ -296,8 +296,8 @@ def test_ms_09_an_incremental_table_without_dupdated_is_written_with_the_window_
     assert ms_run(world, "Addresses", run_type="incremental", yaml="yes") == 0
     assert status(world, "Addresses") == "NEW"
     text = read(world.yaml("incremental", "bronze_mssql", "Addresses"))
-    assert "[dupdated] > :start_time" in text
-    assert '"DUPDATED" > :start_time' in text
+    assert "[dupdated] >= :start_time" in text
+    assert '"DUPDATED" >= :start_time' in text
     assert "incremental column dupdated is not compared on the SQL Server side" in world.log()
     assert "incremental column dupdated is not compared on the Snowflake side" in world.log()
 

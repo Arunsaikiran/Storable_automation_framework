@@ -158,10 +158,12 @@ class Filters:
 
 
 def window_condition(column_sql: str) -> str:
-    """The incremental window: the rows changed after the last run, up to the Fivetran sync.
+    """The incremental window: the rows Fivetran synced since the last run, from the first to the last change.
 
-    The validators replace :start_time (the last run, or the Fivetran minimum) and :end_time (the sync, or the Fivetran
-    maximum) with the values they work out at run time. The YAML holds only the placeholders, never a date.
+    The validators replace :start_time and :end_time with the min and max of the change column over those rows
+    (utils/utility.py get_dates()). Both ends are inclusive (>= and <=): :start_time is the earliest new row itself, so
+    > would leave that row out. CHANGE: YAML generation (16/11/2026): docstring and tests follow the >= change (1dcb7ef).
+    The YAML holds only the placeholders, never a date.
     """
     return f"{column_sql} >= :start_time AND {column_sql} <= :end_time"
 
@@ -389,7 +391,7 @@ def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters) -> d
         **({"source_database": spec.source_database} if spec.source_database else {}),
         **({"source_schema": spec.yaml_source_schema} if spec.yaml_source_schema else {}),
         "sourcecolumn": key,
-        "sourcequery": _select(source_items, source_ref(spec, source_rules), filters.source_parts()),
+        "sourcequery": _select(source_items, source_ref(spec, source_rules), filters.source_parts(), placeholders=True),  # CHANGE: YAML generation (16/11/2026). {env} allowed
         "target_table_name": spec.target_table,
         "target": spec.target_type,
         "target_database": spec.target_database,
@@ -415,7 +417,7 @@ def build_count_entry(spec: TableSpec, filters: Filters) -> dict:
         "source": spec.source_type,
         **({"source_database": spec.source_database} if spec.source_database else {}),
         **({"source_schema": spec.yaml_source_schema} if spec.yaml_source_schema else {}),
-        "sourcequery": _checked(source_sql + (f" WHERE {source_where}" if source_where else "") + ";"),
+        "sourcequery": _checked(source_sql + (f" WHERE {source_where}" if source_where else "") + ";", placeholders=True),  # CHANGE: YAML generation (16/11/2026). {env} allowed
         "target_table_name": spec.target_table,
         "target": spec.target_type,
         "target_database": spec.target_database,

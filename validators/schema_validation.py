@@ -102,7 +102,7 @@ def validate_schema(ctx):
             excluded = global_excluded | (rule.exclude if rule else set())
 
             obj = get_database(source,BASE_DIR,environment)
-            formatted_source_query = source_query.format(table_name = table_name)
+            formatted_source_query = source_query.format(table_name = table_name, env = env)  # CHANGE: YAML generation (16/11/2026). {env} on the source too
             source_df = obj.execute_query(formatted_source_query)
             source_df.columns = source_df.columns.str.strip().str.lower()
             source_df = source_df[~source_df['column_name'].map(normalize_name).isin(excluded)]
