@@ -44,6 +44,7 @@ def validate_count(ctx):
     layer = ctx.layer_type
     outputpaths = ctx.outputpaths
     configpaths = ctx.configpaths
+    masterfilepath = ctx.masterfilepath
     BASE_DIR = ctx.BASE_DIR
     environment = ctx.environment
     tables = ctx.tables
@@ -57,13 +58,8 @@ def validate_count(ctx):
     logger.info("Processing validation type: %s", validation)
     logger.debug("Output path: %s", output_path)
     logger.debug("Config path: %s", config_path_yaml)
-    file = None
-    if layer[0] == 'bronze_postgres':
-        file = (BASE_DIR,"yaml_generation","master_files","edge_bronze_master.xlsx")
-    elif layer[0] == 'bronze_mssql':
-        file = (BASE_DIR,"yaml_generation","master_files","sitelink_bronze_master.xlsx")
 
-    control_table_path = os.path.join(*file) if file else None
+    control_table_path = masterfilepath[layer[0]]
 
     for yamlfile in config_path_yaml:
         with open(yamlfile) as f:

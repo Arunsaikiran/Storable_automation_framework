@@ -56,7 +56,7 @@ def main():
     # CHANGE: YAML generation. With --yaml_generation yes the table list is only known once the YAML is written, so the paths
     # are worked out again after that (below). An empty list here stops an 'all' listing of a folder that may not exist yet.
     yaml_generation = args.yaml_generation[0] == 'yes'
-    outputpaths,configpaths,logpath = get_config_output_paths(run_id,layer,report_pack,BASE_DIR,config_path,validation_dirs,[] if yaml_generation else tables)
+    outputpaths,configpaths,logpath,masterfilepath = get_config_output_paths(run_id,layer,report_pack,BASE_DIR,config_path,validation_dirs,[] if yaml_generation else tables)
 
 
     if logpath is None:
@@ -143,7 +143,7 @@ def main():
             close_all_databases()
             sys.exit(1)
 
-        outputpaths,configpaths,logpath = get_config_output_paths(run_id,layer,report_pack,BASE_DIR,config_path,validation_dirs,tables)
+        outputpaths,configpaths,logpath,masterfilepath = get_config_output_paths(run_id,layer,report_pack,BASE_DIR,config_path,validation_dirs,tables)
         # CHANGE: YAML generation. Only the data YAML of a table that is ready for data is validated. A table that FAILED for data (for
         # example no primary key) gets none, and an older hand-written file for it must not run in its place.
         data_ready = {table for table, kind, status, _ in generation_results
@@ -198,7 +198,7 @@ def main():
                 logger.error("YAML creation: no table is left to validate. See the YAML lines above.")
                 close_all_databases()
                 sys.exit(1)
-            outputpaths,configpaths,logpath = get_config_output_paths(run_id,layer,report_pack,BASE_DIR,config_path,validation_dirs,tables)
+            outputpaths,configpaths,logpath,masterfilepath = get_config_output_paths(run_id,layer,report_pack,BASE_DIR,config_path,validation_dirs,tables)
             # A data YAML that is still not there (for example a table with no primary key) is not validated.
             if "data_validation" in configpaths:
                 not_there = [os.path.splitext(os.path.basename(path))[0] for path in configpaths["data_validation"]
@@ -215,6 +215,7 @@ def main():
             layer_type = layer,
             outputpaths=outputpaths,
             configpaths=configpaths,
+            masterfilepath=masterfilepath,
             BASE_DIR=BASE_DIR,
             environment=environment,
             tables=tables,

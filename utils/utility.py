@@ -24,8 +24,20 @@ def generate_runid():
 def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,validation_dirs,table_list):
     outputpaths = {}
     configpaths = {}
+    masterfilepath = {}
     logpath = None
+    master_file = None
     output_dir = os.path.join(base_dir, "output")
+    
+    master_file_path = os.path.join(base_dir,"yaml_generation","master_files")
+    if layer_type[0] == 'bronze_postgres':
+        master_file = os.path.join(master_file_path,"edge_bronze_master.xlsx")
+    elif layer_type[0] == 'bronze_mssql':
+        master_file = os.path.join(master_file_path,"sitelink_bronze_master.xlsx")
+    elif layer_type[0] == 'bronze_mssql':
+        master_file = os.path.join(master_file_path,"sitelink_bronze_master.xlsx")
+    masterfilepath[layer_type[0]] = master_file
+
     if layer_type[0] == "reports" or layer_type[0] == "sanity":
         logpath = os.path.join(
         output_dir,
@@ -197,7 +209,7 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
                 
                 os.makedirs(path, exist_ok=True)
 
-    return outputpaths,configpaths,logpath
+    return outputpaths,configpaths,logpath,masterfilepath
 
 def _write_summary_to_table_result_excel(summary_df, output_path, table_name):
     """
@@ -593,6 +605,7 @@ def data_context():
         layer_type: list
         outputpaths: dict
         configpaths: dict
+        masterfilepath: dict
         BASE_DIR: str
         environment: str
         tables: list
