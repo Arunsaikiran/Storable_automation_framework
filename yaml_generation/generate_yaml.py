@@ -104,6 +104,10 @@ def resolve_args(args):
     if token is None:
         raise ValueError(f"unknown --environment {args.environment}: expected one of {', '.join(ENV_TOKENS)}")
     args.target_database = args.target_template.replace(ENV_PLACEHOLDER, token) if args.target_template else None
+    # CHANGE: YAML generation (16/11/2026). {env} on the source side too (e.g. {env}_NEWBOOK_AU_BRONZE). args.source_database stays as the
+    # workbook writes it, for the YAML; source_database_live is the name this run reads; env_token fills the schema query.
+    args.source_database_live = args.source_database.replace(ENV_PLACEHOLDER, token) if args.source_database else None
+    args.env_token = token
     return args
 
 
@@ -132,12 +136,15 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
     snow = RULES[target_type]
     target_label = snow["label"]
     prefix = f"{args.target_database}." if target_type == "snowflake" else ""
+    # CHANGE: YAML generation (16/11/2026). A Snowflake source (Newbook) reads its catalogue through its own database, not the connection's default
+    # (DEV_EDGE_BRONZE in creds), which would list no Newbook table. Rules flag catalogue_prefix.
+    source_prefix = f"{args.source_database_live}." if source.get("catalogue_prefix") else ""
     layer = f"bronze_{args.source_type}"
     want_data = args.data_validation == "yes"
     want_count = args.count_validation == "yes"
 
     # An empty listing would make every table look missing. Refused before anything is read or written.
-    if not db_rules.list_tables(source_db, args.source_schema, rules=source):
+    if not db_rules.list_tables(source_db, args.source_schema, prefix=source_prefix, rules=source):
         raise ValueError(f"no tables visible in source schema {args.source_schema}: check source_schema in the filter "
                          f"workbook and the role's access (nothing was changed)")
     if not db_rules.list_tables(target_db, args.target_schema, prefix=prefix, rules=snow):
@@ -176,7 +183,7 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
         spec = TableSpec(args.source_type, args.source_schema, table, args.target_template, args.target_schema,
                          source_database=args.source_database, target_type=target_type)
         try:
-            source_columns = db_rules.list_columns(source_db, args.source_schema, table, rules=source)
+            source_columns = db_rules.list_columns(source_db, args.source_schema, table, prefix=source_prefix, rules=source)
             target_columns = db_rules.list_columns(target_db, spec.target_schema, spec.target_table, prefix=prefix, rules=snow)
             if not source_columns:
                 reason = f"not in source schema {args.source_schema}, or not visible to this login (it needs read access)"
@@ -206,7 +213,7 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                 # The type check runs the schema file's own sourcequery, so it sees the types the validator will look up.
                 # Excluded columns are not checked: the validator leaves them out, from the same settings.
                 excluded = {s for s, _, status, _ in rec.rows if status.startswith("EXCLUDED") and s}
-                columns = [(row[1], row[2]) for row in source_db.execute_query(schema_sql.format(table_name=table)).values.tolist()]
+                columns = [(row[1], row[2]) for row in source_db.execute_query(schema_sql.format(table_name=table, env=args.env_token)).values.tolist()]
                 catalogue_types.update(dtype for _, dtype in columns)
                 gaps = unmapped_types(columns, excluded, datatype_map)
                 if not columns:

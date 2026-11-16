@@ -587,11 +587,11 @@ def test_an_incremental_run_writes_the_window_on_both_sides_of_data_and_count(tm
     results = run_generate(make_args("incremental"), config)
     assert statuses(results)[("units", "data_validation")] == "NEW"
     block = data_block(config, "units")
-    assert '"updated_at" > :start_time AND "updated_at" <= :end_time' in block["sourcequery"]
-    assert '"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time' in block["targetquery"]
+    assert '"updated_at" >= :start_time AND "updated_at" <= :end_time' in block["sourcequery"]
+    assert '"UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time' in block["targetquery"]
     count = count_block(config, "bronze_postgres", "units")
-    assert '"updated_at" > :start_time AND "updated_at" <= :end_time' in count["sourcequery"]
-    assert '"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time' in count["targetquery"]
+    assert '"updated_at" >= :start_time AND "updated_at" <= :end_time' in count["sourcequery"]
+    assert '"UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time' in count["targetquery"]
 
 
 def test_a_historical_run_has_no_window(tmp_path):
@@ -609,8 +609,8 @@ def test_a_window_column_missing_from_snowflake_is_written_by_name_with_a_warnin
                                   source=FakeDB(DOCS_SOURCE, {("edge", "docs"): ["id"]}), target=target)
     assert statuses(results) == {("docs", "data_validation"): "NEW", ("docs", "count_validation"): "NEW"}
     block = data_block(config, "docs")
-    assert '"updated_at" > :start_time AND "updated_at" <= :end_time' in block["sourcequery"]
-    assert '"UPDATED_AT" > :start_time AND "UPDATED_AT" <= :end_time' in block["targetquery"]
+    assert '"updated_at" >= :start_time AND "updated_at" <= :end_time' in block["sourcequery"]
+    assert '"UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time' in block["targetquery"]
     assert count_block(config, "bronze_postgres", "docs")["targetquery"].count(":start_time") == 1
     assert "incremental column updated_at is not compared on the Snowflake side" in caplog.text
 
@@ -618,8 +618,8 @@ def test_a_window_column_missing_from_snowflake_is_written_by_name_with_a_warnin
 def test_the_rules_workbook_can_name_the_incremental_column(tmp_path):
     config = config_dir_for(tmp_path, "incremental")
     run_generate(make_args("incremental"), config, table_rules={"units": TableRule(incremental_column="created_at")})
-    assert '"created_at" > :start_time' in data_block(config, "units")["sourcequery"]
-    assert '"CREATED_AT" > :start_time' in data_block(config, "units")["targetquery"]
+    assert '"created_at" >= :start_time' in data_block(config, "units")["sourcequery"]
+    assert '"CREATED_AT" >= :start_time' in data_block(config, "units")["targetquery"]
 
 
 def test_run_for_validation_passes_the_run_type_so_the_incremental_yaml_has_the_window(run_env):

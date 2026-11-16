@@ -453,3 +453,14 @@ def test_the_shipped_workbooks_have_a_type_mapping_sheet():
     mssql, _ = ff.schema_mapping("mssql", log=LOG)
     assert (len(postgres), postgres["USER-DEFINED"], postgres["timestamp without time zone"]) == (16, "variant", "timestamp_ntz")
     assert (len(mssql), mssql["nvarchar"], mssql["bit"]) == (9, "text", "boolean")
+
+
+@pytest.mark.parametrize("app, schema", [("common", "NB_DEV_AU_SQL01_NEWBOOK_COMMON"),
+                                         ("corporation", "NB_DEV_AU_SQL01_CORPORATIONS_11144"),
+                                         ("instances", "NB_DEV_AU_SQL01_INSTANCES_1672"),
+                                         ("login", "NB_DEV_AU_SQL01_NEWBOOK_LOGIN")])
+def test_each_shipped_newbook_workbook_is_one_schema_with_a_mapping_sheet(app, schema):
+    """One layer per Newbook schema: every row of the workbook is at that schema, so one schema YAML covers it."""
+    rows = ff.read(f"newbook_{app}", "historical", log=LOG)
+    assert rows and {(r.location.source_schema, r.location.target_schema) for r in rows.values()} == {(schema, schema)}
+    assert ff.schema_mapping(f"newbook_{app}", log=LOG)[0]

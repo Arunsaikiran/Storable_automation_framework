@@ -6,14 +6,16 @@ import logging
 from openpyxl import load_workbook
 import sys
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import yaml
 import requests
 from utils.exceptions import NoNewDataError,NoNewSyncError
 
 # CHANGE: YAML generation. The bronze layers that have YAML generation, filter workbooks and schema validation. Every layer
 # check below and in main.py reads this one tuple, so a new bronze layer (bronze_mysql_ess) is added here once, not at each check.
-BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql", "bronze_newbook", "bronze_mysql_crm")  # CHANGE: YAML generation. bronze_mysql_crm added (MySQL, CRM). One layer per MySQL application: ESS will be bronze_mysql_ess.
+BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql", "bronze_newbook", "bronze_mysql_crm",
+                 # CHANGE: YAML generation. Newbook split per Snowflake schema: one layer and workbook each (2026-11-16).
+                 "bronze_newbook_common", "bronze_newbook_corporation", "bronze_newbook_instances", "bronze_newbook_login")  # CHANGE: YAML generation. bronze_mysql_crm added (MySQL, CRM). One layer per MySQL application: ESS will be bronze_mysql_ess.
 
 
 #Generating runids
@@ -30,12 +32,14 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
     output_dir = os.path.join(base_dir, "output")
     
     master_file_path = os.path.join(base_dir,"yaml_generation","master_files")
-    if layer_type[0] == 'bronze_postgres':
-        master_file = os.path.join(master_file_path,"edge_bronze_master.xlsx")
-    elif layer_type[0] == 'bronze_mssql':
-        master_file = os.path.join(master_file_path,"sitelink_bronze_master.xlsx")
-    elif layer_type[0] == 'bronze_mssql':
-        master_file = os.path.join(master_file_path,"sitelink_bronze_master.xlsx")
+    # CHANGE: YAML generation (16/11/2026). The master workbook comes from filter_files.WORKBOOKS, the same list the YAML
+    # generator reads, instead of one if/elif per layer. Before, only bronze_postgres and bronze_mssql had one (the mssql
+    # branch was written twice), so Newbook and CRM got None. Now every bronze layer gets its workbook, and a new layer
+    # needs no edit here or in the validators. Layers with no workbook (silver, gold, reports, sanity) keep None.
+    from yaml_generation.filter_files import WORKBOOKS
+    workbook = WORKBOOKS.get(layer_type[0].removeprefix("bronze_")) if layer_type[0].startswith("bronze_") else None
+    if workbook:
+        master_file = os.path.join(master_file_path, workbook)
     masterfilepath[layer_type[0]] = master_file
 
     if layer_type[0] == "reports" or layer_type[0] == "sanity":
@@ -605,12 +609,15 @@ def data_context():
         layer_type: list
         outputpaths: dict
         configpaths: dict
-        masterfilepath: dict
         BASE_DIR: str
         environment: str
         tables: list
         run_type: str = 'historical'
         report_pack: list | None = None
+        # CHANGE: YAML generation (16/11/2026). Moved to the end with a default: as a required field in the middle, every
+        # DataContext built without it (the schema validator tests) failed with "missing 1 required positional argument".
+        # main.py always passes it, so runs are unchanged; it is only read by the count and data validators.
+        masterfilepath: dict = field(default_factory=dict)
     return DataContext
 
 def check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type,environment,threshold:int=50):

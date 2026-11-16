@@ -203,6 +203,7 @@ RULES = {
 
     "newbook": {
         "label": "Newbook",
+        "catalogue_prefix": True,   # CHANGE: YAML generation (16/11/2026). a Snowflake source: list tables/columns via <database>.INFORMATION_SCHEMA
         "has_primary_keys": False,   # the target is only read for its column names
         "quote": ('"', '"'),
         "text_type": "STRING",
@@ -228,7 +229,13 @@ RULES = {
     },
 }
 
-SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "newbook", "mysql_crm"]
+# CHANGE: YAML generation. Newbook split into one layer per Snowflake schema (bronze_newbook_common, _corporation, _instances,
+# _login), each with its own workbook. Same engine as "newbook"; only the label differs, so the log and engine_of() tell them apart.
+for _app in ("common", "corporation", "instances", "login"):
+    RULES[f"newbook_{_app}"] = {**RULES["newbook"], "label": f"Newbook {_app.title()}"}
+
+SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "newbook", "mysql_crm",
+                "newbook_common", "newbook_corporation", "newbook_instances", "newbook_login"]
 TARGET_TYPES = ["snowflake"]
 
 # Lengths and precisions in a type name, e.g. "(10,2)" or "(3)".

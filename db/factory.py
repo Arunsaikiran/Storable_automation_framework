@@ -57,6 +57,12 @@ def get_database(db_type,BASE_DIR,env):
         snowflake_warehouse = snowflake['snowflake_warehouse']
         db = Snowflake(SNOWFLAKE_ACCOUNT=snowflake_account,SNOWFLAKE_USER=snowflake_user,SNOWFLAKE_ROLE=snowflake_role,externalbrowser=externalbrowser,SNOWFLAKE_DATABASE=snowflake_database,SNOWFLAKE_SCHEMA=snowflake_schema,SNOWFLAKE_WAREHOUSE=snowflake_warehouse)
 
+    # CHANGE: YAML generation. The Newbook layers (newbook_common, _corporation, _instances, _login) read Newbook's bronze
+    # tables in the same Snowflake account as the target, so they reuse the cached 'snowflake' connection: no creds block
+    # of their own and one SSO login. Returned here, not cached again, so close_all_databases() closes it once.
+    elif db_type.startswith("newbook_"):
+        return get_database("snowflake", BASE_DIR, env)
+
     elif db_type == "snowflake":
         snowflake = file['snowflake']
         snowflake_account = snowflake['snowflake_account']

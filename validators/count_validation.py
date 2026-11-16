@@ -95,6 +95,8 @@ def validate_count(ctx):
                     target_query = target_query.format(env = "PRD",schema_env= "PRD")
                 else:
                     target_query = target_query.format(env = "DEV",schema_env= "DEV")
+                # CHANGE: YAML generation (16/11/2026). {env} on the source side too (e.g. {env}_NEWBOOK_AU_BRONZE), same values as the target.
+                source_query = source_query.replace("{env}", {"stg": "STG", "qat": "QAT", "prod": "PRD"}.get(environment, "DEV"))
 
                 
                 source_table_name = validation_config.get("source_table_name",'')
