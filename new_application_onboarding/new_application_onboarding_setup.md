@@ -103,7 +103,7 @@ Copy `templates/TEMPLATE_bronze_master.xlsx` and rename it. Then:
 
 Every master workbook has the **same two sheets and nothing else**: `Sheet1` and `<Engine> schema mapping`. Don't add columns or sheets (counts, notes, test results). Anyone who copies the file later copies them too. Keep that kind of work in a separate file.
 
-**Sheet 1: `Sheet1`, the tables sheet.** It has exactly these nine headers, in this order. Names are matched **ignoring case**, so `Target Table Name` and `target table name` are the same.
+**Sheet 1: `Sheet1`, the tables sheet.** It has exactly these twelve headers, in this order. Names are matched **ignoring case**, so `Target Table Name` and `target table name` are the same.
 
 | Column header | What to put in it | Example row |
 |---|---|---|
@@ -116,12 +116,15 @@ Every master workbook has the **same two sheets and nothing else**: `Sheet1` and
 | `target_application` | Always `Snowflake` | `Snowflake` |
 | `target_database` | The Snowflake database with `{env}` (Step 3) | `{env}_NEWAPP_BRONZE` |
 | `target_schema` | The Snowflake schema (Step 3) | `NEWAPP_SCHEMA` |
+| `count_validation_last_run_date` | When count validation last ran for the table. Seed it with a start date; incremental runs read it and write the new sync date back | `2026-11-01 00:50:59.657 +0000` |
+| `data_validation_last_run_date` | The same, for data validation | `2026-11-01 00:50:59.657 +0000` |
+| `layer` | The `--layer_type` for this workbook: `bronze_<key>` | `bronze_newapp` |
 
 **First row (example):**
 
 ```
-Target Table Name | Historical Filter | Incremental filters | source_application | source_database | source_schema | target_application | target_database      | target_schema
-units             | (empty)           | (empty)             | NewApp            | fms             | public        | Snowflake         | {env}_NEWAPP_BRONZE  | NEWAPP_SCHEMA
+Target Table Name | Historical Filter | Incremental filters | source_application | source_database | source_schema | target_application | target_database      | target_schema | count_validation_last_run_date | data_validation_last_run_date | layer
+units             | (empty)           | (empty)             | NewApp            | fms             | public        | Snowflake         | {env}_NEWAPP_BRONZE  | NEWAPP_SCHEMA | 2026-11-01 00:50:59.657 +0000  | 2026-11-01 00:50:59.657 +0000 | bronze_newapp
 ```
 
 **Rows:** one row per table. A table listed twice keeps its first row, and the second is ignored.
@@ -215,7 +218,7 @@ This folder does not change the code. Routes A and B need no code change. In eac
 8. `db/factory.py`, at the top: `from db.<key> import <Class>`, with the other imports. Without it the branch from item 4 fails with `NameError`.
 9. `requirements.txt`: add the driver package (MySQL uses `pymysql`), then run `pip install -r requirements.txt`.
 
-**Incremental runs (routes C and D):** add a `bronze_<key>` branch to `check_freshness()` and to `get_dates()` in `utils/utility.py`. Also add the Fivetran connection id under `bronze_<key>` in `creds/api.yaml`, and one line per table in `control_table.csv`.
+**Incremental runs (routes C and D):** add a `bronze_<key>` branch to `check_freshness()` and to `get_dates()` in `utils/utility.py`. Also add the Fivetran connection id under `bronze_<key>` in `creds/api.yaml`. The last run dates come from the `count_validation_last_run_date` and `data_validation_last_run_date` columns on Sheet1 of the master workbook.
 
 Then run `python -m pytest yaml_generation/tests -q` and `python yaml_generation/filter_files.py`. Both must pass before the first run.
 

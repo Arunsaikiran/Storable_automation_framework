@@ -56,12 +56,13 @@ FILES TO CHANGE
   Incremental runs (routes C and D) also:
     - utils/utility.py: a "bronze_<key>" branch in check_freshness() and in get_dates().
     - creds/api.yaml: the Fivetran connection id under the key bronze_<key>.
-    - control_table.csv: one line per table: <table in lower case>,<last count run>,<last data run>,bronze_<key>.
+    - the master workbook's Sheet1: count_validation_last_run_date and data_validation_last_run_date seeded for each row, and layer = bronze_<key>.
 
 RULES
   - The master workbook is the only source of truth for locations and filters. Keep its two sheets and their headers exactly:
     Sheet1: Target Table Name | Historical Filter to apply | Incremental filters to apply | source_application | source_database |
-            source_schema | target_application | target_database | target_schema
+            source_schema | target_application | target_database | target_schema | count_validation_last_run_date |
+            data_validation_last_run_date | layer
     '<Label> schema mapping': source_data_type | target_data_type | precision_check | notes
     No extra sheets or columns. target_application is Snowflake. target_database must contain {env}.
   - When you add to a list or dict (WORKBOOKS, SCHEMA_SHEETS, SOURCE_TYPES, BRONZE_LAYERS, INCREMENTAL_COLUMNS, RULES), keep every existing entry.

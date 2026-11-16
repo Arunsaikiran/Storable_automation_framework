@@ -640,24 +640,27 @@ def check_freshness(source_conn,target_conn,source_table_name,target_table_name,
     return freshness_check
 
 def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name,environment):
-    control_file = os.path.join(base_dir,'control_table.csv')
+    
     date_column = 'data_validation_last_run_date' if validation == 'data' else 'count_validation_last_run_date'
 
-    control_df = pd.read_csv(control_file)
-    rows = (control_df[(control_df['table'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
+    if layer == 'bronze_postgres':
+        target_table = f"{environment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}"
+        file = (base_dir,"yaml_generation","master_files","edge_bronze_master.xlsx")
+        col = 'updated_at'
+    elif layer == 'bronze_mssql':
+        target_table = f"{environment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}"
+        file = (base_dir,"yaml_generation","master_files","sitelink_bronze_master.xlsx")
+        col = 'dUpdated'
+    else:
+        raise ValueError(f"Unsupported layer '{layer}' for get_dates")
+    
+    control_file = os.path.join(*file)
+    control_df = pd.read_excel(control_file,sheet_name="Sheet1")
+    rows = (control_df[(control_df['Target Table Name'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
 
     if rows.empty:
         raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
     previous_sync_date = rows.iloc[0]
-
-    if layer == 'bronze_postgres':
-        target_table = f"{environment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}"
-        col = 'updated_at'
-    elif layer == 'bronze_mssql':
-        target_table = f"{environment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}"
-        col = 'dUpdated'
-    else:
-        raise ValueError(f"Unsupported layer '{layer}' for get_dates")
 
     target_query_sync = f"""
     SELECT max(_fivetran_synced) as MAX_FIVETRAN_SYNCED
@@ -766,15 +769,42 @@ def _format_ts(ts):
     
 #     return max_fivetran_start,min_fivetran_start,sync_date
 
+def _update_control_workbook(file_location, table_name, layer, date_column, sync_date):
+    # Bronze control tables are the master .xlsx files (Sheet1); edit only the target cells so the other columns,
+    # sheets and formatting are left as they are.
+    from openpyxl import load_workbook
+    wb = load_workbook(file_location)
+    ws = wb["Sheet1"]
+    headers = {cell.value: cell.column for cell in ws[1]}
+    for needed in ('Target Table Name', 'layer'):
+        if needed not in headers:
+            raise KeyError(f"Column '{needed}' not in {file_location}")
+    if date_column not in headers:
+        logger.info(f"Column '{date_column}' not in control table; skipped")
+        return
+    updated = False
+    for row in range(2, ws.max_row + 1):
+        name = ws.cell(row=row, column=headers['Target Table Name']).value
+        if str(name).lower() == table_name.lower() and ws.cell(row=row, column=headers['layer']).value == layer:
+            ws.cell(row=row, column=headers[date_column]).value = str(sync_date)
+            updated = True
+    if not updated:
+        logger.info(f"No control table row for {table_name.lower()}-{layer}; nothing updated")
+        return
+    wb.save(file_location)
+
 def update_control_table(file_location, table_name, layer, validation, sync_date):
     date_column = (
         'data_validation_last_run_date'
         if validation == 'data'
         else 'count_validation_last_run_date'
     )
+    if str(file_location).lower().endswith('.xlsx'):
+        _update_control_workbook(file_location, table_name, layer, date_column, sync_date)
+        return
     control_df = pd.read_csv(file_location, dtype=str)
     mask = (
-        (control_df['table'] == table_name.lower()) &
+        (control_df['Target Table Name'] == table_name.lower()) &
         (control_df['layer'] == layer)
     )
 
