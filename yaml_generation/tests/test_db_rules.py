@@ -132,6 +132,15 @@ def test_schema_query_fills_the_location_and_keeps_table_name_for_the_validator(
     assert "FROM fms.information_schema.columns" in db_rules.schema_query(PG, "public", "fms")  # source: database.schema
 
 
+def test_mysql_names_are_schema_dot_table_in_backticks():
+    """A MySQL database is its schema, so the database name is not written twice (two_part_names)."""
+    from yaml_generation.yaml_builder import source_name
+    assert source_name("dev", "dev", "accounts", RULES["mysql_crm"]) == "`dev`.`accounts`"
+    assert source_name("fms", "public", "units", PG) == '"fms"."public"."units"'  # the other engines keep three parts
+    assert "FROM INFORMATION_SCHEMA.COLUMNS" in db_rules.schema_query(RULES["mysql_crm"], "dev", "dev")
+    assert "TABLE_SCHEMA = 'dev'" in db_rules.schema_query(RULES["mysql_crm"], "dev", "dev")
+
+
 def test_schema_query_has_no_trailing_space_so_the_yaml_keeps_block_style():
     for rules in (PG, MS, SNOW):
         assert all(line == line.rstrip() for line in db_rules.schema_query(rules, "s", "d").split("\n"))

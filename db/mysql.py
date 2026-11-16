@@ -1,4 +1,4 @@
-# CHANGE: YAML generation. New file: the MySQL connector for --layer_type bronze_mysql (the creds block 'mysql').
+# CHANGE: YAML generation. New file: the MySQL connector for --layer_type bronze_mysql_crm (the creds block 'mysql_crm').
 # It follows db/mssqlserver.py: one connection, reused, and execute_query returns a pandas DataFrame.
 from db.base import Database
 import pandas as pd

@@ -59,6 +59,7 @@ from yaml_generation import db_rules, filter_files, settings  # noqa: E402
 from yaml_generation.db_rules import RULES  # noqa: E402
 from yaml_generation.yaml_builder import (  # noqa: E402
     ENV_PLACEHOLDER,
+    FIVETRAN_FILTER,
     GENERATED_MARK,
     Filters,
     TableSpec,
@@ -125,7 +126,12 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                         these tables, or None for no schema file.
     """
     source = RULES[args.source_type]
-    snow = RULES["snowflake"]
+    # CHANGE: YAML generation. The target engine is the workbook row's (args.target_type, Snowflake unless the row names another).
+    # Only Snowflake reads its catalogue through a database prefix and keeps the Fivetran rule.
+    target_type = getattr(args, "target_type", "snowflake")
+    snow = RULES[target_type]
+    target_label = snow["label"]
+    prefix = f"{args.target_database}." if target_type == "snowflake" else ""
     layer = f"bronze_{args.source_type}"
     want_data = args.data_validation == "yes"
     want_count = args.count_validation == "yes"
@@ -134,14 +140,15 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
     if not db_rules.list_tables(source_db, args.source_schema, rules=source):
         raise ValueError(f"no tables visible in source schema {args.source_schema}: check source_schema in the filter "
                          f"workbook and the role's access (nothing was changed)")
-    if not db_rules.list_tables(target_db, args.target_schema, prefix=f"{args.target_database}."):
-        raise ValueError(f"no tables visible in Snowflake schema {args.target_database}.{args.target_schema}: check "
+    if not db_rules.list_tables(target_db, args.target_schema, prefix=prefix, rules=snow):
+        raise ValueError(f"no tables visible in {target_label} schema {args.target_database}.{args.target_schema}: check "
                          f"target_database and target_schema in the filter workbook, and the role's access (nothing was changed)")
     results = []
     count_entries = {}
     counted = count_table_names(config_dir, layer) if create_only else set()
     want_schema = schema_mapping is not None
     schema_entries = {}
+    catalogue_types = set()      # the source types as the catalogue spells them, for the schema tables of this run
     if want_schema:
         datatype_map, precision_checks = schema_mapping
         schema_sql = db_rules.schema_query(source, args.source_schema, args.source_database)
@@ -152,7 +159,8 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
         rule = table_rules.get(table, settings.TableRule())
         # The rules workbook wins for a side it sets. The filter workbook fills in the other side.
         file_source, file_target = (file_filters or {}).get(table, (None, None))
-        filters = Filters(source_where=rule.source_where or file_source, target_where=rule.target_where or file_target)
+        filters = Filters(source_where=rule.source_where or file_source, target_where=rule.target_where or file_target,
+                          target_active=FIVETRAN_FILTER if target_type == "snowflake" else None)
         if file_filters is not None and table not in file_filters:
             log.info("%s: no filter in the filter workbook, so the whole table is compared", table)
         data_wanted = want_data and not (create_only and data_file_path(config_dir, table).exists())
@@ -166,17 +174,16 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
         if not (data_wanted or count_wanted or schema_wanted):
             continue
         spec = TableSpec(args.source_type, args.source_schema, table, args.target_template, args.target_schema,
-                         source_database=args.source_database)
+                         source_database=args.source_database, target_type=target_type)
         try:
             source_columns = db_rules.list_columns(source_db, args.source_schema, table, rules=source)
-            target_columns = db_rules.list_columns(target_db, spec.target_schema, spec.target_table,
-                                                   prefix=f"{args.target_database}.")
+            target_columns = db_rules.list_columns(target_db, spec.target_schema, spec.target_table, prefix=prefix, rules=snow)
             if not source_columns:
                 reason = f"not in source schema {args.source_schema}, or not visible to this login (it needs read access)"
                 results.append((table, "table", "FAILED", f"{reason}; nothing was changed"))
                 continue
             if not target_columns:
-                reason = (f"not in Snowflake {args.target_database}.{spec.target_schema}, or not visible to this role "
+                reason = (f"not in {target_label} {args.target_database}.{spec.target_schema}, or not visible to this role "
                           f"(it needs read access)")
                 results.append((table, "table", "FAILED", f"{reason}; nothing was changed"))
                 continue
@@ -184,8 +191,8 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
             rec = reconcile(source_columns, target_columns, global_excluded, rule.exclude, source)
             only_source = [r[0] for r in rec.rows if r[2] == "MISSING_IN_TARGET"]
             only_target = [r[1] for r in rec.rows if r[2] == "EXTRA_IN_TARGET"]
-            log.info("%s: %d columns compared; %d only in source; %d only in Snowflake; %d excluded",
-                     table, len(rec.pairs), len(only_source), len(only_target),
+            log.info("%s: %d columns compared; %d only in source; %d only in %s; %d excluded",
+                     table, len(rec.pairs), len(only_source), len(only_target), target_label,
                      sum(1 for r in rec.rows if r[2].startswith("EXCLUDED")))
             if only_source or only_target:
                 log.warning("%s: column(s) on one side only, compared as missing (every row will differ): %s",
@@ -200,6 +207,7 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                 # Excluded columns are not checked: the validator leaves them out, from the same settings.
                 excluded = {s for s, _, status, _ in rec.rows if status.startswith("EXCLUDED") and s}
                 columns = [(row[1], row[2]) for row in source_db.execute_query(schema_sql.format(table_name=table)).values.tolist()]
+                catalogue_types.update(dtype for _, dtype in columns)
                 gaps = unmapped_types(columns, excluded, datatype_map)
                 if not columns:
                     reason = (f"the schema query (information_schema) returns no column for {args.source_schema}.{table}, so "
@@ -219,8 +227,8 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                 # The window is the validators' (CSV and Fivetran at run time). Always written: a side that lacks the column
                 # gets a WARNING, and the query fails there.
                 column = rule.incremental_column or settings.INCREMENTAL_COLUMNS.get(args.source_type, "updated_at")
-                filters.source_window, filters.target_window, missing = incremental_window(rec.pairs, column, source)
-                where = {"source": source["label"], "target": "Snowflake"}
+                filters.source_window, filters.target_window, missing = incremental_window(rec.pairs, column, source, snow)
+                where = {"source": source["label"], "target": target_label}
                 for side in missing:
                     log.warning("%s: incremental column %s is not compared on the %s side (missing or excluded); the window "
                                 "is written by name, so the validation query fails there if the column is missing",
@@ -270,10 +278,20 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
             results.extend((table, "count_validation", "FAILED", "count file could not be updated")
                            for table in count_entries)
     if schema_entries:
-        shared = {"source": args.source_type, "sourcequery": schema_sql, "target": "snowflake",
+        # The workbook's types match ignoring case, but the validator looks the catalogue's spelling up exactly. So each catalogue
+        # spelling of a workbook type is written as a key too (the same target, or the same precision check).
+        spelled_map = dict(datatype_map)
+        for dtype in sorted(catalogue_types):
+            key = next((k for k in datatype_map if k.lower() == dtype.lower()), None)
+            if key is not None:
+                spelled_map.setdefault(dtype, datatype_map[key])
+        spelled_checks = {check: list(types) + [t for t in sorted(catalogue_types) if t not in types
+                                                and t.lower() in {s.lower() for s in types}]
+                          for check, types in precision_checks.items()}
+        shared = {"source": args.source_type, "sourcequery": schema_sql, "target": target_type,
                   # The {env} placeholder is kept: the validator fills it for its run, so one file serves every environment.
                   "targetquery": db_rules.schema_query(snow, args.target_schema, args.target_template),
-                  "datatype_map": datatype_map, "precision_checks": precision_checks}
+                  "datatype_map": spelled_map, "precision_checks": spelled_checks}
         header = [f"{GENERATED_MARK} on {stamp} from {filter_files.WORKBOOKS[args.source_type]} (locations; '{sheet}' for "
                   f"the types). Do not hand-edit; main.py --schema_validation yes rewrites it when they change."]
         try:
@@ -378,7 +396,8 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
     try:
         # The same cached connections the validators use. They are closed by main.py, not here.
         source_db = get_database(source_type, str(FRAMEWORK_ROOT), environment)
-        target_db = get_database("snowflake", str(FRAMEWORK_ROOT), environment)
+        # CHANGE: YAML generation. One connection per target engine the rows name (Snowflake, or e.g. mysql_crm).
+        target_dbs = {kind: get_database(kind, str(FRAMEWORK_ROOT), environment) for kind in {w.target_type for w in by_location}}
     except (FileNotFoundError, KeyError) as exc:
         # Missing creds/<env>.yaml (FileNotFoundError) or a missing block in it, e.g. no 'snowflake' key (KeyError).
         raise ValueError(f"Cannot open the connections for --environment {environment}: {exc}. "
@@ -402,11 +421,13 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
             results += [(table, "schema_validation", "FAILED", reason) for table in names]
         group = resolve_args(SimpleNamespace(**{**vars(args), "tables": names, "source_schema": where.source_schema,
                                                 "source_database": where.source_database,
-                                                "target_template": where.target_database, "target_schema": where.target_schema}))
-        log.info("%s: %d table(s), %s %s.%s -> Snowflake %s.%s, %d table rule(s)", where.application, len(names), label,
-                 where.source_database, where.source_schema, group.target_database, where.target_schema, len(table_rules[where]))
+                                                "target_template": where.target_database, "target_schema": where.target_schema,
+                                                "target_type": where.target_type}))
+        log.info("%s: %d table(s), %s %s.%s -> %s %s.%s, %d table rule(s)", where.application, len(names), label,
+                 where.source_database, where.source_schema, RULES[where.target_type]["label"], group.target_database,
+                 where.target_schema, len(table_rules[where]))
         try:
-            results += generate(group, source_db, target_db, config_dir, global_excluded, table_rules[where], log, stamp,
+            results += generate(group, source_db, target_dbs[where.target_type], config_dir, global_excluded, table_rules[where], log, stamp,
                                 file_filters=file_filters, create_only=create_only,
                                 schema_mapping=schema_mapping if where == schema_home else None)
         except ValueError as exc:

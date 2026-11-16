@@ -111,7 +111,12 @@ def validate_schema(ctx):
             logger.info("Source Query: %s", formatted_source_query)
             obj = get_database(target,BASE_DIR,environment)
             # CHANGE: YAML generation (V1). env is filled too; a query without {env} is unchanged by it.
-            formatted_target_query = target_query.format(table_name = table_name.upper(), env = env)
+            # CHANGE: YAML generation (MySQL onboarding). The table name is upper-cased for a Snowflake target only. Another
+            # target (MySQL CRM compared against itself, target: mysql_crm) keeps the source spelling, as yaml_builder's
+            # TableSpec.target_table does: MySQL table names are case-sensitive on Linux, so 'RESERVATION_FEE' found nothing
+            # and every CRM table failed with "not found in target".
+            target_table_name = table_name.upper() if str(target).lower() == "snowflake" else table_name
+            formatted_target_query = target_query.format(table_name = target_table_name, env = env)
             target_df = obj.execute_query(formatted_target_query)
             target_df.columns = target_df.columns.str.lower()
             target_df = target_df[~target_df['column_name'].map(normalize_name).isin(excluded)]

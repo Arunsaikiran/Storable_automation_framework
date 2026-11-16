@@ -5,6 +5,7 @@ from db.mssqlserver import Mssqlserver
 from db.athena import Athena
 from db.snowflake import Snowflake
 from db.redshift import Redshift
+from db.mysql import Mysql  # CHANGE: YAML generation. MySQL connector for --layer_type bronze_mysql_<application> (bronze_mysql_crm)
 
 #Reading creds yaml
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -75,6 +76,12 @@ def get_database(db_type,BASE_DIR,env):
         redshift_password= redshift['redshift_password']
 
         db = Redshift(REDSHIFT_HOST=redshift_host,REDSHIFT_PORT=redshift_port,REDSHIFT_DATABASE=redshift_database,REDSHIFT_USER=redshift_user,REDSHIFT_PASSWORD=redshift_password)
+
+    # CHANGE: YAML generation. One MySQL creds block per application, named as its layer key (mysql_crm; mysql_ess later is added
+    # to this tuple): host, port, database, user, password (creds/example.yaml lists them).
+    elif db_type in ("mysql_crm",):
+        mysql = file[db_type]
+        db = Mysql(host=mysql['host'], port=mysql['port'], database=mysql['database'], user=mysql['user'], password=mysql['password'])
 
     else:
         raise ValueError(f"Unsupported database: {db_type}")

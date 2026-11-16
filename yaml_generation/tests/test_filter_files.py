@@ -191,10 +191,32 @@ def test_an_empty_location_cell_is_an_error_naming_the_file_row_and_column(tmp_p
         ff.read("postgres", "historical", folder=tmp_path, log=LOG)
 
 
-def test_a_target_other_than_snowflake_is_an_error(tmp_path):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["units"], location=["Edge", "fms", "public", "Redshift", "X", "Y"])})
-    with pytest.raises(ValueError, match="target_application must be Snowflake, found 'Redshift'"):
+def test_mysql_source_schema_is_optional_and_defaults_to_the_database(tmp_path):
+    """MySQL has no schema level: a blank cell, or no source_schema column at all, means the source_database."""
+    crm = ["CRM", "dev", None, "Snowflake", "{env}_CRM_BRONZE", "DEV"]
+    _workbook(tmp_path / "crm_bronze_master.xlsx", {"s": _rows(["users"], location=crm)})
+    assert ff.read("mysql_crm", "historical", folder=tmp_path, log=LOG)["users"].location.source_schema == "dev"
+    header = [name for name in HEADER if name != "source_schema"]
+    _workbook(tmp_path / "crm_bronze_master.xlsx", {"s": [header, ["users", None, None, "CRM", "dev", "Snowflake", "{env}_CRM_BRONZE", "DEV"]]})
+    assert ff.read("mysql_crm", "historical", folder=tmp_path, log=LOG)["users"].location.source_schema == "dev"
+
+
+def test_a_target_that_is_not_an_engine_is_an_error(tmp_path):
+    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["units"], location=["Edge", "fms", "public", "Oracle", "X", "Y"])})
+    with pytest.raises(ValueError, match="target_application 'Oracle' is not an engine"):
         ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+
+
+def test_mysql_crm_compared_against_itself_needs_no_env_and_no_schemas(tmp_path):
+    """CRM has no Snowflake target yet: target MySQL CRM, the same database, both schema cells blank."""
+    _workbook(tmp_path / "crm_bronze_master.xlsx", {"s": _rows(["users"], location=["CRM", "dev", None, "MySQL CRM", "dev", None])})
+    row = ff.read("mysql_crm", "historical", folder=tmp_path, log=LOG)["users"]
+    assert row.location == ff.Location("CRM", "mysql_crm", "dev", "dev", "dev", "dev", "mysql_crm")
+    src, tgt = ff.convert("select count(*) from users where id > 1", "mysql_crm", "dev", "dev", "dev", "dev", "mysql_crm")
+    assert src == tgt == "id > 1"
+    src, tgt = ff.convert("select count(*) from users u join leads l on u.lead_id = l.id where l.x = 1",
+                          "mysql_crm", "dev", "dev", "dev", "dev", "mysql_crm")
+    assert src == tgt == "lead_id IN (SELECT id FROM `dev`.`leads` WHERE x = 1)", tgt
 
 
 @pytest.mark.parametrize("engine", ["SQL Server", "PostgreSQL"])
@@ -222,7 +244,7 @@ def test_the_engine_is_matched_by_label_or_key_in_any_case():
     assert ff.engine_of("PostgreSQL") == ff.engine_of(" postgres ") == "postgres"
     assert ff.engine_of("sql server") == ff.engine_of("MSSQL") == "mssql"
     assert ff.engine_of("Snowflake") == "snowflake"
-    assert ff.engine_of("MySQL") is None and ff.engine_of(None) is None
+    assert ff.engine_of("MySQL CRM") == "mysql_crm" and ff.engine_of(None) is None
 
 
 def test_a_table_listed_twice_keeps_the_first_row_with_a_warning(tmp_path, caplog):

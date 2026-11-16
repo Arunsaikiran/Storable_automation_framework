@@ -202,6 +202,7 @@
 <nav class="tabs">
   <button data-view="play" class="on">&#9654; Play a run</button>
   <button data-view="guide">&#129517; Add a new source, step by step</button>
+  <button data-view="ends">&#8644; Source and target</button>
   <button data-view="files">&#128193; Files</button>
   <button data-view="tree">&#127795; Code tree</button>
 </nav>
@@ -220,13 +221,61 @@
 <!-- ============================== GUIDE ============================== -->
 <section id="guide" class="view">
   <h2>Add a new source, step by step</h2>
-  <p class="lede">The guide asks for a few names, then gives you one step at a time: the file to open, the text to paste (every block has a <b>Copy</b> button, already filled in with your names) and how you know it's done. A new application on PostgreSQL or SQL Server takes about 20 to 30 minutes. The panel on the right keeps the whole plan in view. The same steps, as a document: <code>new_application_onboarding/new_application_onboarding_setup.md</code>.</p>
+  <p class="lede">The guide asks for a few names, then gives you one step at a time: the file to open, the text to paste (every block has a <b>Copy</b> button, already filled in with your names) and how you know it's done. It asks first whether the application joins an existing layer or gets one of its own, and then whether the framework already has a connector for its database: that decides which files change. Every plan comes with a prompt to paste into an AI assistant. The panel on the right keeps the whole plan in view. The same steps, as a document: <code>new_application_onboarding/new_application_onboarding_setup.md</code>; the prompt template: <code>new_application_onboarding/templates/AI_ONBOARDING_PROMPT.md</code>.</p>
   <div class="chatwrap">
     <div id="chat"></div>
     <aside class="plan"><h3>Your plan</h3><div class="bar"><div id="bar"></div></div><ol id="planlist"><li class="empty">The steps appear here once you choose what you're adding.</li></ol></aside>
   </div>
 </section>
 
+
+<!-- ============================== SOURCE AND TARGET ============================== -->
+<section id="ends" class="view">
+  <h2>Source and target: how the code knows which is which</h2>
+  <p class="lede">The <b>source</b> comes from the command (<code>--layer_type</code>). The <b>target</b> comes from each row of the master workbook (<code>target_application</code>). Nothing else decides them, and neither is hard-coded: Snowflake is just what most rows say.</p>
+
+  <h3>The source: one per run, from --layer_type</h3>
+  <div class="sheet"><table>
+    <tr><th>Step</th><th>What happens</th><th>Code</th></tr>
+    <tr><td>1. The command</td><td><code>--layer_type bronze_mysql_crm</code> (must be in BRONZE_LAYERS)</td><td>utils/utility.py:16</td></tr>
+    <tr><td>2. Layer key</td><td>The <code>bronze_</code> prefix is dropped: <code>mysql_crm</code>. This one key names the source everywhere.</td><td>yaml_generation/generate_yaml.py:358</td></tr>
+    <tr><td>3. Workbook</td><td><code>WORKBOOKS["mysql_crm"]</code> = <code>crm_bronze_master.xlsx</code></td><td>yaml_generation/filter_files.py:94</td></tr>
+    <tr><td>4. SQL rules</td><td><code>RULES["mysql_crm"]</code>: quoting, formats, two-part names (label "MySQL CRM")</td><td>yaml_generation/db_rules.py:103</td></tr>
+    <tr><td>5. Connection</td><td><code>get_database("mysql_crm")</code> reads the <code>mysql_crm:</code> block of <code>creds/&lt;env&gt;.yaml</code></td><td>db/factory.py:82</td></tr>
+    <tr><td>6. Where in the source</td><td>Each row's <code>source_database</code> and <code>source_schema</code>. MySQL has no schema level, so a blank <code>source_schema</code> means the database.</td><td>yaml_generation/filter_files.py:381</td></tr>
+  </table></div>
+
+  <h3>The target: per workbook row, from target_application</h3>
+  <div class="sheet"><table>
+    <tr><th>Step</th><th>What happens</th><th>Code</th></tr>
+    <tr><td>1. The cell</td><td><code>target_application</code> holds an engine's label or key, in any case: <code>Snowflake</code>, <code>MySQL CRM</code>, <code>mysql_crm</code></td><td>yaml_generation/filter_files.py:380</td></tr>
+    <tr><td>2. Engine</td><td><code>engine_of()</code> turns it into a RULES key. A name that is not an engine (e.g. Oracle) stops the run and names the row.</td><td>yaml_generation/filter_files.py:308, 395</td></tr>
+    <tr><td>3. Location</td><td>Kept as <code>Location.target_type</code>, with <code>target_database</code> and <code>target_schema</code> (a blank schema on a MySQL target means the database)</td><td>yaml_generation/filter_files.py:112</td></tr>
+    <tr><td>4. Connection</td><td>One connection per target engine the rows name: <code>get_database(target_type)</code>, using the creds block of the same name</td><td>yaml_generation/generate_yaml.py:400</td></tr>
+    <tr><td>5. The YAML</td><td><code>target: snowflake</code> or <code>target: mysql_crm</code>, and the target query written in that engine's SQL</td><td>yaml_generation/yaml_builder.py:333</td></tr>
+    <tr><td>6. Validation</td><td>The validators read <code>target:</code> from the YAML and connect with <code>get_database(target)</code>. They never assume Snowflake.</td><td>validators/data_validation.py:98, validators/count_validation.py:108</td></tr>
+  </table></div>
+
+  <h3>What changes with the target engine</h3>
+  <div class="sheet"><table>
+    <tr><th></th><th>Snowflake target</th><th>Any other target (e.g. MySQL CRM)</th></tr>
+    <tr><td><code>{env}</code> in target_database</td><td>Required: <code>{env}_EDGE_BRONZE</code></td><td>Not needed: <code>dev</code></td></tr>
+    <tr><td>Fivetran rule</td><td><code>_FIVETRAN_ACTIVE = TRUE</code> on every query</td><td>None</td></tr>
+    <tr><td>Table name</td><td>Upper case: <code>DEV_EDGE_BRONZE."EDGE"."UNITS"</code></td><td>As in the workbook: <code>`dev`.`roles`</code></td></tr>
+    <tr><td>Catalogue lookup</td><td><code>&lt;database&gt;.INFORMATION_SCHEMA</code></td><td>That engine's own catalogue</td></tr>
+  </table></div>
+
+  <h3>The rows today</h3>
+  <div class="sheet"><table>
+    <tr><th>Workbook</th><th>--layer_type (source)</th><th>source_application</th><th>target_application</th><th>target_database</th><th>target_schema</th></tr>
+    <tr><td>edge_bronze_master.xlsx</td><td>bronze_postgres</td><td>Edge</td><td>Snowflake</td><td>{env}_EDGE_BRONZE</td><td>STOREDGE_FMS_PUBLIC</td></tr>
+    <tr><td>sitelink_bronze_master.xlsx</td><td>bronze_mssql</td><td>SiteLink</td><td>Snowflake</td><td>{env}_SITELINK_BRONZE</td><td>AWSDEV_DEVT5000_DBO</td></tr>
+    <tr><td>newbook_bronze_master.xlsx</td><td>bronze_newbook</td><td>Snowflake</td><td>Snowflake</td><td>{env}_NEWBOOK_AU_BRONZE</td><td>NB_DEV_AU_SQL01_...</td></tr>
+    <tr><td>crm_bronze_master.xlsx</td><td>bronze_mysql_crm</td><td>CRM</td><td>MySQL CRM</td><td>dev</td><td>(blank = dev)</td></tr>
+  </table></div>
+  <p>CRM has no Snowflake target yet, so it is compared against itself (MySQL CRM to MySQL CRM). That proves the YAML and the run work. When the Snowflake target exists, change only the three target cells of each CRM row, e.g. <code>Snowflake</code> | <code>{env}_CRM_BRONZE</code> | <code>&lt;schema&gt;</code>. No code change is needed.</p>
+  <p><b>ESS (also MySQL) later:</b> its own layer <code>bronze_mysql_ess</code>, key <code>mysql_ess</code>, workbook <code>ess_bronze_master.xlsx</code>, creds block <code>mysql_ess:</code> and label "MySQL ESS". The two MySQL applications never share a key, so a row cannot connect to the wrong one.</p>
+</section>
 
 <!-- ============================== FILES ============================== -->
 <section id="files" class="view">
@@ -254,7 +303,7 @@
   </div>
 </section>
 
-<footer>Written from the code on branch <code>dev-ganesh-mane</code>, 5 November 2026; the <b>Add a new source</b> guide was rewritten on 11 November 2026 (templates, copy buttons, type mapping, incremental) and updated on 12 November 2026 (type mapping ignores case; clear "Fix this and run again" messages). Every <span class="loc">file:line</span> points at the working copy of that date. The one-page summary is <code>docs/YAML_GENERATION_VISUAL_GUIDE.html</code>.</footer>
+<footer>Written from the code on branch <code>dev-ganesh-mane</code>, 5 November 2026; the <b>Add a new source</b> guide was rewritten on 11 November 2026 (templates, copy buttons, type mapping, incremental) and updated on 12 November 2026 (type mapping ignores case; clear "Fix this and run again" messages) and 13 November 2026 (a layer of its own asks whether a connector exists; the AI prompt; the standard two-sheet workbook). Every <span class="loc">file:line</span> points at the working copy of that date. The one-page summary is <code>docs/YAML_GENERATION_VISUAL_GUIDE.html</code>.</footer>
 </main>
 
 <script>
@@ -298,9 +347,11 @@ var Q = {
     { label: "Payments", small: "PostgreSQL, future", set: { layer: "bronze_postgres", app: "Payments" },
       steps: ["Same engine as Edge: its rows go in edge_bronze_master.xlsx, with their own source_database and schemas (one workbook per layer)",
               "One run can hold Edge and Payments tables: they are grouped by location [yaml_generation/generate_yaml.py:290]"], next: "yaml" },
-    { label: "Marketplace", small: "MySQL", set: { layer: "bronze_mysql", app: "Marketplace" },
-      steps: ["parse_arguments(): --layer_type bronze_mysql picks the MySQL engine [utils/utility.py:15]",
-              "Its rows go in mysql_bronze_master.xlsx. Historical runs work; incremental runs for MySQL are not built yet (see the Add a new source tab)"], next: "yaml" }
+    { label: "CRM", small: "MySQL", set: { layer: "bronze_mysql_crm", app: "CRM" },
+      steps: ["parse_arguments(): --layer_type bronze_mysql_crm picks the MySQL CRM layer (ESS will be bronze_mysql_ess) [utils/utility.py:15]",
+              "Its rows go in crm_bronze_master.xlsx; source_schema may be blank (a MySQL database is its own schema)",
+              "Its rows say target_application MySQL CRM, so it is compared against itself until it has a Snowflake target (see the Source and target tab) [yaml_generation/filter_files.py:380]",
+              "Historical runs work; incremental runs for MySQL are not built yet (see the Add a new source tab)"], next: "yaml" }
   ]},
   yaml: { q: "Did you pass --yaml_generation?", opts: [
     { label: "Not given", small: "default: yes", set: { yaml: "yes" },
@@ -323,7 +374,7 @@ var Q = {
       steps: ["The named tables are checked against the workbook rows [yaml_generation/generate_yaml.py:284]"], next: "inbook" }
   ]},
   inbook: { q: "Is the table listed in the master workbook?", opts: [
-    { label: "Yes", steps: ["Its row gives source_database, source_schema, target_database and target_schema (Location) [yaml_generation/filter_files.py:104]"],
+    { label: "Yes", steps: ["Its row gives source_database, source_schema, the target engine (target_application), target_database and target_schema (Location) [yaml_generation/filter_files.py:112]"],
       next: function (s) { return s.yaml === "no" ? "ondisk" : "change"; } },
     { label: "No", next: "end:nobook",
       steps: ["FAILED: no row in the master workbook, so its schema is not known [yaml_generation/generate_yaml.py:285]"] }
@@ -496,7 +547,7 @@ var TREE = { n: "main.main()", at: "main.py:14", w: "one run, start to end",
 
       { n: "filter_files.read()", at: "yaml_generation/filter_files.py:324", w: "the source of truth",
         d: "Reads the layer's workbook from master_files/ (WORKBOOKS: postgres = edge_bronze_master.xlsx, mssql = sitelink_bronze_master.xlsx). One Row per table, with its Location and the filter cell for this run type.",
-        r: "{table: Row}", f: "No workbook for the layer, the file or sheet missing, a blank location cell, a source_database that is not the layer's engine, a target that is not Snowflake, a target_database without {env}. The error names the file and row.", k: [
+        r: "{table: Row}", f: "No workbook for the layer, the file or sheet missing, a blank location cell, a source_database that is not the layer's engine, a target_application that is not an engine, a Snowflake target_database without {env}. The error names the file and row.", k: [
         { n: "_sheet_rows()", at: "yaml_generation/filter_files.py:295", w: "find the sheet with the columns",
           d: "The first sheet that has 'Target Table Name' and the six location columns. Other sheets (Count, Testing) are ignored.", k: [
           { n: "_header()", at: "yaml_generation/filter_files.py:284", w: "match headers loosely",
@@ -504,13 +555,13 @@ var TREE = { n: "main.main()", at: "main.py:14", w: "one run, start to end",
         ]},
         { n: "FILTER_HEADERS[run_type]", at: "yaml_generation/filter_files.py:92", w: "which filter column", when: true,
           d: "historical reads 'Historical Filter to apply', incremental reads 'Incremental filters to apply'. A missing column is a warning: no filter." },
-        { n: "engine_of()", at: "yaml_generation/filter_files.py:289", w: "PostgreSQL to postgres",
-          d: "Maps the workbook's engine name to a db_rules.RULES key, by label or key, in any case.", r: "postgres, mssql, snowflake ... or None" },
-        { n: "{env} check", at: "yaml_generation/filter_files.py:368", w: "target_database must hold {env}", when: true,
-          d: "Without {env}, every environment would be compared against one database, so the row is refused." },
+        { n: "engine_of()", at: "yaml_generation/filter_files.py:308", w: "PostgreSQL to postgres, MySQL CRM to mysql_crm",
+          d: "Maps the workbook's engine name to a db_rules.RULES key, by label or key, in any case. Used on target_application: the result is the target engine (Location.target_type).", r: "postgres, mssql, snowflake, mysql_crm ... or None" },
+        { n: "{env} check", at: "yaml_generation/filter_files.py:368", w: "a Snowflake target_database must hold {env}", when: true,
+          d: "Without {env}, every environment would be compared against one database, so the row is refused. Another target (e.g. MySQL CRM) needs none." },
         { n: "duplicate table", at: "yaml_generation/filter_files.py:371", w: "first row wins", when: true, d: "A table listed twice (any case) keeps its first row; the second is logged and ignored." },
         { n: "Location / Row", at: "yaml_generation/filter_files.py:96", w: "where a table lives",
-          d: "Location = application, engine, source schema, Snowflake database ({env} kept), Snowflake schema. Row = table, Location, filter cell, label (file and row number for messages)." }
+          d: "Location = application, engine, source database and schema, target database ({env} kept) and schema, and the target engine (target_type, from target_application). Row = table, Location, filter cell, label (file and row number for messages)." }
       ]},
       { n: "requested tables", at: "yaml_generation/generate_yaml.py:297", w: "'all' or the named ones", when: true,
         d: "'all' is every workbook row. Named tables are matched without case (spelled). A named table with no row is FAILED here: without a row its schema is not known." },
@@ -846,7 +897,7 @@ var PRESETS = {
               db: "DevT5000", schema: "dbo", tdb: "{env}_SITELINK_BRONZE", tschema: "AWSDEV_DEVT5000_DBO", incol: "dupdated", table: "Units" }
 };
 // new_application_onboarding/templates/TEMPLATE_bronze_master.xlsx, embedded so the guide can hand it out offline.
-var TEMPLATE_XLSX = "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";
+var TEMPLATE_XLSX = "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";
 var G = { c: {}, steps: [], state: [], i: 0 };
 
 function gfmt(s) {
@@ -896,7 +947,9 @@ function gStart() {
   drawPlan();
   var card = bot("<h3>" + greeting() + " &#128075;</h3><p>I'll walk you through adding a new source to the framework, one step at a time. " +
                  "Most of it is copy and paste: every grey block and every sheet has a <b>Copy</b> button, already filled in with your names.</p>" +
-                 "<p>A new application on PostgreSQL or SQL Server takes about <b>20 to 30 minutes</b>. A brand-new engine takes longer, because it needs a developer.</p>" +
+                 "<p>More tables take about <b>10 minutes</b>. A new application on a connection we already have takes <b>20 to 30 minutes</b>. " +
+                 "A layer of its own needs a developer, and a database we have <b>no connector</b> for (like MySQL was) needs the most work.</p>" +
+                 "<p>Every plan also gives you a <b>prompt to paste into an AI assistant</b>, filled in with your names, so it can make the code changes for you.</p>" +
                  "<p><b>Are you adding a new source today?</b></p>");
   choices(card, [
     { label: "Yes, let's add one", primary: true, go: gKind },
@@ -907,36 +960,78 @@ function gStart() {
   ]);
 }
 
+// The connectors db/factory.py can already build, by the RULES block a layer on that database copies. When a new
+// application's database is one of these, its layer reuses the class: no new file in db/, no import, no package.
+// code: the get_database() branch body, as the existing branch for that class writes it; K is the new layer's creds key.
+var CONNECTORS = {
+  postgres: { label: "PostgreSQL", cls: "Postgres", file: "db/postgres.py", rules: "postgres", creds: "postgres",
+              code: "db = Postgres(dbname=cfg['dbname'], host=cfg['host'], user=cfg['user'], password=cfg['password'], port=5432)" },
+  mssql: { label: "SQL Server", cls: "Mssqlserver", file: "db/mssqlserver.py", rules: "mssql", creds: "mssql",
+           code: "db = Mssqlserver(DRIVER=cfg['driver'], SERVER=cfg['server'], DATABASE=cfg['database'], UID=cfg['uid'], PWD=cfg['pwd'])" },
+  mysql: { label: "MySQL", cls: "Mysql", file: "db/mysql.py", rules: "mysql_crm", creds: "mysql_crm",
+           code: "db = Mysql(host=cfg['host'], port=cfg['port'], database=cfg['database'], user=cfg['user'], password=cfg['password'])" },
+  snowflake: { label: "Snowflake (like Newbook)", cls: "Snowflake", file: "db/snowflake.py", rules: "newbook", creds: "newbook",
+               code: "db = Snowflake(SNOWFLAKE_ACCOUNT=cfg['snowflake_account'], SNOWFLAKE_USER=cfg['snowflake_user'], SNOWFLAKE_ROLE=cfg['snowflake_role'],\n" +
+                     "               externalbrowser=cfg['externalbrowser'], SNOWFLAKE_DATABASE=cfg['snowflake_database'],\n" +
+                     "               SNOWFLAKE_SCHEMA=cfg['snowflake_schema'], SNOWFLAKE_WAREHOUSE=cfg['snowflake_warehouse'])" },
+  athena: { label: "Athena", cls: "Athena", file: "db/athena.py", rules: "athena", creds: "athena",
+            code: "db = Athena(PROFILE=cfg['profile'], AWS_REGION=cfg['aws_region'], ATHENA_DB=cfg['athena_db'], ATHENA_OUTPUT=cfg['athena_output'])" },
+  redshift: { label: "Redshift", cls: "Redshift", file: "db/redshift.py", rules: "redshift", creds: "redshift",
+              code: "db = Redshift(REDSHIFT_HOST=cfg['redshift_host'], REDSHIFT_PORT=cfg['redshift_port'], REDSHIFT_DATABASE=cfg['redshift_database'],\n" +
+                    "              REDSHIFT_USER=cfg['redshift_user'], REDSHIFT_PASSWORD=cfg['redshift_password'])" }
+};
+
 function gKind() {
   var card = bot("<h3>What are you adding?</h3><p>The steps depend on how much of it the framework already knows.</p>");
   choices(card, [
-    { label: "More tables for Edge or SiteLink", small: "the application is already set up: about 10 minutes", go: function () {
+    { label: "More tables for an application that's already set up", small: "Edge or SiteLink: one row per table, about 10 minutes", go: function () {
         var d = bot("<h3>Which application?</h3>");
         choices(d, [
           { label: "Edge", small: "PostgreSQL", go: function () { gDetails("more", PRESETS.Edge); } },
           { label: "SiteLink", small: "SQL Server", go: function () { gDetails("more", PRESETS.SiteLink); } }
         ]);
       } },
-    { label: "A new application on PostgreSQL or SQL Server", small: "e.g. Payments, Insurance, Molo: about 20 to 30 minutes", go: function () {
-        var d = bot("<h3>Which engine does it run on?</h3>");
+    { label: "A new application in an existing layer", small: "its tables are in Edge's PostgreSQL database or on SiteLink's SQL Server: no code change, 20 to 30 minutes", go: function () {
+        var d = bot("<h3>Which existing connection reaches its tables?</h3><p>The rows go into that layer's workbook, next to the tables already there.</p>");
         choices(d, [
-          { label: "PostgreSQL", go: function () { gDetails("app", PRESETS.Edge); } },
-          { label: "SQL Server", go: function () { gDetails("app", PRESETS.SiteLink); } }
+          { label: "Edge's PostgreSQL (bronze_postgres)", go: function () { gDetails("app", PRESETS.Edge); } },
+          { label: "SiteLink's SQL Server (bronze_mssql)", go: function () { gDetails("app", PRESETS.SiteLink); } }
         ]);
       } },
-    { label: "A new engine or a layer of its own", small: "e.g. MySQL, or bronze_newbook: needs a developer", go: function () {
-        gDetails("engine", null);
-      } }
+    { label: "A new application with a layer of its own", small: "e.g. bronze_newbook or bronze_mysql_crm: its own workbook and connection, needs a developer", go: gConnector }
+  ]);
+}
+
+// A layer of its own: does db/factory.py already have a connector for its database? This decides the code to write.
+function gConnector() {
+  var card = bot("<h3>Does the framework already have a connector for its database?</h3>" +
+                 "<p>A connector is the class in <code>db/</code> that opens the connection. The framework has one for " +
+                 "<b>PostgreSQL, SQL Server, MySQL, Snowflake, Athena and Redshift</b> (the branches of <code>get_database()</code> in <code>db/factory.py</code>).</p>" +
+                 "<ul><li><b>Yes:</b> Newbook's source is Snowflake, so <code>bronze_newbook</code> reuses the <code>Snowflake</code> class with its own creds block. " +
+                 "No new file in <code>db/</code>, no new import, no new package.</li>" +
+                 "<li><b>No:</b> before <code>bronze_mysql_crm</code> there was no MySQL connector, so it needed a new <code>db/mysql.py</code>, its import in " +
+                 "<code>db/factory.py</code>, the <code>pymysql</code> package in <code>requirements.txt</code> and a creds block.</li></ul>");
+  choices(card, [
+    { label: "Yes, reuse a connector we have", small: "only the layer's own entries change", go: function () {
+        var d = bot("<h3>Which connector does it reuse?</h3>");
+        choices(d, Object.keys(CONNECTORS).map(function (k) {
+          return { label: CONNECTORS[k].label, small: CONNECTORS[k].file, go: function () { gDetails("engine", null, CONNECTORS[k]); } };
+        }));
+      } },
+    { label: "No, it's a completely new database engine", small: "a new connector in db/, its import and its driver package as well", go: function () { gDetails("engine", null, null); } }
   ]);
 }
 
 // Asks for the real names that fill in every template. An empty optional field keeps a <...> marker to fill in later.
-function gDetails(kind, preset) {
+// reuse: the CONNECTORS entry a new layer reuses, or null for a new engine (kind "engine" only).
+function gDetails(kind, preset, reuse) {
   var F = [];
   if (kind !== "more") F.push({ k: "app", label: "Application name", ph: "Marketplace", help: "The name people use for it. It also names the Snowflake database below." });
   if (kind === "engine") {
-    F.push({ k: "engine", label: "Engine key (lower case)", ph: "mysql", help: "The layer becomes bronze_<key>. Letters, digits and _ only." });
-    F.push({ k: "label", label: "Engine name, as people write it", ph: "MySQL", help: "Shown in messages, and the start of the mapping sheet's name." });
+    F.push({ k: "engine", label: "Layer key (lower case)", ph: reuse ? "newbook" : "mysql_ess",
+             help: "The layer becomes bronze_<key>, and the same key names its workbook, rules block and creds block. Letters, digits and _ only." });
+    F.push({ k: "label", label: reuse ? "Layer name, as people write it" : "Engine name, as people write it", ph: reuse ? "Newbook" : "MySQL",
+             help: "Shown in messages, and the start of the mapping sheet's name." });
   }
   if (kind !== "more") {
     F.push({ k: "db", label: "Source database: the real name on the server, not the engine", ph: "e.g. payments", dflt: "<source database>",
@@ -962,7 +1057,10 @@ function gDetails(kind, preset) {
       var typed = card.querySelector('input[data-k="' + f.k + '"]').value.trim();
       v[f.k] = typed || (f.dflt !== undefined ? f.dflt : (f.k === "tdb" ? "" : f.ph));
     });
-    if (v.engine && !/^[a-z][a-z0-9_]*$/.test(v.engine)) err = "The engine key is lower-case letters, digits and _ only, e.g. mysql.";
+    if (v.engine && !/^[a-z][a-z0-9_]*$/.test(v.engine)) err = "The layer key is lower-case letters, digits and _ only, e.g. mysql.";
+    // The keys db_rules.RULES and get_database() already use: a new layer needs its own.
+    if (["postgres", "mssql", "mysql_crm", "athena", "redshift", "snowflake", "newbook"].indexOf(v.engine) >= 0)
+      err = "'" + v.engine + "' is already taken by an existing layer or connector. Give the new layer its own key, e.g. the application's name.";
     if (v.app && !/^[A-Za-z][A-Za-z0-9 _-]*$/.test(v.app)) err = "The application name starts with a letter, e.g. Marketplace.";
     if (v.tdb && v.tdb.indexOf("{env}") < 0) err = "The Snowflake database must keep {env}, e.g. {env}_PAYMENTS_BRONZE.";
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(v.table)) err = "The table name is letters, digits and _ only.";
@@ -977,7 +1075,7 @@ function gDetails(kind, preset) {
     }
     if (kind === "engine") {
       c.engine = v.engine; c.label = v.label; c.layer = "bronze_" + v.engine;
-      c.workbook = v.engine + "_bronze_master.xlsx"; c.incol = "updated_at";
+      c.workbook = v.engine + "_bronze_master.xlsx"; c.incol = "updated_at"; c.reuse = reuse || null;
     }
     me(F.map(function (f) { return f.label.split(":")[0].split(" (")[0] + ": " + (f.k === "tdb" ? c.tdb : v[f.k]); }).join(" · "));
     G.c = c;
@@ -1001,7 +1099,74 @@ function gPlan() {
   drawPlan();
   bot("<p>Here's the plan for <b>" + esc(G.c.app) + "</b>: <b>" + G.steps.length + " steps</b>, about <b>" + mins + " minutes</b>, listed on the right. " +
       "Each step names the file to open, gives you the text to paste, and says how you know it's done. Steps marked <i>optional</i> can be skipped.</p>");
+  aiCard("<p><b>Rather have an AI assistant do the edits?</b> Paste this prompt into it, in this repository. It holds your names, the route and every file of this plan. " +
+         "The workbook rows and the type mapping still come from you: fill the gaps it lists before it starts.</p>");
   gStep(0);
+}
+
+// A bubble with the AI prompt and its Copy button.
+function aiCard(intro) {
+  var text = aiPrompt(G.c, G.steps);
+  var d = bot(intro + '<div class="blk"><div class="blkhead"><span>Prompt for an AI assistant</span><button class="copy">Copy</button></div><pre>' + esc(text) + "</pre></div>");
+  var b = d.querySelector("button.copy"); b.onclick = function () { copyText(text, b); };
+  return d;
+}
+
+// The master prompt for one onboarding: the facts, the route, the files of the plan in order, the house rules and the checks.
+// The template with placeholders is new_application_onboarding/templates/AI_ONBOARDING_PROMPT.md.
+function aiPrompt(c, steps) {
+  var route = c.kind === "more" ? "A. More tables for " + c.app + ", which is already set up (layer " + c.layer + ")."
+            : c.kind === "app" ? "B. A new application in the existing layer " + c.layer + " (the " + c.existing + " connection reaches its tables). No code change."
+            : c.reuse ? "C. A new layer " + c.layer + " that REUSES the existing " + c.reuse.cls + " connector (" + c.reuse.file + "). Do not add a new file in db/, an import or a package."
+            : "D. A new layer " + c.layer + " on a database engine with NO connector yet: write the connector (db/" + c.engine + ".py), import it in db/factory.py and add its driver to requirements.txt.";
+  var files = [];
+  steps.forEach(function (s) { (s.files || []).forEach(function (f) {
+    f = f.replace(/:\d+$/, "");
+    if (f.indexOf("templates/") < 0 && files.indexOf(f) < 0) files.push(f);   // the template is copied, not changed
+  }); });
+  return [
+    "You are onboarding a source into the Storable data validation framework (this repository). Read the files before you change them.",
+    "",
+    "ROUTE: " + route,
+    "",
+    "FACTS",
+    "  Application ........: " + c.app,
+    "  Engine / layer name : " + (c.label || "") + " / --layer_type " + c.layer,
+    "  Master workbook ....: yaml_generation/master_files/" + c.workbook,
+    "  Source database ....: " + c.db + "   (the real database name, never the engine name)",
+    "  Source schema ......: " + c.schema,
+    "  Snowflake database .: " + c.tdb + "   (keep {env}; it becomes DEV, STG or PRD at run time)",
+    "  Snowflake schema ...: " + c.tschema,
+    "  First table to try .: " + c.table,
+    "  Incremental runs ...: " + (c.incr ? "yes, as well as historical" : "no, historical only"),
+    "Any value still written <...> is unknown: ask me for it before you use it.",
+    "",
+    "THE STEPS (in this order; the explorer's 'Add a new source' tab has the details of each)",
+    steps.map(function (s, i) { return "  " + (i + 1) + ". " + s.t.replace(/`/g, "") + (s.optional ? " (optional)" : ""); }).join("\n"),
+    "",
+    "FILES THIS PLAN TOUCHES (copy the workbook from new_application_onboarding/templates/TEMPLATE_bronze_master.xlsx)",
+    files.map(function (f) { return "  - " + f; }).join("\n"),
+    "",
+    "RULES",
+    "  - The master workbook is the only source of truth for locations and filters. Keep its two sheets and their headers exactly:",
+    "    Sheet1: Target Table Name | Historical Filter to apply | Incremental filters to apply | source_application | source_database |",
+    "            source_schema | target_application | target_database | target_schema",
+    "    '" + ((c.engine === "postgres") ? "Postgres" : (c.engine === "mssql") ? "MSSQL" : c.label) + " schema mapping': source_data_type | target_data_type | precision_check | notes",
+    "    No extra sheets or columns. target_application names the target engine (normally Snowflake). A Snowflake target_database must contain {env}.",
+    "  - When you add to a list or dict (WORKBOOKS, SCHEMA_SHEETS, SOURCE_TYPES, BRONZE_LAYERS, INCREMENTAL_COLUMNS, RULES), keep every existing entry.",
+    "  - Use the same key everywhere: '" + c.engine + "' in RULES, SOURCE_TYPES, WORKBOOKS, SCHEMA_SHEETS, INCREMENTAL_COLUMNS, exclusions.yaml,",
+    "    get_database() and the creds block; the layer is '" + c.layer + "'.",
+    "  - Every edit to a shared file outside yaml_generation/ gets a comment starting '# CHANGE: YAML generation.' that says what and why.",
+    "  - Make only the changes this plan needs: no new flags, helpers or refactors. Do not change other layers.",
+    "  - Never put passwords in the repository: creds/<env>.yaml stays local; only creds/example.yaml lists the field names.",
+    "  - Do not run a huge table, or all tables, without a filter.",
+    "",
+    "CHECKS WHEN YOU ARE DONE",
+    "  python -m pytest yaml_generation/tests -q",
+    "  python yaml_generation/filter_files.py",
+    "  python main.py --layer_type " + c.layer + " --tables " + c.table + " --run_type historical --environment dev --schema_validation yes --count_validation no --data_validation no",
+    "Report the files you changed, what you could not do, and the output of each check."
+  ].join("\n");
 }
 
 function drawPlan() {
@@ -1074,8 +1239,72 @@ function gFinish() {
         if (navigator.clipboard) navigator.clipboard.writeText(text).catch(function () {});
         choices(shown, [{ label: "↻ Start over", go: gStart }]);
       } },
+    { label: "Show the AI prompt again", go: function () {
+        choices(aiCard("<p>The same prompt as at the start, for the next person or a second try.</p>"), [{ label: "↻ Start over", go: gStart }]);
+      } },
     { label: "↻ Start over", go: gStart }
   ]);
+}
+
+// The connection steps of a layer of its own. c.reuse set: the layer reuses an existing class (one step, no new file,
+// import or package). c.reuse null: a new engine, so the class, its import and its driver are written (three steps).
+function connectorSteps(c) {
+  var K = c.engine, creds = ["creds/dev.yaml", "creds/stg.yaml", "creds/prod.yaml", "creds/local.yaml"];
+  var credsCheck = "A one-line script that calls `get_database(\"" + K + "\", <framework folder>, \"dev\").execute_query(\"SELECT 1\")` returns a DataFrame.";
+  if (c.reuse) {
+    return [{
+      t: "Point the layer at the existing " + c.reuse.cls + " connector (developer)", min: 5,
+      files: ["db/factory.py:15"].concat(creds),
+      body: ["**Nothing new in `db/`**: `" + c.reuse.cls + "` (`" + c.reuse.file + "`) is already imported at the top of `db/factory.py`, and its package is already in `requirements.txt`. Don't add either again.",
+             "In `get_database()`, add an `elif` branch for `\"" + K + "\"` before the final `else`. It builds the same `" + c.reuse.cls + "` class from the layer's **own** creds block, the way the `newbook` branch builds `Snowflake` from `file['newbook']` [db/factory.py:49]. " +
+             "The key must be the layer key: the generator calls `get_database(\"" + K + "\")`.",
+             "In every `creds/<env>.yaml`, copy the `" + c.reuse.creds + ":` block, rename it `" + K + ":` and point it at " + c.app + "'s database. Add the block's field names (no values) to `creds/example.yaml`.",
+             "Mark the edit in `factory.py` with a `# CHANGE: YAML generation.` comment, like the `mysql` branch."],
+      blocks: [{ label: "db/factory.py, in get_database(): add before the final else", text:
+                   "    # CHANGE: YAML generation. " + c.app + " (--layer_type " + c.layer + ") reuses the " + c.reuse.cls + " connector with its own creds block.\n" +
+                   "    elif db_type == \"" + K + "\":\n        cfg = file['" + K + "']\n        " + c.reuse.code.replace(/\n/g, "\n        ") }],
+      check: credsCheck
+    }];
+  }
+  var CLS = c.label.replace(/[^A-Za-z0-9]/g, ""); CLS = CLS.charAt(0).toUpperCase() + CLS.slice(1);
+  return [{
+    t: "Write the " + c.label + " connector: a new db/" + K + ".py (developer)", min: 15,
+    files: ["db/" + K + ".py", "db/base.py:4", "db/mysql.py"],
+    body: ["The framework has **no connector** for " + c.label + ", so the layer needs a new class. Copy `db/mysql.py` (the newest one) to `db/" + K + ".py` and change it to " + c.label + "'s driver.",
+           "The class is based on `Database` [db/base.py:4] and has `connect()`, `execute_query(query)` returning a pandas DataFrame, and `close()`. Keep one connection and reuse it.",
+           "The first line of the new file says what it is: `# CHANGE: YAML generation. New file: the " + c.label + " connector for --layer_type " + c.layer + "`."],
+    code: "# CHANGE: YAML generation. New file: the " + c.label + " connector for --layer_type " + c.layer + " (the creds block '" + K + "').\n" +
+          "from db.base import Database\nimport pandas as pd\nimport <driver package>          # e.g. pymysql for MySQL\n\n\n" +
+          "class " + CLS + "(Database):\n    def __init__(self, host, port, database, user, password):\n" +
+          "        self.host, self.port, self.database = host, int(port), database\n        self.user, self.password = user, password\n        self._conn = None\n\n" +
+          "    def connect(self):\n        if self._conn is None:\n            self._conn = <driver package>.connect(host=self.host, port=self.port, database=self.database,\n" +
+          "                                                  user=self.user, password=self.password)\n        return self._conn\n\n" +
+          "    def execute_query(self, query):\n        cur = self.connect().cursor()\n        try:\n            cur.execute(query)\n" +
+          "            return pd.DataFrame(cur.fetchall(), columns=[d[0] for d in cur.description])\n        finally:\n            cur.close()\n\n" +
+          "    def close(self):\n        if self._conn is not None:\n            self._conn.close()\n        self._conn = None",
+    check: "`python -c \"from db." + K + " import " + CLS + "\"` runs without an error."
+  }, {
+    t: "Import the connector and add its branch in db/factory.py (developer)", min: 5,
+    files: ["db/factory.py:8", "db/factory.py:15"],
+    body: ["Two edits in `db/factory.py`, both marked with a `# CHANGE: YAML generation.` comment:",
+           "**1. The import**, under the other `from db... import ...` lines at the top [db/factory.py:8]. Without it the branch below fails with **NameError**.",
+           "**2. The branch** in `get_database()`, before the final `else`. The key must be the layer key: the generator calls `get_database(\"" + K + "\")`."],
+    blocks: [{ label: "1. db/factory.py, top of the file: add under the other imports", text:
+                 "from db." + K + " import " + CLS + "  # CHANGE: YAML generation. " + c.label + " connector for --layer_type " + c.layer },
+             { label: "2. db/factory.py, in get_database(): add before the final else", text:
+                 "    # CHANGE: YAML generation. The '" + K + "' creds block: host, port, database, user, password (creds/example.yaml lists them).\n" +
+                 "    elif db_type == \"" + K + "\":\n        cfg = file['" + K + "']\n" +
+                 "        db = " + CLS + "(host=cfg['host'], port=cfg['port'], database=cfg['database'], user=cfg['user'], password=cfg['password'])" }],
+    check: "`python -c \"import db.factory\"` runs without an error."
+  }, {
+    t: "The driver package and the credentials (developer)", min: 5,
+    files: ["requirements.txt", "creds/example.yaml"].concat(creds),
+    body: ["Add the driver to `requirements.txt` with a `# CHANGE: YAML generation.` comment line above it, then install it: `pip install -r requirements.txt`.",
+           "Add a `" + K + ":` block to `creds/example.yaml` with the field names only, and to every `creds/<env>.yaml` with the real values. Never commit a password."],
+    blocks: [{ label: "requirements.txt: add at the end", text: "# CHANGE: YAML generation. " + c.label + " connector for " + c.layer + " (db/" + K + ".py).\n<driver package>" },
+             { label: "creds/<env>.yaml: add", text: K + ":\n  host: <host>\n  port: <port>\n  database: <database>\n  user: <user>\n  password: <password>" }],
+    check: credsCheck
+  }];
 }
 
 // The steps for one source. c holds the names: app, engine, label, layer, workbook, db, schema, tdb, tschema, incol, table.
@@ -1112,12 +1341,12 @@ function plan(c) {
   var row = {
     t: "Add one row per table to the master workbook", min: 5,
     files: ["yaml_generation/master_files/" + c.workbook],
-    body: ["Open the workbook. The tables sheet is the first sheet with these headers; its name doesn't matter. Headers, sheet names and table names ignore case.",
+    body: ["Open the workbook. The rows go on **Sheet1**, which has exactly these nine headers. Every master workbook has the same two sheets (Sheet1 and the type mapping) and no others: don't add columns or sheets. Headers, sheet names and table names ignore case.",
            "Copy the row below and paste it under the last row. For more tables, paste it again and change only **Target Table Name**.",
            "**source_database** is the real database name (`" + c.db + "`), not the engine. An engine name stops the run [yaml_generation/filter_files.py:372].",
-           "**target_database** keeps `{env}`. A row without it is refused [yaml_generation/filter_files.py:378].",
+           "**target_application** names the target engine, normally `Snowflake` (see the Source and target tab). For a Snowflake target, **target_database** keeps `{env}`; a row without it is refused [yaml_generation/filter_files.py:399].",
            "The two **filter** cells are optional: empty compares the whole table. A big table should have one so it isn't loaded into memory in full: the table and alias, any joins, then a `where` line. Or write `compare full`."],
-    sheet: { head: ["Target Table Name", "Historical Filter to apply.", "Incremental filters to apply", "source_application", "source_database",
+    sheet: { head: ["Target Table Name", "Historical Filter to apply", "Incremental filters to apply", "source_application", "source_database",
                     "source_schema", "target_application", "target_database", "target_schema"],
              rows: [[c.table, "", "", c.app, c.db, c.schema, "Snowflake", c.tdb, c.tschema]] },
     check: "Every location cell is filled. A blank one stops the run and names the file and row [yaml_generation/filter_files.py:369]."
@@ -1261,26 +1490,31 @@ function plan(c) {
     body: ["Download the template (button below), or copy `new_application_onboarding/templates/TEMPLATE_bronze_master.xlsx`.",
            "Save it as `yaml_generation/master_files/" + c.workbook + "`.",
            "Rename the sheet **Postgres schema mapping** to **" + mapSheet + "**. It must match the name you register two steps from now (case doesn't matter).",
-           "Delete the example rows; the next steps give you the rows to paste. The **READ_ME** sheet explains every column and can stay: the framework skips it."],
-    check: "The file is in `yaml_generation/master_files/` with a tables sheet and a **" + mapSheet + "** sheet."
+           "It has the two standard sheets, **Sheet1** and the type mapping, and nothing else: keep it that way, with no extra sheets or columns. Delete the example rows; the next steps give you the rows to paste."],
+    check: "The file is in `yaml_generation/master_files/` with **Sheet1** and a **" + mapSheet + "** sheet."
   }, row, mapping, {
     t: "Register the workbook (developer)", min: 3,
-    files: ["yaml_generation/filter_files.py:91", "yaml_generation/filter_files.py:98"],
-    body: ["`WORKBOOKS` says which workbook each engine reads, and `SCHEMA_SHEETS` which sheet holds its type mapping. No other file in the folder is read.",
-           "Replace the two lines with the ones below (they keep the existing entries)."],
-    code: 'WORKBOOKS = {"postgres": "edge_bronze_master.xlsx", "mssql": "sitelink_bronze_master.xlsx",\n' +
-          '             "' + c.engine + '": "' + c.workbook + '"}\n' +
-          'SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping",\n' +
-          '                 "' + c.engine + '": "' + mapSheet + '"}',
+    files: ["yaml_generation/filter_files.py:91", "yaml_generation/filter_files.py:99"],
+    body: ["`WORKBOOKS` says which workbook each layer key reads, and `SCHEMA_SHEETS` which sheet holds its type mapping. No other file in the folder is read.",
+           "**Add** one entry to each dict, after the last one. Keep every entry that's already there (postgres, mssql, newbook, mysql and any newer one)."],
+    code: '# WORKBOOKS: add\n    "' + c.engine + '": "' + c.workbook + '",\n# SCHEMA_SHEETS: add\n    "' + c.engine + '": "' + mapSheet + '",',
     check: "`python yaml_generation/filter_files.py` prints **filter_files self-check passed**."
-  }, {
+  }, c.reuse ? {
+    t: "Give the layer its rules: a copy of the `" + c.reuse.rules + "` block (developer)", min: 5,
+    files: ["yaml_generation/db_rules.py:33", "yaml_generation/db_rules.py:230"],
+    body: ["The database is " + c.reuse.label + ", so the SQL is the same as an existing layer's. Copy the whole `\"" + c.reuse.rules + "\": {...}` block in `RULES`, paste it below the last block, and change only its key to `\"" + c.engine + "\"` and its `label` to `\"" + c.label + "\"`.",
+           "Add `\"" + c.engine + "\"` to `SOURCE_TYPES`, after the last entry, or `--layer_type " + c.layer + "` is refused with **has no YAML generation**.",
+           "Keep `has_primary_keys` as the copied block has it. The Newbook block has `False`: its data check needs `key_columns` in the table rules."],
+    code: '# RULES: add after the last block (a copy of "' + c.reuse.rules + '", two values changed)\n    "' + c.engine + '": {\n        "label": "' + c.label + '",\n        ... every other line exactly as in "' + c.reuse.rules + '" ...\n    },\n\n# SOURCE_TYPES: add "' + c.engine + '" at the end',
+    check: "`python -m pytest yaml_generation/tests/test_db_rules.py -q` passes."
+  } : {
     t: "Teach the generator the " + c.label + " dialect (developer)", min: 15,
-    files: ["yaml_generation/db_rules.py:33", "yaml_generation/db_rules.py:165"],
-    body: ["Add the block below to `RULES`, then change every value to " + c.label + "'s way: how a name is quoted, the text type, true/false, trim, the timestamp and date formats, the type families and the `schema_query`. The comments at the top of `db_rules.py` explain each key.",
+    files: ["yaml_generation/db_rules.py:33", "yaml_generation/db_rules.py:230"],
+    body: ["Add the block below to `RULES`, then change every value to " + c.label + "'s way: how a name is quoted, the text type, true/false, trim, the timestamp and date formats, the type families and the `schema_query`. The comments at the top of `db_rules.py` explain each key. The `mysql` block is the most recent one written from scratch: start from it.",
            "Types that can't become text (like SQL Server's rowversion) go in `refused_types`: the table then fails with a reason instead of comparing nonsense.",
-           "Add `\"" + c.engine + "\"` to `SOURCE_TYPES`, or `--layer_type " + c.layer + "` is refused with **has no YAML generation** [yaml_generation/generate_yaml.py:353].",
-           "An engine whose database is also its schema (MySQL) needs `two_part_names` (part of the MySQL work): names are written `schema`.`table`, and the workbook's source_schema holds the database name.",
-           "Only PostgreSQL has been run against a live database. Check each value on the real " + c.label + " server before you rely on it."],
+           "Add `\"" + c.engine + "\"` to `SOURCE_TYPES`, after the last entry, or `--layer_type " + c.layer + "` is refused with **has no YAML generation**.",
+           "An engine whose database is also its schema (like MySQL) sets `two_part_names`: names are written `schema`.`table`, and the workbook's source_schema holds the database name.",
+           "Check each value on the real " + c.label + " server before you rely on it."],
     code: '"' + c.engine + '": {\n    "label": "' + c.label + '",\n    "has_primary_keys": True,\n    "quote": (\'`\', \'`\'),          # how a name is quoted\n' +
           '    "text_type": "CHAR",\n    "true": "1", "false": "0",\n    "trim": "TRIM({c})",\n    "timestamp": "DATE_FORMAT({c}, \'%Y-%m-%d %H:%i:%s.%f\')",\n' +
           '    "date": "DATE_FORMAT({c}, \'%Y-%m-%d\')",\n    "boolean_types": {...}, "timestamp_types": {...}, "date_types": {...},\n' +
@@ -1290,42 +1524,36 @@ function plan(c) {
   }, {
     t: "Settings: the change column and the exclusions (developer)", min: 3,
     files: ["yaml_generation/settings.py:43", "yaml_generation/settings/exclusions.yaml"],
-    body: ["`INCREMENTAL_COLUMNS` names the column the incremental window runs on, for each engine.",
-           "`exclusions.yaml` has one section per engine: columns left out on that side **and** on the Snowflake copy. Start it empty."],
-    code: 'INCREMENTAL_COLUMNS = {"postgres": "updated_at", "mssql": "dupdated", "' + c.engine + '": "updated_at"}\n\n# exclusions.yaml\n' + c.engine + ":\n  exclude_columns: []",
+    body: ["`INCREMENTAL_COLUMNS` names the column the incremental window runs on, for each layer key. **Add** the entry; keep the others.",
+           "`exclusions.yaml` has one section per layer key: columns left out on that side **and** on the Snowflake copy. Start it empty."],
+    code: '# INCREMENTAL_COLUMNS: add\n    "' + c.engine + '": "updated_at",\n\n# exclusions.yaml: add\n' + c.engine + ":\n  exclude_columns: []",
     check: "Both files name `" + c.engine + "`."
-  }, {
-    t: "A connector and its credentials (developer)", min: 20,
-    files: ["db/" + c.engine + ".py", "db/factory.py:14", "creds/dev.yaml", "creds/stg.yaml", "creds/prod.yaml", "creds/local.yaml"],
-    body: ["`db/" + c.engine + ".py`: a class like `db/postgres.py`, based on `Database` [db/base.py:4], with `connect()`, `execute_query(query)` returning a pandas DataFrame, and `close()`.",
-           "`db/factory.py`: an `elif db_type == \"" + c.engine + "\":` branch in `get_database()`. The key must be the engine key: the generator calls `get_database(\"" + c.engine + "\")` [yaml_generation/generate_yaml.py:391].",
-           "Every `creds/<env>.yaml`: a `" + c.engine + ":` block. `creds/example.yaml` lists the fields."],
-    code: "elif db_type == \"" + c.engine + "\":\n    cfg = creds[\"" + c.engine + "\"]\n    db = " + c.label.replace(/[^A-Za-z0-9]/g, "") + "(host=cfg[\"host\"], database=cfg[\"database\"], user=cfg[\"user\"], password=cfg[\"password\"])",
-    check: "A one-line script that calls `get_database(\"" + c.engine + "\", <framework folder>, \"dev\").execute_query(\"SELECT 1\")` returns a DataFrame."
-  }, {
+  });
+  connectorSteps(c).forEach(function (s) { S.push(s); });
+  S.push({
     t: "Open the layer to the command line (developer)", min: 2,
     files: ["utils/utility.py:16"],
-    body: ["Add `" + c.layer + "` to the `BRONZE_LAYERS` tuple at the top of `utils/utility.py` [utils/utility.py:16]. That's the only edit: the `--layer_type` choices [utils/utility.py:451], the output paths, schema validation, the yes defaults and YAML generation all read this tuple.",
-           "The generator finds the engine by dropping `bronze_` from the layer name [yaml_generation/generate_yaml.py:351], so the layer **must** be called `" + c.layer + "`."],
-    code: 'BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql", "' + c.layer + '")',
-    warn: ["A layer named after an application, such as `bronze_newbook`, works only if `newbook` is the key **everywhere**: `RULES`, `SOURCE_TYPES`, `WORKBOOKS`, `SCHEMA_SHEETS` and `get_database()`. There is no separate layer → engine map yet."],
+    body: ["**Add** `" + c.layer + "` at the end of the `BRONZE_LAYERS` tuple at the top of `utils/utility.py` [utils/utility.py:16], keeping the layers already there. That's the only edit: the `--layer_type` choices, the output paths, schema validation, the yes defaults and YAML generation all read this tuple.",
+           "The generator finds the layer key by dropping `bronze_` from the layer name, so the layer **must** be called `" + c.layer + "`."],
+    code: '# BRONZE_LAYERS: add at the end\n"' + c.layer + '"',
+    warn: ["The key `" + c.engine + "` must be the same **everywhere**: `RULES`, `SOURCE_TYPES`, `WORKBOOKS`, `SCHEMA_SHEETS`, `INCREMENTAL_COLUMNS`, `exclusions.yaml`, `get_database()` and the creds block. There is no separate layer → engine map."],
     check: "`python main.py --layer_type " + c.layer + " --help` runs without **invalid choice**."
   }, snowflake, rules);
   if (c.incr) {
-    var tgt = DEV(c.tdb) + "." + TSCHEMA;
+    var tgt = String(c.tdb).replace("{env}", "{environment}") + "." + TSCHEMA;
     S.push({
       t: "Incremental: the freshness check, the window and Fivetran (developer)", min: 10,
-      files: ["utils/utility.py:603", "utils/utility.py:634", "creds/api.yaml"],
-      body: ["`check_freshness()` and `get_dates()` have one branch per layer: `bronze_postgres` and `bronze_mssql` today [utils/utility.py:605] [utils/utility.py:663]. Without a branch for `" + c.layer + "` an incremental run stops with an error.",
-             "Paste the first block next to the `bronze_mssql` branch of `check_freshness()` [utils/utility.py:612], and the second next to the one in `get_dates()` [utils/utility.py:670].",
-             "`creds/api.yaml` needs the Fivetran connection id under the key `" + c.layer + "` [utils/utility.py:733]."],
+      files: ["utils/utility.py:603", "utils/utility.py:642", "creds/api.yaml"],
+      body: ["`check_freshness()` and `get_dates()` have one branch per layer [utils/utility.py:605] [utils/utility.py:653]. Without a branch for `" + c.layer + "` an incremental run stops with an error.",
+             "Paste the first block after the last `elif` of `check_freshness()` [utils/utility.py:620], and the second before the `else` of `get_dates()` [utils/utility.py:659]. Mark both with a `# CHANGE: YAML generation.` comment.",
+             "`creds/api.yaml` needs the Fivetran connection id under the key `" + c.layer + "`."],
       blocks: [{ label: "check_freshness(): the newest change on each side", text:
+                   '    # CHANGE: YAML generation. ' + c.app + ' (' + c.layer + ').\n' +
                    '    elif layer_type == "' + c.layer + '":\n        source_query = f"""\n        SELECT max(' + c.incol + ') as max_date from {source_table_name}\n            """\n' +
                    '        target_query = f"""\n            SELECT max(' + c.incol + ') as max_date from ' + tgt + '.{target_table_name}\n            """' },
-               { label: "get_dates(): what Fivetran loaded since the last run", text:
-                   "    elif layer == '" + c.layer + "':\n        target_query = f\"\"\"\n        SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start\n" +
-                   "        FROM " + tgt + ".{target_table_name}\n        WHERE _FIVETRAN_ACTIVE = TRUE\n" +
-                   "        and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';\n        \"\"\"" },
+               { label: "get_dates(): the Snowflake table and the change column of the window", text:
+                   "    # CHANGE: YAML generation. " + c.app + " (" + c.layer + ").\n" +
+                   "    elif layer == '" + c.layer + "':\n        target_table = f\"" + tgt + ".{target_table_name}\"\n        col = '" + c.incol + "'" },
                { label: "creds/api.yaml: add this line", text: c.layer + ": <Fivetran connection id for " + c.app + ">" }],
       warn: [devOnly],
       check: "Both functions have a `" + c.layer + "` branch, and `creds/api.yaml` has the `" + c.layer + "` key."
