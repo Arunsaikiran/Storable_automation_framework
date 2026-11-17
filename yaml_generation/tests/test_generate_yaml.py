@@ -67,7 +67,7 @@ def workbook_folder(monkeypatch, tmp_path_factory):
     """The filter workbook is where each table lives. This one lists the fake tables at the fake location, so 'all' means
     units, notes and lookup in these tests, as the fake source holds them."""
     folder = tmp_path_factory.mktemp("workbooks")
-    write_filter_workbook(folder / "edge_bronze_master.xlsx", [["units"], ["notes"], ["lookup"]])
+    write_filter_workbook(folder / "bronze_postgres_edge_master.xlsx", [["units"], ["notes"], ["lookup"]])
     monkeypatch.setattr(filter_files, "FOLDER", folder)
     return folder
 
@@ -131,7 +131,7 @@ def test_a_table_with_no_primary_key_fails_its_data_and_still_counts(tmp_path, c
         results = run_generate(make_args("historical", tables=("lookup",)), config)
     assert statuses(results) == {("lookup", "data_validation"): "FAILED", ("lookup", "count_validation"): "NEW"}
     assert not (config / "data_validation" / "lookup.yaml").exists(), "no data YAML without a key"
-    assert "lookup" in yb._count_tables(config, "bronze_postgres"), "the count needs no key"
+    assert "lookup" in yb._count_tables(config, "bronze_postgres_edge"), "the count needs no key"
     assert "unable to find the primary key of edge.lookup" in caplog.text
 
 
@@ -139,12 +139,12 @@ def test_the_yaml_holds_the_env_placeholder_on_the_target_side_only(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical"), config)
     block = data_block(config, "units")
-    count = count_block(config, "bronze_postgres", "units")
+    count = count_block(config, "bronze_postgres_edge", "units")
     assert block["target_database"] == count["target_database"] == "{env}_EDGE_BRONZE"
     assert "FROM {env}_EDGE_BRONZE." in block["targetquery"] and "FROM {env}_EDGE_BRONZE." in count["targetquery"]
     assert "{" not in block["sourcequery"] and "{" not in count["sourcequery"]
     for text in ((config / "data_validation" / "units.yaml").read_text(encoding="utf-8"),
-                 (config / "count_validation" / "bronze_postgres.yaml").read_text(encoding="utf-8")):
+                 (config / "count_validation" / "bronze_postgres_edge.yaml").read_text(encoding="utf-8")):
         assert "DEV_EDGE_BRONZE" not in text, "the environment is filled in by the validators, not written here"
 
 
@@ -209,7 +209,7 @@ def test_a_table_rule_excludes_a_column_and_filters_both_sides_for_that_table_on
     block = data_block(config, "units")
     assert "unit_name" not in block["sourcequery"].lower()
     assert "WHERE (id > 0)" in block["sourcequery"] and "(ID > 0)" in block["targetquery"]
-    assert count_block(config, "bronze_postgres", "units")["sourcequery"].endswith("WHERE (id > 0);")
+    assert count_block(config, "bronze_postgres_edge", "units")["sourcequery"].endswith("WHERE (id > 0);")
     assert "# Excluded (table rule): unit_name" in (config / "data_validation" / "units.yaml").read_text(encoding="utf-8")
     assert "WHERE (" not in data_block(config, "notes")["sourcequery"], "the rule is for one table only"
 
@@ -237,7 +237,7 @@ def test_one_table_failing_does_not_stop_the_others(tmp_path):
     got = statuses(results)
     assert got[("notes", "table")] == "FAILED"
     assert got[("units", "data_validation")] == "NEW"
-    assert set(yb._count_tables(config, "bronze_postgres")) == {"units", "lookup"}, "notes failed; lookup has no key but still counts"
+    assert set(yb._count_tables(config, "bronze_postgres_edge")) == {"units", "lookup"}, "notes failed; lookup has no key but still counts"
 
 
 def test_a_table_missing_from_the_source_is_an_error_and_its_yaml_is_kept(tmp_path):
@@ -248,7 +248,7 @@ def test_a_table_missing_from_the_source_is_an_error_and_its_yaml_is_kept(tmp_pa
     assert statuses(results)[("notes", "table")] == "FAILED"
     assert "nothing was changed" in detail_of(results, "notes", "table")
     assert (config / "data_validation" / "notes.yaml").exists(), "nothing is deleted"
-    assert "notes" in yb._count_tables(config, "bronze_postgres")
+    assert "notes" in yb._count_tables(config, "bronze_postgres_edge")
 
 
 def test_a_table_missing_from_snowflake_is_an_error_and_nothing_is_deleted(tmp_path):
@@ -258,7 +258,7 @@ def test_a_table_missing_from_snowflake_is_an_error_and_nothing_is_deleted(tmp_p
     results = run_generate(make_args("historical"), config, target=target)
     assert statuses(results)[("notes", "table")] == "FAILED"
     assert (config / "data_validation" / "notes.yaml").exists()
-    assert "notes" in yb._count_tables(config, "bronze_postgres")
+    assert "notes" in yb._count_tables(config, "bronze_postgres_edge")
 
 
 def test_all_leaves_a_generated_table_that_left_the_source_alone(tmp_path, caplog):
@@ -268,7 +268,7 @@ def test_all_leaves_a_generated_table_that_left_the_source_alone(tmp_path, caplo
     results = run_generate(make_args("historical"), config, source=gone)
     assert not any(status == "REMOVED" for _, _, status, _ in results)
     assert (config / "data_validation" / "notes.yaml").exists()
-    assert "notes" in yb._count_tables(config, "bronze_postgres")
+    assert "notes" in yb._count_tables(config, "bronze_postgres_edge")
 
 
 def test_all_never_deletes_a_file_the_generator_did_not_write(tmp_path):
@@ -309,7 +309,7 @@ def test_a_rules_target_where_with_the_env_placeholder_is_written_as_it_is(tmp_p
 
 def test_a_file_filter_with_the_env_placeholder_on_the_target_side_is_written_and_checked(tmp_path):
     """The filter workbook keeps {env} on the Snowflake side. The target query holds it, and _checked() accepts it."""
-    write_filter_workbook(tmp_path / "edge_bronze_master.xlsx",
+    write_filter_workbook(tmp_path / "bronze_postgres_edge_master.xlsx",
                           [["units", "units j\njoin notes n on j.note_id = n.id\nwhere n.body is not null"]])
     file_filters = filter_files.filters(filter_files.read("postgres", "historical", folder=tmp_path, log=LOG), log=LOG)
     config = config_dir_for(tmp_path, "historical")
@@ -340,7 +340,7 @@ def run_env(monkeypatch, tmp_path):
 
 
 def _run(env, **overrides):
-    options = dict(layer_type="bronze_postgres", tables=["all"], environment="dev", run_type="historical",
+    options = dict(layer_type="bronze_postgres_edge", tables=["all"], environment="dev", run_type="historical",
                    data_validation="yes", count_validation="yes", rules_file=env.rules, use_filter_files=False, log=LOG)
     options.update(overrides)
     return generate_yaml.run_for_validation(**options)
@@ -357,7 +357,7 @@ def test_no_table_in_the_workbooks_is_refused_before_anything_is_read(run_env, m
     empty = tmp_path / "empty"
     empty.mkdir()
     monkeypatch.setattr(filter_files, "FOLDER", empty)
-    with pytest.raises(ValueError, match="the filter workbook for --layer_type bronze_postgres is missing"):
+    with pytest.raises(ValueError, match="the filter workbook for --layer_type bronze_postgres_edge is missing"):
         _run(run_env)
     assert run_env.dbs["source"].queries == [], "no catalogue is read without a workbook row"
 
@@ -388,7 +388,7 @@ def test_two_applications_on_one_engine_are_generated_each_at_its_own_location(r
     run_env.dbs["source"].tables[("payments", "charges")] = [("id", "integer"), ("amount", "integer")]
     run_env.dbs["source"].primary_keys[("payments", "charges")] = ["id"]
     run_env.dbs["target"].tables[("PAYMENTS", "CHARGES")] = [("ID", "NUMBER"), ("AMOUNT", "NUMBER")]
-    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx",
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx",
                           [["units"], ["charges", None, None, "Payments", "fms", "payments", "Snowflake",
                                        "{env}_PAYMENTS_BRONZE", "PAYMENTS"]])
     results, ready = _run(run_env, tables=["units", "charges"])
@@ -399,7 +399,7 @@ def test_two_applications_on_one_engine_are_generated_each_at_its_own_location(r
 
 
 def test_a_schema_that_lists_no_table_fails_its_own_tables_and_the_other_location_goes_on(run_env, workbook_folder):
-    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx",
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx",
                           [["units"], ["charges", None, None, "Payments", "fms", "nosuch", "Snowflake",
                                        "{env}_PAYMENTS_BRONZE", "PAYMENTS"]])
     results, ready = _run(run_env, tables=["units", "charges"])
@@ -409,7 +409,7 @@ def test_a_schema_that_lists_no_table_fails_its_own_tables_and_the_other_locatio
 
 
 def test_a_workbook_row_with_an_empty_location_cell_stops_the_run(run_env, workbook_folder):
-    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx",
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx",
                           [["units", None, None, "Edge", "fms", None, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA]])
     with pytest.raises(ValueError, match=r"Filter workbook problem: .*row 2 \(units\): source_schema is empty"):
         _run(run_env, tables=["units"])
@@ -428,7 +428,7 @@ def test_a_key_present_only_on_the_source_side_fails_the_data_and_the_count_is_r
     results, ready = _run(run_env, tables=["units"])
     assert statuses(results) == {("units", "data_validation"): "FAILED", ("units", "count_validation"): "NEW"}
     assert detail_of(results, "units", "data_validation").startswith("key column(s) not on both sides of the comparison: id")
-    assert not (run_env.root / "config" / "historical" / "bronze_postgres" / "data_validation" / "units.yaml").exists()
+    assert not (run_env.root / "config" / "historical" / "bronze_postgres_edge" / "data_validation" / "units.yaml").exists()
     assert ready == ["units"]
 
 
@@ -490,7 +490,7 @@ def test_filter_files_are_not_read_without_the_flag(run_env, monkeypatch):
 
 def test_an_unsupported_layer_is_a_value_error(run_env):
     """ISSUE-03, fixed: an engine with no db_rules.RULES block is refused by name, before any workbook is read."""
-    with pytest.raises(ValueError, match="no engine 'silver'"):
+    with pytest.raises(ValueError, match="bronze_silver has no YAML generation: it is not in filter_files.LAYERS"):
         _run(run_env, layer_type="bronze_silver")
 
 
@@ -503,7 +503,7 @@ def test_an_empty_source_schema_is_refused_and_deletes_nothing(tmp_path):
     with pytest.raises(ValueError, match="no tables visible in source schema"):
         run_generate(make_args("historical"), config, source=empty)
     assert (config / "data_validation" / "notes.yaml").exists()
-    assert "notes" in yb._count_tables(config, "bronze_postgres")
+    assert "notes" in yb._count_tables(config, "bronze_postgres_edge")
 
 
 def test_a_run_never_deletes_a_yaml_file_or_a_count_entry(tmp_path):
@@ -512,7 +512,7 @@ def test_a_run_never_deletes_a_yaml_file_or_a_count_entry(tmp_path):
     gone = FakeDB({k: v for k, v in SOURCE_TABLES.items() if k[1] != "notes"}, PRIMARY_KEYS)
     run_generate(make_args("historical", data="no"), config, source=gone)
     assert (config / "data_validation" / "notes.yaml").exists()
-    assert "notes" in yb._count_tables(config, "bronze_postgres")
+    assert "notes" in yb._count_tables(config, "bronze_postgres_edge")
 
 
 def test_a_count_run_with_count_no_keeps_the_count_entry(tmp_path):
@@ -520,7 +520,7 @@ def test_a_count_run_with_count_no_keeps_the_count_entry(tmp_path):
     run_generate(make_args("historical"), config)
     gone = FakeDB({k: v for k, v in SOURCE_TABLES.items() if k[1] != "notes"}, PRIMARY_KEYS)
     run_generate(make_args("historical", count="no", tables=("notes",)), config, source=gone)
-    assert "notes" in yb._count_tables(config, "bronze_postgres"), "--count_validation no must not remove the count entry"
+    assert "notes" in yb._count_tables(config, "bronze_postgres_edge"), "--count_validation no must not remove the count entry"
 
 
 def test_an_empty_target_schema_is_refused_and_deletes_nothing(tmp_path):
@@ -530,7 +530,7 @@ def test_an_empty_target_schema_is_refused_and_deletes_nothing(tmp_path):
     with pytest.raises(ValueError, match="no tables visible in Snowflake schema"):
         run_generate(make_args("historical"), config, target=FakeDB({}, PRIMARY_KEYS))
     assert (config / "data_validation" / "notes.yaml").exists()
-    assert "notes" in yb._count_tables(config, "bronze_postgres")
+    assert "notes" in yb._count_tables(config, "bronze_postgres_edge")
 
 
 def test_a_run_for_another_source_schema_does_not_remove_these_tables(tmp_path):
@@ -539,7 +539,7 @@ def test_a_run_for_another_source_schema_does_not_remove_these_tables(tmp_path):
     sales = FakeDB({("sales", "orders"): [("id", "integer")]}, {("sales", "orders"): ["id"]})
     run_generate(make_args("historical", source_schema="sales"), config, source=sales)
     assert (config / "data_validation" / "units.yaml").exists(), "units belongs to schema edge, not sales"
-    assert {"units", "notes"} <= set(yb._count_tables(config, "bronze_postgres"))
+    assert {"units", "notes"} <= set(yb._count_tables(config, "bronze_postgres_edge"))
 
 
 # --- create-if-missing: a run without --yaml_generation creates a named table's YAML, and leaves the YAML that exists alone
@@ -568,8 +568,8 @@ def test_tables_missing_yaml_lists_only_the_named_tables_with_a_missing_file_or_
     monkeypatch.setattr(generate_yaml, "FRAMEWORK_ROOT", tmp_path)
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical", tables=("notes",)), config)
-    assert generate_yaml.tables_missing_yaml("bronze_postgres", "historical", ["notes", "units"], "yes", "yes") == ["units"]
-    assert generate_yaml.tables_missing_yaml("bronze_postgres", "historical", ["notes", "units"], "no", "no") == []
+    assert generate_yaml.tables_missing_yaml("bronze_postgres_edge", "historical", ["notes", "units"], "yes", "yes") == ["units"]
+    assert generate_yaml.tables_missing_yaml("bronze_postgres_edge", "historical", ["notes", "units"], "no", "no") == []
 
 
 def test_a_missing_source_table_is_not_created_in_create_only_mode(tmp_path):
@@ -589,7 +589,7 @@ def test_an_incremental_run_writes_the_window_on_both_sides_of_data_and_count(tm
     block = data_block(config, "units")
     assert '"updated_at" >= :start_time AND "updated_at" <= :end_time' in block["sourcequery"]
     assert '"UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time' in block["targetquery"]
-    count = count_block(config, "bronze_postgres", "units")
+    count = count_block(config, "bronze_postgres_edge", "units")
     assert '"updated_at" >= :start_time AND "updated_at" <= :end_time' in count["sourcequery"]
     assert '"UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time' in count["targetquery"]
 
@@ -598,7 +598,7 @@ def test_a_historical_run_has_no_window(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical"), config)
     assert ":start_time" not in data_block(config, "units")["sourcequery"]
-    assert ":start_time" not in count_block(config, "bronze_postgres", "units")["sourcequery"]
+    assert ":start_time" not in count_block(config, "bronze_postgres_edge", "units")["sourcequery"]
 
 
 def test_a_window_column_missing_from_snowflake_is_written_by_name_with_a_warning(tmp_path, caplog):
@@ -611,7 +611,7 @@ def test_a_window_column_missing_from_snowflake_is_written_by_name_with_a_warnin
     block = data_block(config, "docs")
     assert '"updated_at" >= :start_time AND "updated_at" <= :end_time' in block["sourcequery"]
     assert '"UPDATED_AT" >= :start_time AND "UPDATED_AT" <= :end_time' in block["targetquery"]
-    assert count_block(config, "bronze_postgres", "docs")["targetquery"].count(":start_time") == 1
+    assert count_block(config, "bronze_postgres_edge", "docs")["targetquery"].count(":start_time") == 1
     assert "incremental column updated_at is not compared on the Snowflake side" in caplog.text
 
 
@@ -677,7 +677,7 @@ def test_a_schema_only_run_writes_the_schema_file_and_no_data_or_count(run_env):
 def test_the_schema_file_holds_no_exclusions_and_an_excluded_column_needs_no_mapping(run_env, workbook_folder):
     """Exclusions are kept only in the settings (the validator reads them), so the file lists table names only. units'
     _fivetran_synced is timestamp with time zone; it is excluded, so that type needs no mapping row."""
-    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"]],
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx", [["units"]],
                           mapping=[row for row in TYPE_MAPPING if row[0] != "timestamp with time zone"])
     results, _ = _schema_only(run_env)
     assert statuses(results) == {("units", "schema_validation"): "NEW"}
@@ -708,7 +708,7 @@ def test_catalogue_types_in_capitals_match_the_lower_case_mapping(run_env):
 
 
 def test_a_source_type_with_no_mapping_row_fails_that_tables_schema_and_names_it(run_env, workbook_folder, caplog):
-    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"], ["notes"], ["lookup"]],
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx", [["units"], ["notes"], ["lookup"]],
                           mapping=[row for row in TYPE_MAPPING if row[0] != "text"])
     with caplog.at_level(logging.ERROR):
         results, ready = _run(run_env, schema_validation="yes")
@@ -730,14 +730,14 @@ def test_a_table_the_schema_query_cannot_see_fails_its_schema(run_env):
 
 
 def test_a_missing_mapping_sheet_stops_the_run_before_anything_is_written(run_env, workbook_folder):
-    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"]], mapping=None)
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx", [["units"]], mapping=None)
     with pytest.raises(ValueError, match="Filter workbook problem: .*no sheet 'Postgres schema mapping'"):
         _run(run_env, schema_validation="yes")
     assert not (run_env.root / "config").exists()
 
 
 def test_the_mapping_sheet_is_not_read_without_schema_validation(run_env, workbook_folder):
-    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"]], mapping=None)
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx", [["units"]], mapping=None)
     results, _ = _run(run_env, tables=["units"])
     assert statuses(results)[("units", "data_validation")] == "NEW"
 
@@ -746,7 +746,7 @@ def test_a_table_at_a_second_location_fails_its_schema_and_keeps_its_data(run_en
     run_env.dbs["source"].tables[("payments", "charges")] = [("id", "integer")]
     run_env.dbs["source"].primary_keys[("payments", "charges")] = ["id"]
     run_env.dbs["target"].tables[("PAYMENTS", "CHARGES")] = [("ID", "NUMBER")]
-    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx",
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx",
                           [["units"], ["charges", None, None, "Payments", "fms", "payments", "Snowflake",
                                        "{env}_PAYMENTS_BRONZE", "PAYMENTS"]])
     results, ready = _run(run_env, tables=["charges", "units"], schema_validation="yes")
@@ -771,13 +771,13 @@ def test_create_only_adds_a_missing_schema_entry_and_leaves_the_others(run_env):
 
 def test_tables_missing_yaml_checks_the_schema_file_when_asked(run_env):
     _schema_only(run_env, tables=["units"])
-    assert generate_yaml.tables_missing_yaml("bronze_postgres", "historical", ["UNITS", "notes"], "no", "no", "yes") == ["notes"]
-    assert generate_yaml.tables_missing_yaml("bronze_postgres", "historical", ["notes"], "no", "no", "no") == []
+    assert generate_yaml.tables_missing_yaml("bronze_postgres_edge", "historical", ["UNITS", "notes"], "no", "no", "yes") == ["notes"]
+    assert generate_yaml.tables_missing_yaml("bronze_postgres_edge", "historical", ["notes"], "no", "no", "no") == []
 
 
 def test_all_warns_about_a_schema_entry_no_longer_in_the_workbook_and_keeps_it(run_env, workbook_folder, caplog):
     _schema_only(run_env)
-    write_filter_workbook(workbook_folder / "edge_bronze_master.xlsx", [["units"], ["notes"]])
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx", [["units"], ["notes"]])
     with caplog.at_level(logging.WARNING):
         _schema_only(run_env)
     assert "The schema file holds lookup, which are not in the filter workbook" in caplog.text
@@ -822,7 +822,7 @@ def test_the_unchanged_validator_reads_the_generated_file(run_env, monkeypatch, 
     out = tmp_path / "out"
     out.mkdir()
     path = config_dir_for(run_env.root, "historical") / "schema_validation" / "schema_validation.yaml"
-    ctx = data_context()(run_id="r1", run_at="now", validation_dirs=["schema_validation"], layer_type=["bronze_postgres"],
+    ctx = data_context()(run_id="r1", run_at="now", validation_dirs=["schema_validation"], layer_type=["bronze_postgres_edge"],
                          outputpaths={"schema_validation": str(out)}, configpaths={"schema_validation": [str(path)]},
                          BASE_DIR=str(run_env.root), environment="dev", tables=["units"])
     assert sv.validate_schema(ctx) == (0, False)

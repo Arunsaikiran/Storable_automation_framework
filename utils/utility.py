@@ -13,9 +13,11 @@ from utils.exceptions import NoNewDataError,NoNewSyncError
 
 # CHANGE: YAML generation. The bronze layers that have YAML generation, filter workbooks and schema validation. Every layer
 # check below and in main.py reads this one tuple, so a new bronze layer (bronze_mysql_ess) is added here once, not at each check.
-BRONZE_LAYERS = ("bronze_postgres", "bronze_mssql", "bronze_newbook", "bronze_mysql_crm",
-                 # CHANGE: YAML generation. Newbook split per Snowflake schema: one layer and workbook each (2026-11-16).
-                 "bronze_newbook_common", "bronze_newbook_corporation", "bronze_newbook_instances", "bronze_newbook_login")  # CHANGE: YAML generation. bronze_mysql_crm added (MySQL, CRM). One layer per MySQL application: ESS will be bronze_mysql_ess.
+# CHANGE: YAML generation (17/11/2026). The layers now come from yaml_generation/filter_files.LAYERS, the one list of layer ->
+# engine. Before, this tuple repeated them by hand. The layers were renamed bronze_<engine>_<application> so the name says the
+# application: bronze_postgres -> bronze_postgres_edge, bronze_mssql -> bronze_mssql_sitelink. CRM and Newbook keep their names.
+from yaml_generation.filter_files import LAYERS as _LAYERS
+BRONZE_LAYERS = tuple(_LAYERS)
 
 
 #Generating runids
@@ -36,8 +38,8 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
     # generator reads, instead of one if/elif per layer. Before, only bronze_postgres and bronze_mssql had one (the mssql
     # branch was written twice), so Newbook and CRM got None. Now every bronze layer gets its workbook, and a new layer
     # needs no edit here or in the validators. Layers with no workbook (silver, gold, reports, sanity) keep None.
-    from yaml_generation.filter_files import WORKBOOKS
-    workbook = WORKBOOKS.get(layer_type[0].removeprefix("bronze_")) if layer_type[0].startswith("bronze_") else None
+    # CHANGE: YAML generation (17/11/2026). The workbook is named after the layer (<layer>_master.xlsx), so it is looked up by the layer.
+    workbook = f"{layer_type[0]}_master.xlsx" if layer_type[0] in BRONZE_LAYERS else None
     if workbook:
         master_file = os.path.join(master_file_path, workbook)
     masterfilepath[layer_type[0]] = master_file
@@ -142,7 +144,7 @@ def get_config_output_paths(run_id,layer_type,report_pack,base_dir,config_path,v
                     os.makedirs(path, exist_ok=True)
 
     # CHANGE: YAML generation. The bronze layers come from BRONZE_LAYERS (top of the file); silver keeps the same output paths.
-    elif layer_type[0] in BRONZE_LAYERS + ("silver",):
+    elif layer_type[0] in (*BRONZE_LAYERS, "silver"):
         logpath = os.path.join(
             output_dir,
             layer_type[0],
@@ -518,7 +520,7 @@ def parse_arguments():
 
     # CHANGE: YAML generation. 'yes' checks the YAML for the requested tables against the live source and Snowflake structure
     # before the validators run, and rewrites only a YAML whose content changed (UNCHANGED is left alone). 'no' validates the YAML
-    # already in config/, and only creates a missing one. The default is 'yes' for bronze_postgres and bronze_mssql, and 'no'
+    # already in config/, and only creates a missing one. The default is 'yes' for the BRONZE_LAYERS, and 'no'
     # for every other layer (they have no generator); it is filled in after parsing, below.
     parser.add_argument(
         "--yaml_generation",
@@ -622,14 +624,15 @@ def data_context():
 
 def check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type,environment,threshold:int=50):
     freshness_check = 'Pass'
-    if layer_type == "bronze_postgres":
+    # CHANGE: YAML generation (17/11/2026). Layer names renamed (bronze_postgres_edge, bronze_mssql_sitelink); the queries are unchanged.
+    if layer_type == "bronze_postgres_edge":
         source_query = f"""
         SELECT max(updated_at) as max_date from {source_table_name}
             """
         target_query = f"""
             SELECT max(updated_at) as max_date from {environment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
             """
-    elif layer_type == "bronze_mssql":
+    elif layer_type == "bronze_mssql_sitelink":
         source_query = f"""
         SELECT max(dUpdated) as max_date from {source_table_name}
             """
@@ -663,20 +666,25 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
     
     date_column = 'data_validation_last_run_date' if validation == 'data' else 'count_validation_last_run_date'
 
-    if layer == 'bronze_postgres':
+    # CHANGE: YAML generation (17/11/2026). Layer and workbook renamed: bronze_postgres_edge reads bronze_postgres_edge_master.xlsx,
+    # bronze_mssql_sitelink reads bronze_mssql_sitelink_master.xlsx. The queries are unchanged.
+    if layer == 'bronze_postgres_edge':
         target_table = f"{environment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}"
-        file = (base_dir,"yaml_generation","master_files","edge_bronze_master.xlsx")
+        file = (base_dir,"yaml_generation","master_files","bronze_postgres_edge_master.xlsx")
         col = 'updated_at'
-    elif layer == 'bronze_mssql':
+    elif layer == 'bronze_mssql_sitelink':
         target_table = f"{environment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}"
-        file = (base_dir,"yaml_generation","master_files","sitelink_bronze_master.xlsx")
+        file = (base_dir,"yaml_generation","master_files","bronze_mssql_sitelink_master.xlsx")
         col = 'dUpdated'
     else:
         raise ValueError(f"Unsupported layer '{layer}' for get_dates")
     
     control_file = os.path.join(*file)
     control_df = pd.read_excel(control_file,sheet_name="Sheet1")
-    rows = (control_df[(control_df['Target Table Name'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
+    # CHANGE: YAML generation (17/11/2026). Table names compared in lower case on BOTH sides. Before, only table_name was lowered,
+    # so a workbook row written with capitals (CRM CenterShiftPromos, Newbook BOOKINGS) never matched and the run failed.
+    rows = (control_df[(control_df['Target Table Name'].astype(str).str.strip().str.lower() == table_name.strip().lower())
+                       & (control_df['layer'] == layer)][date_column])
 
     if rows.empty:
         raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
@@ -805,7 +813,7 @@ def _update_control_workbook(file_location, table_name, layer, date_column, sync
     updated = False
     for row in range(2, ws.max_row + 1):
         name = ws.cell(row=row, column=headers['Target Table Name']).value
-        if str(name).lower() == table_name.lower() and ws.cell(row=row, column=headers['layer']).value == layer:
+        if str(name).strip().lower() == table_name.strip().lower() and ws.cell(row=row, column=headers['layer']).value == layer:
             ws.cell(row=row, column=headers[date_column]).value = str(sync_date)
             updated = True
     if not updated:
@@ -824,7 +832,8 @@ def update_control_table(file_location, table_name, layer, validation, sync_date
         return
     control_df = pd.read_csv(file_location, dtype=str)
     mask = (
-        (control_df['Target Table Name'] == table_name.lower()) &
+        # CHANGE: YAML generation (17/11/2026). Lower case on both sides, as in get_dates().
+        (control_df['Target Table Name'].astype(str).str.strip().str.lower() == table_name.strip().lower()) &
         (control_df['layer'] == layer)
     )
 

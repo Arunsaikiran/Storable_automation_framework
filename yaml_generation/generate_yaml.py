@@ -23,9 +23,9 @@ for dev) and written as it is. The validators fill in {env} for their own run (D
 every environment.
 
 What it writes (the same tree main.py reads; the guide explains why run_type is in the path)
-  config/<run_type>/bronze_<source_type>/data_validation/<table>.yaml     one file per table
-  config/<run_type>/bronze_<source_type>/count_validation/bronze_<source_type>.yaml   one file for all tables
-  config/<run_type>/bronze_<source_type>/schema_validation/schema_validation.yaml    one file for all tables (--schema_validation yes)
+  config/<run_type>/<layer>/data_validation/<table>.yaml     one file per table
+  config/<run_type>/<layer>/count_validation/<layer>.yaml   one file for all tables
+  config/<run_type>/<layer>/schema_validation/schema_validation.yaml    one file for all tables (--schema_validation yes)
 
 The schema file holds the table names (no exclusions: the validator reads exclusions.yaml and the rules workbook itself),
 the catalogue queries (db_rules.RULES schema_query, filled from the workbook row), and the type mapping from the
@@ -139,7 +139,7 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
     # CHANGE: YAML generation (16/11/2026). A Snowflake source (Newbook) reads its catalogue through its own database, not the connection's default
     # (DEV_EDGE_BRONZE in creds), which would list no Newbook table. Rules flag catalogue_prefix.
     source_prefix = f"{args.source_database_live}." if source.get("catalogue_prefix") else ""
-    layer = f"bronze_{args.source_type}"
+    layer = filter_files.LAYER_OF[args.source_type]  # CHANGE: YAML generation (17/11/2026). Layer from filter_files.LAYERS
     want_data = args.data_validation == "yes"
     want_count = args.count_validation == "yes"
 
@@ -338,7 +338,7 @@ def workbook_spelling(layer_type, run_type, tables) -> list:
     reports those.
     """
     try:
-        return filter_files.spelled(tables, filter_files.read(layer_type.replace("bronze_", "", 1), run_type))
+        return filter_files.spelled(tables, filter_files.read(filter_files.LAYERS[layer_type], run_type))
     except (ValueError, KeyError):  # KeyError: a layer with no engine in db_rules.RULES
         return list(tables)
 
@@ -362,15 +362,16 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
     Raises ValueError, with nothing written, when the run cannot start: a bad argument, a bad workbook row, a settings
     problem, or a connection that cannot be opened. main.py reports it and does not validate.
     """
-    source_type = layer_type.replace("bronze_", "", 1)
+    source_type = filter_files.LAYERS.get(layer_type)  # CHANGE: YAML generation (17/11/2026). The engine from filter_files.LAYERS
     if source_type not in db_rules.SOURCE_TYPES:
-        raise ValueError(f"--layer_type {layer_type} has no YAML generation: db_rules.RULES has no engine '{source_type}'")
+        raise ValueError(f"--layer_type {layer_type} has no YAML generation: it is not in filter_files.LAYERS, "
+                         f"or db_rules.RULES has no engine '{source_type}'")
     args = resolve_args(SimpleNamespace(
         source_type=source_type, tables=tables, environment=environment, data_validation=data_validation,
         count_validation=count_validation, schema_validation=schema_validation, run_type=run_type, source_schema=None,
         source_database=None, target_template=None, target_schema=None))
     label = RULES[source_type]["label"]
-    layer = f"bronze_{source_type}"
+    layer = filter_files.LAYER_OF[source_type]  # CHANGE: YAML generation (17/11/2026). Layer from filter_files.LAYERS
     config_dir = config_dir_for(layer, run_type)
 
     # The workbooks first: they say where every table lives. A bad row stops the run before anything is read or written.

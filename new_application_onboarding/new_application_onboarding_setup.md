@@ -14,17 +14,18 @@ Everything about the source and the target (database names, schemas, table names
 |---|---|
 | `new_application_onboarding_setup.md` | This guide: the questions, with examples. |
 | `YAML_GENERATION_FLOW_EXPLORER.html` | The same steps as a click-through guide, with copy buttons and the AI prompt. |
-| `templates/TEMPLATE_bronze_master.xlsx` | The workbook to copy. It has the two standard sheets (`Sheet1` and `Postgres schema mapping`) with the right headers and one example row each, and nothing else. |
+| `templates/TEMPLATE_layer_master.xlsx` | The workbook to copy. It has the two standard sheets (`Sheet1` and `Postgres schema mapping`) with the right headers and one example row each, and nothing else. |
+| `application_layer_mapping.xlsx` | Reference only, not read by the framework: each application, its `--layer_type`, engine, source and target databases and schemas, and master file. Add a row when you add a layer. |
 | `templates/AI_ONBOARDING_PROMPT.md` | The master prompt for an AI assistant: the facts to fill in, the files for each route, the house rules and the checks. |
 
 ## Step 0: Choose the route (decide this first)
 
-The framework reads **one workbook per layer**. A layer is the `--layer_type` you run, such as `bronze_postgres`. Two questions decide the route.
+The framework reads **one workbook per layer**. A layer is the `--layer_type` you run, such as `bronze_postgres_edge`. Two questions decide the route.
 
 **Question 1: Can an existing layer's connection reach the tables?** Today that means Edge's PostgreSQL database `fms`, or SiteLink's SQL Server.
 
 - **Route A: more tables** for Edge or SiteLink. You add one row per table to that layer's workbook. No code change.
-- **Route B: a new application in an existing layer.** The application's tables are reachable through Edge's or SiteLink's connection. Its rows go into that layer's workbook (for PostgreSQL, `edge_bronze_master.xlsx`), and its tables run with the existing `--layer_type`. No code change.
+- **Route B: a new application in an existing layer.** The application's tables are reachable through Edge's or SiteLink's connection. Its rows go into that layer's workbook (for PostgreSQL, `bronze_postgres_edge_master.xlsx`), and its tables run with the existing `--layer_type`. No code change.
 
 **Question 2 (only if the answer to question 1 is no): does the framework already have a connector for its database?** A connector is the class in `db/` that opens the connection. There is one for **PostgreSQL, SQL Server, MySQL, Snowflake, Athena and Redshift**: they are the branches of `get_database()` in `db/factory.py`.
 
@@ -51,7 +52,7 @@ These names appear in the workbook and in the logs.
 | Prompt | What to enter | Example | Rules |
 |---|---|---|---|
 | Application name | The name people use for it | `NewApp` | Letters and numbers. Used as `<application>` in the file name. |
-| Layer name | The `--layer_type` you run (routes C and D only) | `bronze_newbook` | `bronze_` plus a new lower-case key. The same key names the workbook, the rules block and the creds block. It can't be one already in use (`postgres`, `mssql`, `mysql`, `athena`, `redshift`, `snowflake`, `newbook`, `newbook_common`, `newbook_corporation`, `newbook_instances`, `newbook_login`). |
+| Layer name | The `--layer_type` you run (routes C and D only) | `bronze_mysql_crm` | `bronze_<engine>_<application>`, lower case, so the name says both (`bronze_postgres_edge`, `bronze_mssql_sitelink`). The workbook is the layer name plus `_master.xlsx`. The key (the engine block in RULES and the creds block) is the layer without `bronze_`, e.g. `mysql_crm`; Edge and SiteLink map to the plain `postgres` and `mssql` keys. It can't be one already in use (layers `bronze_postgres_edge`, `bronze_mssql_sitelink`, `bronze_mysql_crm`; keys `postgres`, `mssql`, `mysql`, `athena`, `redshift`, `snowflake`, `newbook`, `newbook_common`, `newbook_corporation`, `newbook_instances`, `newbook_login`). |
 | Engine | The database engine of the source | `PostgreSQL` | One of the engines the framework supports, or tell us it is new (Step 6). |
 
 Prompt to answer:
@@ -97,9 +98,9 @@ Target schema:
 
 ## Step 4: The Excel workbook (the master file)
 
-**File name:** `<application>_bronze_master.xlsx`, for example `newapp_bronze_master.xlsx`.
+**File name:** `<layer>_master.xlsx`, for example `bronze_postgres_newapp_master.xlsx`.
 
-Copy `templates/TEMPLATE_bronze_master.xlsx` and rename it. Then:
+Copy `templates/TEMPLATE_layer_master.xlsx` and rename it. Then:
 
 Every master workbook has the **same two sheets and nothing else**: `Sheet1` and `<Engine> schema mapping`. Don't add columns or sheets (counts, notes, test results). Anyone who copies the file later copies them too. Keep that kind of work in a separate file.
 
@@ -118,7 +119,7 @@ Every master workbook has the **same two sheets and nothing else**: `Sheet1` and
 | `target_schema` | The Snowflake schema (Step 3) | `NEWAPP_SCHEMA` |
 | `count_validation_last_run_date` | When count validation last ran for the table. Seed it with a start date; incremental runs read it and write the new sync date back | `2026-11-01 00:50:59.657 +0000` |
 | `data_validation_last_run_date` | The same, for data validation | `2026-11-01 00:50:59.657 +0000` |
-| `layer` | The `--layer_type` for this workbook: `bronze_<key>` | `bronze_newapp` |
+| `layer` | The `--layer_type` for this workbook: `bronze_<engine>_<application>` | `bronze_postgres_newapp` |
 
 **First row (example):**
 
@@ -203,14 +204,14 @@ This folder does not change the code. Routes A and B need no code change. In eac
 
 **Routes C and D:**
 
-1. `yaml_generation/filter_files.py`: add `"<key>"` to `WORKBOOKS` (its workbook file) and to `SCHEMA_SHEETS` (its mapping sheet name).
+1. `yaml_generation/filter_files.py`: add `"bronze_<key>": "<key>"` to `LAYERS` (the workbook name `bronze_<key>_master.xlsx`, `WORKBOOKS` and `BRONZE_LAYERS` follow from it), and `"<key>"` to `SCHEMA_SHEETS` (its mapping sheet name).
 2. `yaml_generation/db_rules.py`: add a `"<key>"` block to `RULES`, and `"<key>"` to `SOURCE_TYPES`. Route C copies the reused database's block. Route D writes a new one (Step 6).
 3. `yaml_generation/settings.py`: add `"<key>"` to `INCREMENTAL_COLUMNS`. `yaml_generation/settings/exclusions.yaml`: add a `<key>:` block.
 4. `db/factory.py`: add an `elif db_type == "<key>":` branch in `get_database()`, before the final `else`.
    - **Route C:** the branch builds the **existing** class from `file['<key>']`, the way the `newbook` branch builds `Snowflake`. Don't add an import or a package: the class is already imported.
    - **Route D:** the branch builds the new class from step 6 below.
 5. `creds/<env>.yaml` (every environment; kept local, never committed) and `creds/example.yaml` (field names only): add a `<key>:` block. For route C, copy the reused connector's block and point it at the new database.
-6. `utils/utility.py`: add `"bronze_<key>"` at the end of `BRONZE_LAYERS`. The `--layer_type` choices and the YAML generation all read this one tuple.
+6. `utils/utility.py`: nothing to add for the layer. `BRONZE_LAYERS` (the `--layer_type` choices) is read from `filter_files.LAYERS`.
 
 **Route D also needs:**
 

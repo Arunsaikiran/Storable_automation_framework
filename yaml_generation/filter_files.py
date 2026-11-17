@@ -1,8 +1,9 @@
 """The master workbooks in yaml_generation/master_files/: the one source of truth for where each table lives, and its row filters.
 
-One workbook per layer, picked by --layer_type (WORKBOOKS below): bronze_postgres reads edge_bronze_master.xlsx and
-bronze_mssql reads sitelink_bronze_master.xlsx. No other .xlsx in the folder is read. A new layer (bronze_athena) is a new
-workbook with the same columns, one line in WORKBOOKS, and a block for its engine in db_rules.RULES.
+One workbook per layer, picked by --layer_type (LAYERS below), named <layer>_master.xlsx: bronze_postgres_edge reads
+bronze_postgres_edge_master.xlsx and bronze_mssql_sitelink reads bronze_mssql_sitelink_master.xlsx. No other .xlsx in the
+folder is read. A new layer (bronze_athena_<app>) is a new workbook with the same columns, one line in LAYERS, and a block for
+its engine in db_rules.RULES.
 
 What is read: the first sheet that has the table column and the six location columns. Headers are matched trimmed, in
 lower case, with a trailing dot ignored. One row per table:
@@ -90,12 +91,17 @@ from yaml_generation.db_rules import RULES, quote  # noqa: E402
 from yaml_generation.yaml_builder import ENV_PLACEHOLDER, FIVETRAN_FILTER, check_filter, source_name, target_name  # noqa: E402
 
 FOLDER = Path(__file__).resolve().parent / "master_files"
-# The workbook each layer reads, by its engine (--layer_type bronze_<engine>). A new layer adds its workbook here.
-WORKBOOKS = {"postgres": "edge_bronze_master.xlsx", "mssql": "sitelink_bronze_master.xlsx", "newbook": "newbook_bronze_master.xlsx",
-             "mysql_crm": "crm_bronze_master.xlsx",
-             # CHANGE: YAML generation. One workbook per Newbook schema (--layer_type bronze_newbook_<app>).
-             "newbook_common": "newbook_common_bronze_master.xlsx", "newbook_corporation": "newbook_corporation_bronze_master.xlsx",
-             "newbook_instances": "newbook_instances_bronze_master.xlsx", "newbook_login": "newbook_login_bronze_master.xlsx"}
+# CHANGE: YAML generation (17/11/2026). Each --layer_type and its engine (the db_rules.RULES key: creds block, exclusions section,
+# the YAML's source:). The layer is bronze_<engine>_<application> so a user can tell the application from the name. A new layer
+# is one line here, and its workbook is <layer>_master.xlsx in master_files/.
+LAYERS = {"bronze_postgres_edge": "postgres", "bronze_mssql_sitelink": "mssql", "bronze_mysql_crm": "mysql_crm",
+          "bronze_newbook_common": "newbook_common", "bronze_newbook_corporation": "newbook_corporation",
+          "bronze_newbook_instances": "newbook_instances", "bronze_newbook_login": "newbook_login"}
+# ponytail: one layer per engine key. A second application on the same engine gets its own RULES alias (as mysql_crm does).
+LAYER_OF = {engine: layer for layer, engine in LAYERS.items()}
+
+
+WORKBOOKS = {engine: f"{layer}_master.xlsx" for layer, engine in LAYERS.items()}
 # The headers, as matched: trimmed, lower case, a trailing dot dropped. The same layout for every application.
 TABLE_HEADER = "target table name"
 LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
@@ -105,7 +111,7 @@ LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
 REQUIRED_HEADERS = [name for name in LOCATION_HEADERS if name != "source_schema"]
 FILTER_HEADERS = {"historical": "historical filter to apply", "incremental": "incremental filters to apply"}
 # The type mapping sheet of each workbook, read for the schema validation YAML (schema_mapping()). Matched without regard to case.
-SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping", "newbook" : "Newbook schema mapping",
+SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping",
                  "mysql_crm": "MySQL schema mapping",
                  # CHANGE: YAML generation. The four Newbook workbooks share the Newbook sheet name.
                  "newbook_common": "Newbook schema mapping", "newbook_corporation": "Newbook schema mapping",
@@ -358,11 +364,11 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
     label_of = RULES[source_type]["label"]
     name = WORKBOOKS.get(source_type)
     if name is None:
-        raise ValueError(f"--layer_type bronze_{source_type} has no master workbook: add <application>_bronze_master.xlsx "
-                         f"to {FOLDER} and its name to filter_files.WORKBOOKS")
+        raise ValueError(f"--layer_type {LAYER_OF.get(source_type, source_type)} has no master workbook: add <layer>_master.xlsx "
+                         f"to {FOLDER} and the layer to filter_files.LAYERS")
     path = Path(folder or FOLDER) / name
     if not path.is_file():
-        raise ValueError(f"the filter workbook for --layer_type bronze_{source_type} is missing: {path}")
+        raise ValueError(f"the filter workbook for --layer_type {LAYER_OF.get(source_type, source_type)} is missing: {path}")
     sheet = _sheet_rows(path)
     if sheet is None:
         raise ValueError(f"{name} has no sheet with the columns {', '.join([TABLE_HEADER] + REQUIRED_HEADERS)}")
@@ -429,10 +435,10 @@ def schema_mapping(source_type, folder=None, log=None):
     log = log or logging.getLogger(__name__)
     name, sheet_name = WORKBOOKS.get(source_type), SCHEMA_SHEETS.get(source_type)
     if name is None or sheet_name is None:
-        raise ValueError(f"--layer_type bronze_{source_type} has no type mapping sheet: add it to filter_files.SCHEMA_SHEETS")
+        raise ValueError(f"--layer_type {LAYER_OF.get(source_type, source_type)} has no type mapping sheet: add it to filter_files.SCHEMA_SHEETS")
     path = Path(folder or FOLDER) / name
     if not path.is_file():
-        raise ValueError(f"the filter workbook for --layer_type bronze_{source_type} is missing: {path}")
+        raise ValueError(f"the filter workbook for --layer_type {LAYER_OF.get(source_type, source_type)} is missing: {path}")
     workbook = load_workbook(path, read_only=True, data_only=True)
     try:
         sheet = next((ws for ws in workbook.worksheets if ws.title.strip().lower() == sheet_name.lower()), None)
