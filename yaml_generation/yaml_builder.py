@@ -149,9 +149,11 @@ class Filters:
     target_window: str = None
     # The Fivetran rule, on a Snowflake target only (None for another target: it has no _FIVETRAN_ACTIVE column).
     target_active: str = FIVETRAN_FILTER
+    # Snowflake schema (db_rules fivetran_source: Newbook). None for every other source.
+    source_active: str = None
 
     def source_parts(self) -> list:
-        return [f"({part})" for part in (self.source_where, self.source_window) if part]
+        return [self.source_active] * bool(self.source_active) + [f"({part})" for part in (self.source_where, self.source_window) if part]
 
     def target_parts(self) -> list:
         return [self.target_active] * bool(self.target_active) + [f"({part})" for part in (self.target_where, self.target_window) if part]
@@ -442,7 +444,8 @@ def data_header(spec: TableSpec, key: str, rec: Reconciliation, filters: Filters
     lines = [
         f"{GENERATED_MARK} on {stamp}. Do not hand-edit; main.py --yaml_generation yes rewrites it when the structure changes.",
         # CHANGE: YAML generation (MySQL onboarding). The schemas as the YAML writes them (yaml_*_schema): dev.units for MySQL.
-        f"# Source: {source_rules['label']} {'.'.join(p for p in (spec.source_database, spec.yaml_source_schema, spec.table) if p)}",
+        f"# Source: {source_rules['label']} {'.'.join(p for p in (spec.source_database, spec.yaml_source_schema, spec.table) if p)}"
+        f"{' (_FIVETRAN_ACTIVE = TRUE)' if filters.source_active else ''}",
         f"# Target: {'.'.join(p for p in (spec.target_database, spec.yaml_target_schema, spec.target_table) if p)} "
         f"({RULES[spec.target_type]['label']}"
         f"{', _FIVETRAN_ACTIVE = TRUE' if filters.target_active else ''})",

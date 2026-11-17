@@ -640,13 +640,7 @@ def check_freshness(source_conn,target_conn,source_table_name,target_table_name,
             SELECT max(dUpdated) as max_date from {environment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
             """
 
-    elif layer_type == "bronze_newbook":
-        source_query = f"""
-        SELECT max(updated_at) as max_date from {environment}_NEWBOOK_AU_BRONZE.NB_DEV_AU_SQL01_CORPORATIONS_11144.{target_table_name}
-            """
-        target_query = f"""
-            SELECT max(updated_at) as max_date from {environment}_NEWBOOK_AU_BRONZE.NB_DEV_AU_SQL01_CORPORATIONS_11144.{target_table_name}
-            """
+    # CHANGE: YAML generation (17/11/2026). The bronze_newbook branch was taken out with the layer (now bronze_newbook_<schema>).
     logger.info("Performing Freshness Check")   
     logger.info("Threshold: %s",threshold) 
     logger.info("Source Query: %s",source_query)
