@@ -299,7 +299,9 @@ def convert(statement, source_type, source_schema, target_database, target_schem
     """
     plan = _plan(statement)
     pg = RULES[source_type]
-    source = _Side(ref=lambda table: source_name(source_database, source_schema, table, pg))
+    # CHANGE: YAML generation (17/11/2026). A Fivetran source (Newbook) keeps only active rows in its sub-selects too.
+    source = _Side(ref=lambda table: source_name(source_database, source_schema, table, pg),
+                   active=FIVETRAN_FILTER if pg.get("fivetran_source") else None)
     # Snowflake keeps history rows, so a sub-select reads only the active ones (the rule the generator uses for the base table).
     # ponytail: no check that the join and condition columns exist. A wrong column fails at the count with a SQL error.
     # CHANGE: YAML generation. Another target (target_type) is written as its own engine writes it, with no Fivetran rule.

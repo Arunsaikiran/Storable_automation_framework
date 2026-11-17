@@ -72,6 +72,7 @@ from yaml_generation.yaml_builder import (  # noqa: E402
     incremental_window,
     key_expression,
     missing_key_columns,
+    normalize_name,
     other_environment_tables,
     plain_text_columns,
     reconcile,
@@ -162,12 +163,16 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
         sheet = filter_files.SCHEMA_SHEETS[args.source_type]
         in_schema_file = {name.lower() for name in schema_table_names(config_dir)} if create_only else set()
 
+    rules_by_name = {name.lower(): rule for name, rule in table_rules.items()}
     for table in args.tables:
-        rule = table_rules.get(table, settings.TableRule())
+        # CHANGE: YAML generation (17/11/2026). A rules row matches its table without regard to case (Newbook names are upper case).
+        rule = rules_by_name.get(table.lower(), settings.TableRule())
         # The rules workbook wins for a side it sets. The filter workbook fills in the other side.
         file_source, file_target = (file_filters or {}).get(table, (None, None))
         filters = Filters(source_where=rule.source_where or file_source, target_where=rule.target_where or file_target,
-                          target_active=FIVETRAN_FILTER if target_type == "snowflake" else None)
+                          target_active=FIVETRAN_FILTER if target_type == "snowflake" else None,
+                          # CHANGE: YAML generation (17/11/2026). A Fivetran source (Newbook) keeps only its active rows too.
+                          source_active=FIVETRAN_FILTER if source.get("fivetran_source") else None)
         if file_filters is not None and table not in file_filters:
             log.info("%s: no filter in the filter workbook, so the whole table is compared", table)
         data_wanted = want_data and not (create_only and data_file_path(config_dir, table).exists())
@@ -242,7 +247,18 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                                 table, column, where[side])
 
             if data_wanted:
-                key_columns = rule.key_columns or db_rules.primary_key_columns(source_db, args.source_schema, table, source)
+                # CHANGE: YAML generation (17/11/2026). The source key is read in the source's own database (source_prefix, Newbook).
+                # Excluded columns are dropped from a key read from the database: Fivetran declares ID + _FIVETRAN_START, and
+                # _FIVETRAN_START is never compared, so the key is ID. A key named in the rules workbook is used as written.
+                key_columns = rule.key_columns
+                if not key_columns:
+                    read_key = db_rules.primary_key_columns(source_db, args.source_schema, table, source, prefix=source_prefix)
+                    dropped = {normalize_name(k) for k in read_key} & (global_excluded | rule.exclude)
+                    # A key that is all excluded is kept as read, so the failure below names the excluded column.
+                    key_columns = [k for k in read_key if normalize_name(k) not in dropped] or read_key
+                    if dropped and key_columns != read_key:
+                        log.info("%s: key %s from the source; excluded column(s) left out of it: %s",
+                                 table, ", ".join(read_key), ", ".join(sorted(dropped)))
                 not_on_both = missing_key_columns(key_columns, rec.pairs)
                 if rec.problems:
                     reason = "columns cannot be compared: " + "; ".join(rec.problems)

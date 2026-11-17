@@ -10,6 +10,10 @@ engine (MySQL, MongoDB) needs one block here, a connector in db/, and its layer 
 What each key means
   label                 the engine's name: shown in messages, and the value of source_database in a filter workbook
   has_primary_keys      whether the catalogue has primary keys the generator can read
+  fivetran_source       the SOURCE is itself a Fivetran-landed Snowflake schema (Newbook). Two things follow, both from
+                        Fivetran history mode: the key is read with SHOW PRIMARY KEYS (Snowflake has no KEY_COLUMN_USAGE),
+                        and the source keeps only active rows (_FIVETRAN_ACTIVE = TRUE), as a Snowflake target does.
+                        The key Fivetran declares is ID + _FIVETRAN_START; the generator drops excluded columns from it.
   pg_catalog            read tables, columns and keys from pg_catalog, not information_schema (PostgreSQL only).
                         information_schema leaves out whatever the role cannot read, so a table would look missing.
   two_part_names        MySQL only: a database is its own schema, so a table is written schema.table and the database
@@ -204,7 +208,8 @@ RULES = {
     "newbook": {
         "label": "Newbook",
         "catalogue_prefix": True,   # CHANGE: YAML generation (16/11/2026). a Snowflake source: list tables/columns via <database>.INFORMATION_SCHEMA
-        "has_primary_keys": False,   # the target is only read for its column names
+        "has_primary_keys": True,
+        "fivetran_source": True,
         "quote": ('"', '"'),
         "text_type": "STRING",
         "true": "TRUE",
@@ -234,7 +239,7 @@ RULES = {
 for _app in ("common", "corporation", "instances", "login"):
     RULES[f"newbook_{_app}"] = {**RULES["newbook"], "label": f"Newbook {_app.title()}"}
 
-SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "newbook", "mysql_crm",
+SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "mysql_crm",
                 "newbook_common", "newbook_corporation", "newbook_instances", "newbook_login"]
 TARGET_TYPES = ["snowflake"]
 
@@ -335,14 +340,37 @@ def list_columns(db, schema, table, prefix="", rules=None):
     return [(name, dtype) for name, dtype in db.execute_query(sql).values.tolist()]
 
 
-def primary_key_columns(db, schema, table, rules) -> list:
+# Keys of a whole Snowflake schema, read once per run: one SHOW PRIMARY KEYS instead of one query per table (Instances has 492).
+# ponytail: kept for the life of the process; a key changed in Snowflake mid-run is seen on the next run.
+_SCHEMA_KEYS = {}
+
+
+def _snowflake_keys(db, schema, table, prefix) -> list:
+    """Key columns of one table from SHOW PRIMARY KEYS IN SCHEMA <prefix><schema>, in key order. Table names ignore case."""
+    cache = (id(db), prefix, schema.lower())
+    if cache not in _SCHEMA_KEYS:
+        frame = db.execute_query(f"SHOW PRIMARY KEYS IN SCHEMA {prefix}{schema}")
+        frame.columns = [str(c).lower() for c in frame.columns]
+        keys = {}
+        for row in (frame.sort_values("key_sequence").itertuples() if len(frame) else []):
+            keys.setdefault(str(row.table_name).lower(), []).append(row.column_name)
+        _SCHEMA_KEYS[cache] = keys
+    return _SCHEMA_KEYS[cache].get(table.lower(), [])
+
+
+def primary_key_columns(db, schema, table, rules, prefix="") -> list:
     """Primary-key column names in key order. Empty when there is no key, or the database has none to read.
+
+    CHANGE: YAML generation (17/11/2026). A fivetran_source (Newbook, a Snowflake source) is read with SHOW PRIMARY KEYS in
+    its own database (prefix "<database>."), which includes _FIVETRAN_START: the caller drops excluded columns from the key.
 
     PostgreSQL is read from pg_catalog, like the tables and columns. information_schema leaves out a constraint the
     role cannot see, so a table with a real key was reported as having none (seen on the dev database: units_pkey).
     """
     if not rules["has_primary_keys"]:
         return []
+    if rules.get("fivetran_source"):
+        return _snowflake_keys(db, schema, table, prefix)
     if _pg_catalog(rules):
         sql = (
             "SELECT a.attname "

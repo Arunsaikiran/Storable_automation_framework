@@ -40,7 +40,7 @@ REQUIRED_RULE_HEADERS = ["source_type", "table_name"]
 # The column an incremental run windows on, per database, when the rules workbook does not name one. The validators' freshness
 # check reads the same column: updated_at for PostgreSQL, dupdated for SQL Server (check_freshness in utils/utility.py).
 # A table without it cannot run an incremental window.
-INCREMENTAL_COLUMNS = {"postgres": "updated_at", "mssql": "dupdated", "newbook": "updated_at" }
+INCREMENTAL_COLUMNS = {"postgres": "updated_at", "mssql": "dupdated"}
 
 
 @dataclass
@@ -124,9 +124,10 @@ def load_table_rules(path, source_type=None, source_schema=None) -> dict:
         row_schema = cell("source_schema")
         if source_type and row_type != source_type:
             continue
-        if source_schema and row_schema and row_schema != source_schema:
+        # CHANGE: YAML generation (17/11/2026). Schema and table names ignore case, as they do in the master workbook.
+        if source_schema and row_schema and row_schema.lower() != source_schema.lower():
             continue
-        if table in rules:
+        if table.lower() in {name.lower() for name in rules}:
             raise ValueError(f"{Path(path).name}, row {number}: table '{table}' is listed twice for this run")
         rules[table] = TableRule(
             key_columns=_names(cell("key_columns")) or None,

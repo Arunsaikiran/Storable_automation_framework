@@ -29,7 +29,7 @@ The framework reads **one workbook per layer**. A layer is the `--layer_type` yo
 
 **Question 2 (only if the answer to question 1 is no): does the framework already have a connector for its database?** A connector is the class in `db/` that opens the connection. There is one for **PostgreSQL, SQL Server, MySQL, Snowflake, Athena and Redshift**: they are the branches of `get_database()` in `db/factory.py`.
 
-- **Route C: a layer of its own that reuses a connector.** Example: Newbook's source is Snowflake, so `bronze_newbook` builds the existing `Snowflake` class from its own creds block. A developer adds the layer's entries (Step 7). There's **no new file in `db/`, no new import and no new package**.
+- **Route C: a layer of its own that reuses a connector.** Example: Newbook's source is Snowflake, so the `bronze_newbook_<schema>` layers reuse the existing `snowflake` connection. A source that Fivetran itself landed in Snowflake sets `fivetran_source` in its `db_rules.RULES` block: the key is read with `SHOW PRIMARY KEYS` (excluded `_FIVETRAN_*` columns are dropped from it, so `ID + _FIVETRAN_START` becomes `ID`) and the source keeps only `_FIVETRAN_ACTIVE = TRUE` rows, so no `key_columns` rows are needed. A developer adds the layer's entries (Step 7). There's **no new file in `db/`, no new import and no new package**.
 - **Route D: a layer of its own on a completely new engine.** Example: before `bronze_mysql_crm` there was no MySQL connector. A developer does everything in route C, and also writes the connector `db/<key>.py`, imports it at the top of `db/factory.py` and adds its driver to `requirements.txt` (Step 7).
 
 Prompt to answer:
