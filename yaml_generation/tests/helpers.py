@@ -117,4 +117,4 @@ def statuses(results):
 
 def config_dir_for(root, run_type):
     """The folder the generator writes to for a run type, under a temporary root."""
-    return root / "config" / run_type / "bronze_postgres"
+    return root / "config" / run_type / "bronze_postgres_edge"

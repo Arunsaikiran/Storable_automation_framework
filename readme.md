@@ -76,8 +76,8 @@ Connections are cached per `(db_type, environment)` so each database is opened o
 
 | `--layer_type` | Supports | Notes |
 |---|---|---|
-| `bronze_postgres` | schema, count, data | Postgres → Snowflake bronze |
-| `bronze_mssql` | schema, count, data | MSSQL → Snowflake bronze |
+| `bronze_postgres_edge` | schema, count, data | Postgres → Snowflake bronze |
+| `bronze_mssql_sitelink` | schema, count, data | MSSQL → Snowflake bronze |
 | `silver` | count, data | Requires `{env}` placeholders in queries |
 | `reports` | data only | Requires `--report_pack` |
 | `sanity` | integrity (+ data) | Requires `--report_pack` |
@@ -128,7 +128,7 @@ redshift:  { redshift_host, redshift_port, redshift_database, redshift_user, red
 
 | Argument | Required | Values | Notes |
 |---|---|---|---|
-| `--layer_type` | yes | `bronze_postgres bronze_mssql silver gold reports sanity` | |
+| `--layer_type` | yes | `bronze_postgres_edge bronze_mssql_sitelink silver gold reports sanity` | |
 | `--tables` | yes | one or more names, or `all` | Names must match keys in the YAML (`all` runs every table) |
 | `--schema_validation` | yes | `yes` / `no` | |
 | `--count_validation` | yes | `yes` / `no` | |
@@ -142,15 +142,15 @@ redshift:  { redshift_host, redshift_port, redshift_database, redshift_user, red
 
 ```powershell
 # Bronze Postgres – everything, all tables
-python main.py --layer_type bronze_postgres --tables all `
+python main.py --layer_type bronze_postgres_edge --tables all `
   --schema_validation yes --count_validation yes --data_validation yes --environment dev
 
 # Bronze MSSQL – only specific tables, data check only
-python main.py --layer_type bronze_mssql --tables Sites Units Tenants `
+python main.py --layer_type bronze_mssql_sitelink --tables Sites Units Tenants `
   --schema_validation no --count_validation no --data_validation yes --environment dev
 
 # Bronze Postgres – schema check only
-python main.py --layer_type bronze_postgres --tables all `
+python main.py --layer_type bronze_postgres_edge --tables all `
   --schema_validation yes --count_validation no --data_validation no --environment dev
 
 # Silver[WIP]
@@ -258,5 +258,5 @@ output/<layer>/validation_<run_id>/                       (reports/sanity: outpu
 | `Only the parameter --data_validation = 'yes' is accepted.` | `reports` layer with count or schema = `yes` |
 | `--report_pack is required when --layer_type is 'sanity' or 'reports'.` | Missing pack |
 | `--report_pack is only allowed when --layer_type is 'sanity' or 'reports'.` | Pack given for another layer |
-| `--schema_validation 'yes' is only allowed when ... 'bronze_mssql' or 'bronze_postgres'.` | Intended: schema = yes on another layer.  |
+| `--schema_validation 'yes' is only allowed when ... 'bronze_mssql_sitelink' or 'bronze_postgres_edge'.` | Intended: schema = yes on another layer.  |
 

@@ -1,7 +1,7 @@
 """Rules for each database: how to read its catalogue, and how to write a value as text.
 
 One block per database ENGINE in RULES, not per application. The generator uses the SOURCE block of the layer's engine
-(--layer_type bronze_postgres uses "postgres"), and the TARGET block, which is always "snowflake" for now.
+(filter_files.LAYERS: --layer_type bronze_postgres_edge uses "postgres"), and the TARGET block, which is always "snowflake" for now.
 
 Where a table lives (application, schema, Snowflake database and schema) is not here: it is in the filter workbooks
 (filter_files.py), one row per table. A new application on an engine that is already here needs only its workbook. A new

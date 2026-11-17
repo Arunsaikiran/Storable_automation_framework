@@ -776,12 +776,12 @@ if __name__ == "__main__":
         changed = dict(entry, sourcequery=entry["sourcequery"] + " ")
         _, status = write_data_file(tmp, spec, changed, header_later)
         assert status == "UPDATED", status
-        _, statuses = upsert_count_file(tmp, "bronze_postgres", {spec.table: count})
+        _, statuses = upsert_count_file(tmp, "bronze_postgres_edge", {spec.table: count})
         assert statuses == {spec.table: "NEW"}, statuses
-        _, statuses = upsert_count_file(tmp, "bronze_postgres", {spec.table: count})
+        _, statuses = upsert_count_file(tmp, "bronze_postgres_edge", {spec.table: count})
         assert statuses == {spec.table: "UNCHANGED"}, statuses
-        _, statuses = upsert_count_file(tmp, "bronze_postgres", {spec.table: dict(count, sourcequery="SELECT 1;")})
+        _, statuses = upsert_count_file(tmp, "bronze_postgres_edge", {spec.table: dict(count, sourcequery="SELECT 1;")})
         assert statuses == {spec.table: "UPDATED"}, statuses
-        assert generated_tables(tmp, "bronze_postgres", "DEV_EDGE_BRONZE", "edge") == {spec.table}
-        assert generated_tables(tmp, "bronze_postgres", "DEV_EDGE_BRONZE", "sales") == set()
+        assert generated_tables(tmp, "bronze_postgres_edge", "DEV_EDGE_BRONZE", "edge") == {spec.table}
+        assert generated_tables(tmp, "bronze_postgres_edge", "DEV_EDGE_BRONZE", "sales") == set()
     print("yaml_builder self-check passed")

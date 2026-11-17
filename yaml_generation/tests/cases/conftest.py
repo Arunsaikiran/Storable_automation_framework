@@ -175,8 +175,8 @@ def world(monkeypatch, tmp_path):
     monkeypatch.setattr(generate_yaml, "FRAMEWORK_ROOT", root)
     monkeypatch.setattr(filter_files, "FOLDER", w.filters)
     # Every run reads where its tables live from the filter workbooks, so both applications' workbooks are there by default.
-    w.write_filters("edge_bronze_master.xlsx", POSTGRES_FILTERS)
-    w.write_filters("sitelink_bronze_master.xlsx", SITELINK_FILTERS)
+    w.write_filters("bronze_postgres_edge_master.xlsx", POSTGRES_FILTERS)
+    w.write_filters("bronze_mssql_sitelink_master.xlsx", SITELINK_FILTERS)
     monkeypatch.setattr(settings, "pick_rules_file",
                         lambda explicit=None, **kwargs: w.rules_path if w.rules_path.exists() else None)
     # The exclusions file starts as a copy of the shipped one, so the cases use the real database sections.

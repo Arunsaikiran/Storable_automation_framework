@@ -119,15 +119,15 @@ def _filters(folder, run_type, source_type="postgres"):
 
 
 def test_read_gives_each_table_its_location_from_the_row(tmp_path):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"filters": _rows(["units"])})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"filters": _rows(["units"])})
     row = ff.read("postgres", "historical", folder=tmp_path, log=LOG)["units"]
     assert row.location == ff.Location("Edge", "postgres", "fms", "public", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC")
-    assert row.statement == "" and row.label == "edge_bronze_master.xlsx row 2 (units)"
+    assert row.statement == "" and row.label == "bronze_postgres_edge_master.xlsx row 2 (units)"
 
 
 def test_read_uses_the_first_sheet_with_the_columns_and_matches_headers_loosely(tmp_path):
     header = ["  TARGET TABLE NAME ", "Incremental Filters to apply.", "x", *[f" {name.upper()} " for name in ff.LOCATION_HEADERS]]
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {
         "notes": [["Target Table Name", "Something else"], ["other"]],          # no location columns: not this sheet
         "filters": _rows(["units", "created_at > '2025-01-01'"], [None], ["notes"], header=header),
     })
@@ -138,36 +138,36 @@ def test_read_uses_the_first_sheet_with_the_columns_and_matches_headers_loosely(
 
 
 def test_a_workbook_without_the_location_columns_is_an_error_naming_the_file(tmp_path):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"], ["units", None]]})
-    with pytest.raises(ValueError, match="edge_bronze_master.xlsx has no sheet with the columns"):
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"], ["units", None]]})
+    with pytest.raises(ValueError, match="bronze_postgres_edge_master.xlsx has no sheet with the columns"):
         ff.read("postgres", "incremental", folder=tmp_path, log=LOG)
 
 
 def test_the_layer_picks_its_workbook_and_no_other_file_is_read(tmp_path):
-    """bronze_postgres reads edge_bronze_master.xlsx only. A bad row in another file does not stop it."""
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["units"])})
-    _workbook(tmp_path / "sitelink_bronze_master.xlsx", {"s": _rows(["Accounts"], location=SITELINK)})
+    """bronze_postgres_edge reads bronze_postgres_edge_master.xlsx only. A bad row in another file does not stop it."""
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["units"])})
+    _workbook(tmp_path / "bronze_mssql_sitelink_master.xlsx", {"s": _rows(["Accounts"], location=SITELINK)})
     _workbook(tmp_path / "notes.xlsx", {"s": _rows(["broken"], location=[None] * 6)})
     assert list(ff.read("postgres", "historical", folder=tmp_path, log=LOG)) == ["units"]
     assert list(ff.read("mssql", "historical", folder=tmp_path, log=LOG)) == ["Accounts"]
 
 
 def test_a_layer_with_no_workbook_or_a_missing_file_is_an_error(tmp_path):
-    with pytest.raises(ValueError, match="bronze_athena has no master workbook"):
+    with pytest.raises(ValueError, match="athena has no master workbook"):
         ff.read("athena", "historical", folder=tmp_path, log=LOG)
-    with pytest.raises(ValueError, match="for --layer_type bronze_mssql is missing"):
+    with pytest.raises(ValueError, match="for --layer_type bronze_mssql_sitelink is missing"):
         ff.read("mssql", "historical", folder=tmp_path, log=LOG)
 
 
 def test_a_target_database_without_env_is_an_error(tmp_path):
-    _workbook(tmp_path / "edge_bronze_master.xlsx",
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx",
               {"s": _rows(["units"], location=["Edge", "fms", "public", "Snowflake", "DEV_EDGE_BRONZE", "X"])})
     with pytest.raises(ValueError, match=r"row 2 \(units\): target_database 'DEV_EDGE_BRONZE' has no \{env\}"):
         ff.read("postgres", "historical", folder=tmp_path, log=LOG)
 
 
 def test_table_names_are_matched_without_regard_to_case(tmp_path, caplog):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["Addresses"], ["ADDRESSES"])})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["Addresses"], ["ADDRESSES"])})
     with caplog.at_level(logging.WARNING):
         rows = ff.read("postgres", "historical", folder=tmp_path, log=LOG)
     assert list(rows) == ["Addresses"] and "row 3 (ADDRESSES): the table is listed twice" in caplog.text
@@ -175,7 +175,7 @@ def test_table_names_are_matched_without_regard_to_case(tmp_path, caplog):
 
 
 def test_a_workbook_without_the_run_types_filter_column_still_gives_the_locations(tmp_path, caplog):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": [["Target Table Name", *ff.LOCATION_HEADERS], ["units", *EDGE]]})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [["Target Table Name", *ff.LOCATION_HEADERS], ["units", *EDGE]]})
     with caplog.at_level(logging.WARNING):
         rows = ff.read("postgres", "historical", folder=tmp_path, log=LOG)
     assert rows["units"].statement == "" and rows["units"].location.source_schema == "public"
@@ -186,30 +186,30 @@ def test_a_workbook_without_the_run_types_filter_column_still_gives_the_location
 def test_an_empty_location_cell_is_an_error_naming_the_file_row_and_column(tmp_path, column):
     location = list(EDGE)
     location[ff.LOCATION_HEADERS.index(column)] = None
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["units"], location=location)})
-    with pytest.raises(ValueError, match=rf"edge_bronze_master.xlsx row 2 \(units\): {column} is empty"):
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["units"], location=location)})
+    with pytest.raises(ValueError, match=rf"bronze_postgres_edge_master.xlsx row 2 \(units\): {column} is empty"):
         ff.read("postgres", "historical", folder=tmp_path, log=LOG)
 
 
 def test_mysql_source_schema_is_optional_and_defaults_to_the_database(tmp_path):
     """MySQL has no schema level: a blank cell, or no source_schema column at all, means the source_database."""
     crm = ["CRM", "dev", None, "Snowflake", "{env}_CRM_BRONZE", "DEV"]
-    _workbook(tmp_path / "crm_bronze_master.xlsx", {"s": _rows(["users"], location=crm)})
+    _workbook(tmp_path / "bronze_mysql_crm_master.xlsx", {"s": _rows(["users"], location=crm)})
     assert ff.read("mysql_crm", "historical", folder=tmp_path, log=LOG)["users"].location.source_schema == "dev"
     header = [name for name in HEADER if name != "source_schema"]
-    _workbook(tmp_path / "crm_bronze_master.xlsx", {"s": [header, ["users", None, None, "CRM", "dev", "Snowflake", "{env}_CRM_BRONZE", "DEV"]]})
+    _workbook(tmp_path / "bronze_mysql_crm_master.xlsx", {"s": [header, ["users", None, None, "CRM", "dev", "Snowflake", "{env}_CRM_BRONZE", "DEV"]]})
     assert ff.read("mysql_crm", "historical", folder=tmp_path, log=LOG)["users"].location.source_schema == "dev"
 
 
 def test_a_target_that_is_not_an_engine_is_an_error(tmp_path):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["units"], location=["Edge", "fms", "public", "Oracle", "X", "Y"])})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["units"], location=["Edge", "fms", "public", "Oracle", "X", "Y"])})
     with pytest.raises(ValueError, match="target_application 'Oracle' is not an engine"):
         ff.read("postgres", "historical", folder=tmp_path, log=LOG)
 
 
 def test_mysql_crm_compared_against_itself_needs_no_env_and_no_schemas(tmp_path):
     """CRM has no Snowflake target yet: target MySQL CRM, the same database, both schema cells blank."""
-    _workbook(tmp_path / "crm_bronze_master.xlsx", {"s": _rows(["users"], location=["CRM", "dev", None, "MySQL CRM", "dev", None])})
+    _workbook(tmp_path / "bronze_mysql_crm_master.xlsx", {"s": _rows(["users"], location=["CRM", "dev", None, "MySQL CRM", "dev", None])})
     row = ff.read("mysql_crm", "historical", folder=tmp_path, log=LOG)["users"]
     assert row.location == ff.Location("CRM", "mysql_crm", "dev", "dev", "dev", "dev", "mysql_crm")
     src, tgt = ff.convert("select count(*) from users where id > 1", "mysql_crm", "dev", "dev", "dev", "dev", "mysql_crm")
@@ -223,7 +223,7 @@ def test_mysql_crm_compared_against_itself_needs_no_env_and_no_schemas(tmp_path)
 def test_an_engine_in_source_database_is_an_error(tmp_path, engine):
     """source_database is the database name (fms), not the engine: an old workbook fails loudly, not with bad SQL."""
     other = ["Marketplace", engine, "app", "Snowflake", "{env}_MARKETPLACE_BRONZE", "APP"]
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": [HEADER, ["units", None, None, *EDGE], ["listings", None, None, *other]]})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [HEADER, ["units", None, None, *EDGE], ["listings", None, None, *other]]})
     with pytest.raises(ValueError, match=rf"row 3 \(listings\): source_database is '{engine}', an engine"):
         ff.read("postgres", "historical", folder=tmp_path, log=LOG)
 
@@ -248,7 +248,7 @@ def test_the_engine_is_matched_by_label_or_key_in_any_case():
 
 
 def test_a_table_listed_twice_keeps_the_first_row_with_a_warning(tmp_path, caplog):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["units", "units\nwhere id > 1"], ["units", "units\nwhere id > 2"])})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["units", "units\nwhere id > 1"], ["units", "units\nwhere id > 2"])})
     with caplog.at_level(logging.WARNING):
         assert _filters(tmp_path, "incremental")["units"] == ("id > 1", "id > 1")
     assert "row 3 (units): the table is listed twice" in caplog.text
@@ -256,7 +256,7 @@ def test_a_table_listed_twice_keeps_the_first_row_with_a_warning(tmp_path, caplo
 
 def test_a_refused_first_row_is_the_tables_row_so_the_table_is_loaded_in_full(tmp_path):
     """The first row is where the table lives, so its filter is the one used; a later row for the same table is not."""
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["units", 'units\nwhere "id" > 1'], ["units", "units\nwhere id > 2"])})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["units", 'units\nwhere "id" > 1'], ["units", "units\nwhere id > 2"])})
     assert "units" not in _filters(tmp_path, "incremental")
 
 
@@ -264,7 +264,7 @@ def test_a_refused_first_row_is_the_tables_row_so_the_table_is_loaded_in_full(tm
 
 @pytest.fixture
 def folder(tmp_path):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"filters": _rows(
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"filters": _rows(
         ["units", "units\nwhere created_at >= '2025-01-01'", "units\nwhere created_at >= '2020-01-01'"],
         ["notes", "", "notes\nwhere body is not null"],
         ["events", "events j\nwhere j.created_at > '2025-06-01' -- note", None],
@@ -287,7 +287,7 @@ def test_historical_run_reads_the_historical_column(folder):
 
 
 def test_the_snowflake_side_is_written_for_the_rows_own_location(tmp_path):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["events", None, "events j\njoin facilities f on j.facility_id=f.id\n"
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["events", None, "events j\njoin facilities f on j.facility_id=f.id\n"
                                                                     "where f.company_id in (137)"])})
     _, target = _filters(tmp_path, "historical")["events"]
     assert target == ('facility_id IN (SELECT id FROM {env}_EDGE_BRONZE."STOREDGE_FMS_PUBLIC"."FACILITIES" '
@@ -295,7 +295,7 @@ def test_the_snowflake_side_is_written_for_the_rows_own_location(tmp_path):
 
 
 def test_a_bare_condition_cell_filters_its_own_table_without_a_join(tmp_path):
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(["account_balance_items", None, "created_at >= '2026-08-01'"])})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["account_balance_items", None, "created_at >= '2026-08-01'"])})
     assert _filters(tmp_path, "historical") == {
         "account_balance_items": ("created_at >= '2026-08-01'", "created_at >= '2026-08-01'")}
 
@@ -316,7 +316,7 @@ def test_a_filter_refused_by_check_filter_is_not_applied(folder, caplog):
 
 def test_a_cell_about_another_table_is_refused_and_the_table_loaded_in_full(tmp_path, caplog):
     # A cell copied from another row would filter the wrong table. The row's table must be the one the statement reads.
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"s": _rows(
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(
         ["discount_plan_ledger_instances", "discount_plan_ledger_instances_line_items j\n"
                                            "join discount_plan_ledger_instances ss on j.discount_plan_ledger_instance_id=ss.id\n"
                                            "where j.created_at >= '2026-08-01'"])})
@@ -354,8 +354,8 @@ def test_a_postgresql_cast_is_not_mistaken_for_a_bind_parameter():
 
 def test_sql_server_reads_only_its_own_workbook_and_compare_full_is_no_filter(tmp_path, caplog):
     # The PostgreSQL workbook in the same folder must not be applied to SQL Server.
-    _workbook(tmp_path / "edge_bronze_master.xlsx", {"filters": _rows(["units", "units\nwhere id > 1"])})
-    _workbook(tmp_path / "sitelink_bronze_master.xlsx", {"Sheet1": _rows(
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"filters": _rows(["units", "units\nwhere id > 1"])})
+    _workbook(tmp_path / "bronze_mssql_sitelink_master.xlsx", {"Sheet1": _rows(
         ["AcctTypes", "AcctTypes t\nwhere t.scorpcode = :scorpcode"],
         ["Promotions", "compare full"],
         ["Accounts", "Accounts t\nwhere t.active = 1"], location=SITELINK)})
@@ -389,7 +389,7 @@ def test_the_shipped_workbooks_give_every_table_a_location(run_type):
 MAPPING_HEADER = ["source_data_type", "target_data_type", "precision_check", "notes"]
 
 
-def _mapping_book(folder, sheet="MSSQL schema mapping", rows=(), name="sitelink_bronze_master.xlsx"):
+def _mapping_book(folder, sheet="MSSQL schema mapping", rows=(), name="bronze_mssql_sitelink_master.xlsx"):
     sheets = {"Sheet1": _rows(["Units"], location=SITELINK)}
     if sheet:
         sheets[sheet] = [MAPPING_HEADER, *rows]
@@ -405,7 +405,7 @@ def test_schema_mapping_reads_the_types_and_the_precision_checks(tmp_path):
 
 
 def test_the_source_type_keeps_its_spelling_for_the_validators_exact_lookup(tmp_path):
-    _mapping_book(tmp_path, sheet="Postgres schema mapping", name="edge_bronze_master.xlsx",
+    _mapping_book(tmp_path, sheet="Postgres schema mapping", name="bronze_postgres_edge_master.xlsx",
                   rows=[["USER-DEFINED", "variant"], ["character varying", "text"]])
     assert list(ff.schema_mapping("postgres", folder=tmp_path, log=LOG)[0]) == ["USER-DEFINED", "character varying"]
 

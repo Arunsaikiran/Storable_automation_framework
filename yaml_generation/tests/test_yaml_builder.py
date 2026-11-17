@@ -285,13 +285,13 @@ def test_hand_written_data_file_is_not_overwritten(tmp_path):
 def test_count_file_keeps_other_tables_and_reports_each_status(tmp_path):
     count = yb.build_count_entry(SPEC, yb.Filters())
     other = dict(count, sourcequery="SELECT 2;")
-    _, statuses = yb.upsert_count_file(tmp_path, "bronze_postgres", {"units": count, "notes": other})
+    _, statuses = yb.upsert_count_file(tmp_path, "bronze_postgres_edge", {"units": count, "notes": other})
     assert statuses == {"units": "NEW", "notes": "NEW"}
-    _, statuses = yb.upsert_count_file(tmp_path, "bronze_postgres", {"units": count})
+    _, statuses = yb.upsert_count_file(tmp_path, "bronze_postgres_edge", {"units": count})
     assert statuses == {"units": "UNCHANGED"}
-    _, statuses = yb.upsert_count_file(tmp_path, "bronze_postgres", {"units": dict(count, sourcequery="SELECT 3;")})
+    _, statuses = yb.upsert_count_file(tmp_path, "bronze_postgres_edge", {"units": dict(count, sourcequery="SELECT 3;")})
     assert statuses == {"units": "UPDATED"}
-    tables = yb._count_tables(tmp_path, "bronze_postgres")
+    tables = yb._count_tables(tmp_path, "bronze_postgres_edge")
     assert set(tables) == {"units", "notes"}, "a table not in this run is kept"
 
 
@@ -299,25 +299,25 @@ def test_count_file_keeps_other_tables_and_reports_each_status(tmp_path):
 
 
 def test_count_file_is_not_created_when_there_is_nothing_to_write(tmp_path):
-    assert yb.upsert_count_file(tmp_path, "bronze_postgres", {}) is None
+    assert yb.upsert_count_file(tmp_path, "bronze_postgres_edge", {}) is None
     assert not (tmp_path / "count_validation").exists()
 
 
 def test_generated_tables_are_found_by_mark_or_count_entry_for_the_template(tmp_path):
     count = yb.build_count_entry(SPEC, yb.Filters())
     yb.write_data_file(tmp_path, SPEC, _data_entry(), _header("t"))
-    yb.upsert_count_file(tmp_path, "bronze_postgres", {"notes": count})
-    assert yb.generated_tables(tmp_path, "bronze_postgres", TEMPLATE, "edge") == {"units", "notes"}
-    assert yb.generated_tables(tmp_path, "bronze_postgres", "DEV_EDGE_BRONZE", "edge") == {"units"}, "only the data file's mark matches"
-    assert yb.generated_tables(tmp_path, "bronze_postgres", TEMPLATE, "sales") == set(), "another schema's tables are not listed"
+    yb.upsert_count_file(tmp_path, "bronze_postgres_edge", {"notes": count})
+    assert yb.generated_tables(tmp_path, "bronze_postgres_edge", TEMPLATE, "edge") == {"units", "notes"}
+    assert yb.generated_tables(tmp_path, "bronze_postgres_edge", "DEV_EDGE_BRONZE", "edge") == {"units"}, "only the data file's mark matches"
+    assert yb.generated_tables(tmp_path, "bronze_postgres_edge", TEMPLATE, "sales") == set(), "another schema's tables are not listed"
 
 
 def test_a_count_entry_with_a_fixed_database_name_is_reported_as_not_for_this_run(tmp_path):
     """Count entries written before the placeholder held DEV_EDGE_BRONZE. They are reported, not silently kept."""
     fixed = yb.TableSpec("postgres", "edge", "units", "DEV_EDGE_BRONZE", "EDGE")
-    yb.upsert_count_file(tmp_path, "bronze_postgres", {"units": yb.build_count_entry(fixed, yb.Filters())})
-    assert yb.other_environment_tables(tmp_path, "bronze_postgres", TEMPLATE) == ["units"]
-    assert yb.other_environment_tables(tmp_path, "bronze_postgres", "DEV_EDGE_BRONZE") == []
+    yb.upsert_count_file(tmp_path, "bronze_postgres_edge", {"units": yb.build_count_entry(fixed, yb.Filters())})
+    assert yb.other_environment_tables(tmp_path, "bronze_postgres_edge", TEMPLATE) == ["units"]
+    assert yb.other_environment_tables(tmp_path, "bronze_postgres_edge", "DEV_EDGE_BRONZE") == []
 
 
 def test_a_filter_with_a_line_break_is_refused():

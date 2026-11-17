@@ -58,4 +58,4 @@ def test_live_columns_drive_the_historical_yaml(tmp_path):
     results = run_generate(args, config, source=source, target=target)
     assert "FAILED" not in {status for _, _, status, _ in results}
     assert statuses(results)[(table, "count_validation")] == "NEW"
-    assert (config / "count_validation" / "bronze_postgres.yaml").exists()
+    assert (config / "count_validation" / "bronze_postgres_edge.yaml").exists()

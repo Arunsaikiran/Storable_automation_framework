@@ -13,8 +13,8 @@ The **Add a new source** tab of `YAML_GENERATION_FLOW_EXPLORER.html` builds this
 You are onboarding a source into the Storable data validation framework (this repository). Read the files before you change them.
 
 ROUTE (keep one, delete the others):
-  A. More tables for <Edge or SiteLink>, which is already set up (layer <bronze_postgres or bronze_mssql>).
-  B. A new application in the existing layer <bronze_postgres or bronze_mssql>: the existing connection reaches its tables. No code change.
+  A. More tables for <Edge or SiteLink>, which is already set up (layer <bronze_postgres_edge or bronze_mssql_sitelink>).
+  B. A new application in the existing layer <bronze_postgres_edge or bronze_mssql_sitelink>: the existing connection reaches its tables. No code change.
   C. A new layer bronze_<key> that REUSES the existing <Postgres | Mssqlserver | Mysql | Snowflake | Athena | Redshift> connector
      (db/<file>.py). Do not add a new file in db/, an import or a package.
   D. A new layer bronze_<key> on a database engine with NO connector yet: write the connector (db/<key>.py), import it in
@@ -23,7 +23,7 @@ ROUTE (keep one, delete the others):
 FACTS
   Application ........: <name, e.g. Marketplace>
   Engine / layer name : <e.g. MySQL> / --layer_type <bronze_<key>>
-  Master workbook ....: yaml_generation/master_files/<key>_bronze_master.xlsx   (route A/B: the existing layer's workbook)
+  Master workbook ....: yaml_generation/master_files/bronze_<key>_master.xlsx   (route A/B: the existing layer's workbook)
   Source database ....: <the real database name, never the engine name>
   Source schema ......: <e.g. public>
   Snowflake database .: <{env}_<APPLICATION>_BRONZE>   (keep {env}; it becomes DEV, STG or PRD at run time)
@@ -36,10 +36,10 @@ Any value still written <...> is unknown: ask me for it before you use it.
 FILES TO CHANGE
   Every route:
     - yaml_generation/master_files/<workbook>: one row per table on Sheet1, and a row per source type on '<Label> schema mapping'.
-      A new workbook starts as a copy of new_application_onboarding/templates/TEMPLATE_bronze_master.xlsx.
+      A new workbook starts as a copy of new_application_onboarding/templates/TEMPLATE_layer_master.xlsx.
     - yaml_generation/settings/dev_rules.xlsx, sheet table_rules: only for a table that needs key_columns, exclude_columns or a filter.
   Routes C and D also:
-    - yaml_generation/filter_files.py: add "<key>" to WORKBOOKS and to SCHEMA_SHEETS.
+    - yaml_generation/filter_files.py: add "bronze_<key>": "<key>" to LAYERS (WORKBOOKS and BRONZE_LAYERS follow), and "<key>" to SCHEMA_SHEETS.
     - yaml_generation/db_rules.py: add a "<key>" block to RULES and "<key>" to SOURCE_TYPES.
         C: a copy of the reused database's block (newbook for Snowflake), with only the key and the label changed.
         D: a new block written for the engine (start from the mysql block); add a test in yaml_generation/tests/test_db_rules.py.
@@ -48,7 +48,7 @@ FILES TO CHANGE
         C: it builds the existing class from file['<key>'], like the newbook branch builds Snowflake. No new import.
         D: it builds the new class; also add "from db.<key> import <Class>" with the other imports at the top.
     - creds/<env>.yaml (every environment, kept local) and creds/example.yaml (field names only): a "<key>:" block.
-    - utils/utility.py: add "bronze_<key>" at the end of BRONZE_LAYERS.
+    - utils/utility.py: nothing for the layer; BRONZE_LAYERS is read from filter_files.LAYERS.
   Route D also:
     - db/<key>.py (new): the connector class, based on db/base.py's Database, like db/mysql.py: connect(),
       execute_query(query) returning a pandas DataFrame, close().
@@ -65,8 +65,8 @@ RULES
             data_validation_last_run_date | layer
     '<Label> schema mapping': source_data_type | target_data_type | precision_check | notes
     No extra sheets or columns. target_application is Snowflake. target_database must contain {env}.
-  - When you add to a list or dict (WORKBOOKS, SCHEMA_SHEETS, SOURCE_TYPES, BRONZE_LAYERS, INCREMENTAL_COLUMNS, RULES), keep every existing entry.
-  - Use the same key everywhere: '<key>' in RULES, SOURCE_TYPES, WORKBOOKS, SCHEMA_SHEETS, INCREMENTAL_COLUMNS, exclusions.yaml,
+  - When you add to a list or dict (LAYERS, SCHEMA_SHEETS, SOURCE_TYPES, INCREMENTAL_COLUMNS, RULES), keep every existing entry.
+  - Use the same key everywhere: '<key>' in RULES, SOURCE_TYPES, LAYERS, SCHEMA_SHEETS, INCREMENTAL_COLUMNS, exclusions.yaml,
     get_database() and the creds block; the layer is 'bronze_<key>'.
   - Every edit to a shared file outside yaml_generation/ gets a comment starting '# CHANGE: YAML generation.' that says what and why.
   - Make only the changes this plan needs: no new flags, helpers or refactors. Do not change other layers.
