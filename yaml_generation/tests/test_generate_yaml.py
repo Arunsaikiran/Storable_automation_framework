@@ -692,19 +692,17 @@ def test_a_second_schema_run_is_unchanged_and_another_environment_too(run_env):
     assert statuses(results) == {("units", "schema_validation"): "UNCHANGED"}, "one file serves every environment"
 
 
-def test_catalogue_types_in_capitals_match_the_lower_case_mapping(run_env):
-    """The workbook's types match ignoring case, so NUMBER finds 'number'. The validator looks the catalogue's spelling up
-    exactly, so that spelling is written into the YAML's maps too."""
+def test_catalogue_types_in_capitals_match_the_lower_case_mapping_and_are_written_once(run_env):
+    """The workbook's types match ignoring case, so INTEGER finds 'integer'. The validator lower-cases the catalogue's type, so
+    the YAML keeps one lower-case key per type: no second, upper-case copy (Newbook's TIMESTAMP_NTZ)."""
     run_env.dbs["source"] = FakeDB({("edge", "units"): [("id", "INTEGER"), ("unit_name", "CHARACTER VARYING"),
                                                          ("updated_at", "TIMESTAMP WITHOUT TIME ZONE")]})
     results, _ = _schema_only(run_env, tables=["units"])
     assert statuses(results) == {("units", "schema_validation"): "NEW"}
     doc = schema_doc(run_env.root)
-    assert doc["datatype_map"]["INTEGER"] == "number" and doc["datatype_map"]["integer"] == "number"
-    assert doc["datatype_map"]["CHARACTER VARYING"] == "text"
-    assert doc["datatype_map"]["TIMESTAMP WITHOUT TIME ZONE"] == "timestamp_ntz"
-    assert "INTEGER" in doc["precision_checks"]["numeric"] and "integer" in doc["precision_checks"]["numeric"]
-    assert "CHARACTER VARYING" in doc["precision_checks"]["character"]
+    assert doc["datatype_map"]["integer"] == "number" and "INTEGER" not in doc["datatype_map"]
+    assert all(key == key.lower() for key in doc["datatype_map"])
+    assert all(t == t.lower() for types in doc["precision_checks"].values() for t in types)
 
 
 def test_a_source_type_with_no_mapping_row_fails_that_tables_schema_and_names_it(run_env, workbook_folder, caplog):
@@ -829,3 +827,24 @@ def test_the_unchanged_validator_reads_the_generated_file(run_env, monkeypatch, 
     report = out / "schema_validation_result_summary.xlsx"
     assert pd.read_excel(report).loc[0, "overall_status"] == "PASS"
     assert "columns_missing_in_source" not in pd.ExcelFile(report).sheet_names
+
+
+def test_report_failures_writes_each_failed_kind_to_its_validation_report(tmp_path):
+    """CHANGE: YAML generation (17/11/2026). A generation FAILED is a FAIL row in the report, not only a console line."""
+    import os
+    import pandas as pd
+    from yaml_generation.generate_yaml import report_failures
+    paths = {kind: str(tmp_path / kind) for kind in ("schema_validation", "count_validation", "data_validation")}
+    for folder in paths.values():   # main.py's get_config_output_paths() makes them
+        os.makedirs(folder)
+    results = [("units", "schema_validation", "FAILED", "source type(s) with no row in the mapping sheet: x (json)"),
+               ("units", "data_validation", "UNCHANGED", "path"),
+               ("ghost", "table", "FAILED", "not in source schema edge")]
+    report_failures(results, paths, "r1", "now", "bronze_postgres_edge", logging.getLogger(__name__))
+    schema = pd.read_excel(tmp_path / "schema_validation" / "schema_validation_result_summary.xlsx", sheet_name="summary")
+    assert list(schema["table_name"]) == ["units", "ghost"] and set(schema["overall_status"]) == {"FAIL"}
+    assert "no row in the mapping sheet" in schema["error_message"][0]
+    count = pd.read_csv(tmp_path / "count_validation" / "count_validation_summary.csv")
+    assert list(count["source_table_name"]) == ["ghost"]
+    data = pd.read_excel(tmp_path / "data_validation" / "data_validation_result_summary.xlsx", sheet_name="summary")
+    assert list(data["source_table_name"]) == ["ghost"], "a ready table gets no row; a table-level FAILED goes to every report"

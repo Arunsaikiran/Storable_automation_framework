@@ -75,7 +75,8 @@ def get_database(db_type,BASE_DIR,env):
 
     # CHANGE: YAML generation. One MySQL creds block per application, named as its layer key (mysql_crm; mysql_ess later is added
     # to this tuple): host, port, database, user, password (creds/example.yaml lists them).
-    elif db_type in ("mysql_crm",):
+    # CHANGE: YAML generation (17/11/2026). mysql_ess (ESS, --layer_type bronze_mysql_ess) added.
+    elif db_type in ("mysql_crm", "mysql_ess"):
         mysql = file[db_type]
         db = Mysql(host=mysql['host'], port=mysql['port'], database=mysql['database'], user=mysql['user'], password=mysql['password'])
 

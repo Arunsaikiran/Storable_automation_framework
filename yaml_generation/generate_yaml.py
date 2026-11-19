@@ -156,7 +156,6 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
     counted = count_table_names(config_dir, layer) if create_only else set()
     want_schema = schema_mapping is not None
     schema_entries = {}
-    catalogue_types = set()      # the source types as the catalogue spells them, for the schema tables of this run
     if want_schema:
         datatype_map, precision_checks = schema_mapping
         schema_sql = db_rules.schema_query(source, args.source_schema, args.source_database)
@@ -219,7 +218,6 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                 # Excluded columns are not checked: the validator leaves them out, from the same settings.
                 excluded = {s for s, _, status, _ in rec.rows if status.startswith("EXCLUDED") and s}
                 columns = [(row[1], row[2]) for row in source_db.execute_query(schema_sql.format(table_name=table, env=args.env_token)).values.tolist()]
-                catalogue_types.update(dtype for _, dtype in columns)
                 gaps = unmapped_types(columns, excluded, datatype_map)
                 if not columns:
                     reason = (f"the schema query (information_schema) returns no column for {args.source_schema}.{table}, so "
@@ -301,20 +299,12 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
             results.extend((table, "count_validation", "FAILED", "count file could not be updated")
                            for table in count_entries)
     if schema_entries:
-        # The workbook's types match ignoring case, but the validator looks the catalogue's spelling up exactly. So each catalogue
-        # spelling of a workbook type is written as a key too (the same target, or the same precision check).
-        spelled_map = dict(datatype_map)
-        for dtype in sorted(catalogue_types):
-            key = next((k for k in datatype_map if k.lower() == dtype.lower()), None)
-            if key is not None:
-                spelled_map.setdefault(dtype, datatype_map[key])
-        spelled_checks = {check: list(types) + [t for t in sorted(catalogue_types) if t not in types
-                                                and t.lower() in {s.lower() for s in types}]
-                          for check, types in precision_checks.items()}
+        # CHANGE: YAML generation (17/11/2026). The maps are written as the workbook gives them (lower case). The catalogue's own
+        # spelling (Newbook's TIMESTAMP_NTZ) is no longer added: the validator lower-cases the type, so it was a second, unused entry.
         shared = {"source": args.source_type, "sourcequery": schema_sql, "target": target_type,
                   # The {env} placeholder is kept: the validator fills it for its run, so one file serves every environment.
                   "targetquery": db_rules.schema_query(snow, args.target_schema, args.target_template),
-                  "datatype_map": spelled_map, "precision_checks": spelled_checks}
+                  "datatype_map": datatype_map, "precision_checks": precision_checks}
         header = [f"{GENERATED_MARK} on {stamp} from {filter_files.WORKBOOKS[args.source_type]} (locations; '{sheet}' for "
                   f"the types). Do not hand-edit; main.py --schema_validation yes rewrites it when they change."]
         try:
@@ -482,3 +472,32 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
                     and any(t == table and s in READY_STATUSES for t, _, s, _ in results)
                     and not any(t == table and k == "count_validation" and s not in READY_STATUSES for t, k, s, _ in results)]
     return results, ready_tables
+
+
+def report_failures(results, outputpaths, run_id, run_at, layer_type, log):
+    """CHANGE: YAML generation (17/11/2026). Each FAILED result goes into the report of its validation, as a FAIL row with the
+    reason, so the report shows what the console logged (for example a type with no mapping row, or no primary key).
+
+    results      (table, kind, status, detail), as run_for_validation() returns them.
+    outputpaths  main.py's {validation: folder}. A kind with no folder (not asked for this run) is not written.
+    The rows use the validators' own writers: schema_validation_result_summary.xlsx, data_validation_result_summary.xlsx
+    (and <table>_result.xlsx), and count_validation_summary.csv. A table-level FAILED (not in the source or Snowflake, no
+    workbook row) is written to every validation of the run.
+    """
+    from utils.utility import create_summary, create_summary_schema
+    from validators.count_validation import create_summary_count
+    writers = {"schema_validation": create_summary_schema, "count_validation": create_summary_count,
+               "data_validation": create_summary}
+    source = filter_files.LAYERS.get(layer_type)
+    for table, kind, status, detail in results:
+        if status != "FAILED":
+            continue
+        for validation in (list(outputpaths) if kind == "table" else [kind]):
+            if validation not in writers or validation not in outputpaths:
+                continue
+            try:
+                writers[validation](run_at, run_id, validation, table, source, None, None, "FAIL", outputpaths[validation],
+                                    error_message=f"YAML generation: {detail}", layer_type=layer_type)
+            except Exception:  # the report row is extra; it must not stop the run
+                log.warning("%s: the YAML generation failure could not be written to the %s report", table, validation,
+                            exc_info=True)
