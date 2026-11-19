@@ -127,7 +127,7 @@ def validate_count(ctx):
                         # same :start_time and :end_time placeholders as a hand-written one.
                         #Check freshness, then get the latest sync date (fivetran) and previous sync date (control table)
                         #max_fivetran_start,min_fivetran_start,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'count')
-                        max_updated_at,min_updated_at,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],environment,'count')
+                        max_updated_at,min_updated_at,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,control_table_path,layer[0],environment,'count')
 
                         for key, value in {
                             "start_time": min_updated_at,
@@ -193,9 +193,10 @@ def validate_count(ctx):
                         batch_end_time_str = batch_end_time.strftime("%H:%M:%S")
                         total_batch_time_taken = time.strftime("%H:%M:%S",time.gmtime(diff_batch.total_seconds()))
                         create_summary_count(run_at,run_id,validation_name,source_table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,batch_start_time_str,batch_end_time_str,total_batch_time_taken,layer_type=layer[0])
-                        if sync_date is not None:
-                            logger.info("Updating control table")
-                            update_control_table(control_table_path,target_table_name,layer[0],'count',sync_date)
+                        #Dont update control table on a failure
+                        # if sync_date is not None:
+                        #     logger.info("Updating control table")
+                        #     update_control_table(control_table_path,target_table_name,layer[0],'count',sync_date)
                         print("+"*100)
 
                 except NoNewSyncError as e:

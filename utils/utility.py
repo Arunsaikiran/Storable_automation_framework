@@ -622,23 +622,26 @@ def data_context():
         masterfilepath: dict = field(default_factory=dict)
     return DataContext
 
-def check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type,environment,threshold:int=50):
-    freshness_check = 'Pass'
+def check_freshness(source_conn,target_conn,source_table_name,target_table_name,control_table_path,layer_type,environment,threshold:int=50):
+    freshness_check = 'Fail'
+    control_df = pd.read_excel(control_table_path, dtype=str)
     # CHANGE: YAML generation (17/11/2026). Layer names renamed (bronze_postgres_edge, bronze_mssql_sitelink); the queries are unchanged.
-    if layer_type == "bronze_postgres_edge":
-        source_query = f"""
-        SELECT max(updated_at) as max_date from {source_table_name}
-            """
-        target_query = f"""
-            SELECT max(updated_at) as max_date from {environment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
-            """
-    elif layer_type == "bronze_mssql_sitelink":
-        source_query = f"""
-        SELECT max(dUpdated) as max_date from {source_table_name}
-            """
-        target_query = f"""
-            SELECT max(dUpdated) as max_date from {environment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
-            """
+    filt_df = control_df[
+        control_df['Target Table Name'].str.strip().str.lower()
+        == target_table_name.strip().lower()
+    ]    
+    source_schema = filt_df['source_schema'].iloc[0]
+    source_database = filt_df['source_database'].iloc[0]
+    target_schema = filt_df['target_schema'].iloc[0].replace("{env}", environment)
+    target_database = filt_df['target_database'].iloc[0].replace("{env}", environment)
+    incremental_column = filt_df['incremental_column'].iloc[0]
+
+    source_query = f"""
+    SELECT max({incremental_column}) as max_date from {source_database}.{source_schema}.{source_table_name}
+        """
+    target_query = f"""
+        SELECT max({incremental_column}) as max_date from {target_database}.{target_schema}.{target_table_name}
+        """
 
     # CHANGE: YAML generation (17/11/2026). The bronze_newbook branch was taken out with the layer (now bronze_newbook_<schema>).
     logger.info("Performing Freshness Check")   
@@ -652,36 +655,33 @@ def check_freshness(source_conn,target_conn,source_table_name,target_table_name,
     hours = (source_df['max_date'] - target_df['MAX_DATE']).dt.total_seconds() / 3600
     value = hours.iloc[0]
     logger.info("Hours: %.2f",value)
-    if pd.isna(value) or value > threshold:
-        freshness_check = 'Fail'
+    if value < threshold and value >= 0:
+        freshness_check = 'Pass'
     return freshness_check
 
-def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name,environment):
+def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name,control_table_path,environment):
     
     date_column = 'data_validation_last_run_date' if validation == 'data' else 'count_validation_last_run_date'
-
-    # CHANGE: YAML generation (17/11/2026). Layer and workbook renamed: bronze_postgres_edge reads bronze_postgres_edge_master.xlsx,
-    # bronze_mssql_sitelink reads bronze_mssql_sitelink_master.xlsx. The queries are unchanged.
-    if layer == 'bronze_postgres_edge':
-        target_table = f"{environment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}"
-        file = (base_dir,"yaml_generation","master_files","bronze_postgres_edge_master.xlsx")
-        col = 'updated_at'
-    elif layer == 'bronze_mssql_sitelink':
-        target_table = f"{environment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}"
-        file = (base_dir,"yaml_generation","master_files","bronze_mssql_sitelink_master.xlsx")
-        col = 'dUpdated'
-    else:
-        raise ValueError(f"Unsupported layer '{layer}' for get_dates")
+    control_df = pd.read_excel(control_table_path, dtype=str,sheet_name="Sheet1")
+    # CHANGE: YAML generation (17/11/2026). Layer names renamed (bronze_postgres_edge, bronze_mssql_sitelink); the queries are unchanged.
+    filt_df = control_df[
+        control_df['Target Table Name'].str.strip().str.lower()
+        == target_table_name.strip().lower()
+    ]
+    target_schema = filt_df['target_schema'].iloc[0].replace("{env}", environment)
+    target_database = filt_df['target_database'].iloc[0].replace("{env}", environment)
+    incremental_column = filt_df['incremental_column'].iloc[0]
+    target_table =  f"{target_database}.{target_schema}.{target_table_name}"
     
-    control_file = os.path.join(*file)
-    control_df = pd.read_excel(control_file,sheet_name="Sheet1")
+    # control_file = os.path.join(*file)
+    # control_df = pd.read_excel(control_file,sheet_name="Sheet1")
     # CHANGE: YAML generation (17/11/2026). Table names compared in lower case on BOTH sides. Before, only table_name was lowered,
     # so a workbook row written with capitals (CRM CenterShiftPromos, Newbook BOOKINGS) never matched and the run failed.
     rows = (control_df[(control_df['Target Table Name'].astype(str).str.strip().str.lower() == table_name.strip().lower())
                        & (control_df['layer'] == layer)][date_column])
 
     if rows.empty:
-        raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
+        raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_table_path}; seed a value first")
     previous_sync_date = rows.iloc[0]
 
     target_query_sync = f"""
@@ -703,10 +703,9 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
     max_fivetran_synced = _format_ts(max_ts)
     logger.info(f"Table '{table_name}' ({layer}): max_fivetran_synced={max_fivetran_synced}, previous_sync_date={previous_sync_date}")
 
-    #Extracting min/max dUpdated for the sync window
-
+    #Extracting min/max updated column values for the sync window
     target_query_updated = f"""
-    SELECT max({col}) as MAX_UPDATED,min({col}) as MIN_UPDATED
+    SELECT max({incremental_column}) as MAX_UPDATED,min({incremental_column}) as MIN_UPDATED
     FROM {target_table}
     WHERE _FIVETRAN_ACTIVE = TRUE AND _FIVETRAN_SYNCED > '{previous_sync_date}' and _fivetran_synced <= '{max_fivetran_synced}'
     """
@@ -724,72 +723,6 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
 
 def _format_ts(ts):
     return (ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + ts.strftime('%z')).strip()
-
-#Old
-# def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name,enviroment):
-
-#     yaml_path = os.path.join(base_dir,"creds","api.yaml")
-#     control_file = os.path.join(base_dir,'control_table.csv')
-#     apikey, secret, connection_id = get_api_creds(yaml_path, layer)
-
-#     url = f"https://api.fivetran.com/v1/connections/{connection_id}"
-#     response = requests.get(
-#         url,
-#         auth=(apikey, secret),
-#     )
-
-#     response.raise_for_status()
-#     d = response.json()
-#     dt = datetime.fromisoformat(d['data']['succeeded_at'])
-#     sync_date = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + dt.strftime('%z')
-#     date_column = 'data_validation_last_run_date' if validation == 'data' else 'count_validation_last_run_date'
-#     control_df = pd.read_csv(control_file)
-#     rows = (control_df[(control_df['table'] == table_name.lower()) & (control_df['layer'] == layer)][date_column])
-
-#     if rows.empty:
-#         raise ValueError(f"No {date_column} found for table '{table_name.lower()}' in {control_file}; seed a value first")
-#     previous_sync_date = rows.iloc[0]
-#     logger.info("Fetching Sync Date and Fivetran Start Date ranges (MIN/MAX)") 
-#     logger.info(f"Table '{table_name.lower()}' ({layer}): sync_date={sync_date}, previous_sync_date={previous_sync_date}")
-
-#     if sync_date == previous_sync_date:
-#         raise NoNewSyncError(f"No new sync for {table_name.lower()} ({layer}): sync_date {sync_date} equals previous_sync_date")
-
-#     if layer == 'bronze_postgres':
-#         target_query = f"""
-#         SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
-#         FROM {enviroment}_EDGE_BRONZE.STOREDGE_FMS_PUBLIC.{target_table_name}
-#         WHERE _FIVETRAN_ACTIVE = TRUE
-#         and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
-#         """
-#     elif layer == 'bronze_mssql':
-#         target_query = f"""
-#         SELECT min(_fivetran_start) as min_fivetran_start ,max(_fivetran_start) as max_fivetran_start
-#         FROM {enviroment}_SITELINK_BRONZE.AWSDEV_DEVT5000_DBO.{target_table_name}
-#         WHERE _FIVETRAN_ACTIVE = TRUE
-#         and  _fivetran_synced >= '{previous_sync_date}' and _fivetran_synced < '{sync_date}';
-#         """
-
-#     logger.info("Target query: %s",target_query)
-
-#     target_df =  target_conn.execute_query(target_query)
-#     if pd.isna(target_df['MIN_FIVETRAN_START'].iloc[0]) or pd.isna(target_df['MAX_FIVETRAN_START'].iloc[0]):
-#         logger.info(f"No new data has been ingested for this time period: table '{table_name.lower()}' ({layer}), {previous_sync_date} to {sync_date}")
-#         #update_control_table(control_file, table_name, layer, validation, sync_date)
-#         raise NoNewDataError(f"No new data for {table_name.lower()} ({layer}) between {previous_sync_date} and {sync_date}")
-#     min_ts = pd.Timestamp(target_df['MIN_FIVETRAN_START'].iloc[0])
-#     max_ts = pd.Timestamp(target_df['MAX_FIVETRAN_START'].iloc[0])
-
-#     min_fivetran_start = (min_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + min_ts.strftime('%z'))
-#     max_fivetran_start = (max_ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + max_ts.strftime('%z'))
-#     if layer == 'bronze_mssql':
-#         import re
-#         max_fivetran_start = re.sub(r'\+0000$', '', max_fivetran_start)
-#         min_fivetran_start = re.sub(r'\+0000$', '', min_fivetran_start)
-
-#     logger.info(f"Table '{table_name}' ({layer}): max_fivetran_start={max_fivetran_start}, min_fivetran_start={min_fivetran_start}")
-    
-#     return max_fivetran_start,min_fivetran_start,sync_date
 
 def _update_control_workbook(file_location, table_name, layer, date_column, sync_date):
     # Bronze control tables are the master .xlsx files (Sheet1); edit only the target cells so the other columns,
@@ -815,16 +748,41 @@ def _update_control_workbook(file_location, table_name, layer, date_column, sync
         return
     wb.save(file_location)
 
+# def update_control_table(file_location, table_name, layer, validation, sync_date):
+#     date_column = (
+#         'data_validation_last_run_date'
+#         if validation == 'data'
+#         else 'count_validation_last_run_date'
+#     )
+#     if str(file_location).lower().endswith('.xlsx'):
+#         _update_control_workbook(file_location, table_name, layer, date_column, sync_date)
+#         return
+#     control_df = pd.read_csv(file_location, dtype=str)
+#     mask = (
+#         # CHANGE: YAML generation (17/11/2026). Lower case on both sides, as in get_dates().
+#         (control_df['Target Table Name'].astype(str).str.strip().str.lower() == table_name.strip().lower()) &
+#         (control_df['layer'] == layer)
+#     )
+
+#     if not mask.any():
+#         logger.info(f"No control table row for {table_name.lower()}-{layer}; nothing updated")
+#         return
+
+#     updates = {date_column: sync_date}
+#     for column, value in updates.items():
+#         if column not in control_df.columns:
+#             logger.info(f"Column '{column}' not in control table; skipped")
+#             continue
+#         control_df.loc[mask, column] = str(value)
+#     control_df.to_csv(file_location, index=False)
+
 def update_control_table(file_location, table_name, layer, validation, sync_date):
     date_column = (
         'data_validation_last_run_date'
         if validation == 'data'
         else 'count_validation_last_run_date'
     )
-    if str(file_location).lower().endswith('.xlsx'):
-        _update_control_workbook(file_location, table_name, layer, date_column, sync_date)
-        return
-    control_df = pd.read_csv(file_location, dtype=str)
+    control_df = pd.read_excel(file_location,dtype=str,sheet_name="Sheet1")
     mask = (
         # CHANGE: YAML generation (17/11/2026). Lower case on both sides, as in get_dates().
         (control_df['Target Table Name'].astype(str).str.strip().str.lower() == table_name.strip().lower()) &
@@ -841,12 +799,16 @@ def update_control_table(file_location, table_name, layer, validation, sync_date
             logger.info(f"Column '{column}' not in control table; skipped")
             continue
         control_df.loc[mask, column] = str(value)
-    control_df.to_csv(file_location, index=False)
+    with pd.ExcelWriter(file_location, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+        control_df.to_excel(writer, sheet_name="Sheet1", index=False)
 
-def get_incremental_dates(base_dir,source_conn,target_conn,source_table_name,target_table_name,layer_type,environment,validation):
-    if check_freshness(source_conn,target_conn,source_table_name,target_table_name,layer_type,environment) == "Fail":
+
+    
+
+def get_incremental_dates(base_dir,source_conn,target_conn,source_table_name,target_table_name,control_table_path,layer_type,environment,validation):
+    if check_freshness(source_conn,target_conn,source_table_name,target_table_name,control_table_path,layer_type,environment) == "Fail":
         raise RuntimeError(f"Freshness check failed for {target_table_name}")
-    return get_dates(base_dir,validation,target_table_name,layer_type,target_conn,target_table_name,environment)
+    return get_dates(base_dir,validation,target_table_name,layer_type,target_conn,target_table_name,control_table_path,environment)
 
 def get_api_creds(path, layer):
     with open(path, "r") as f:

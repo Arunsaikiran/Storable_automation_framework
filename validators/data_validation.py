@@ -118,8 +118,7 @@ def validate_data(ctx):
                         # CHANGE: YAML generation. The freshness check also runs for a generated YAML: its queries hold the
                         # same :start_time and :end_time placeholders as a hand-written one.
                         #Check freshness, then get the latest sync date (fivetran) and previous sync date (control table)
-                        #max_fivetran_start,min_fivetran_start,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],'data')
-                        max_updated_at,min_updated_at,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,layer[0],environment,'data')
+                        max_updated_at,min_updated_at,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,control_table_path,layer[0],environment,'data')
 
                         for key, value in {
                             "start_time": min_updated_at,
@@ -263,9 +262,10 @@ def validate_data(ctx):
                         create_summary(run_at,run_id,validation_name,table_name,source,target_table_name,target,status,output_path,source_rows,target_rows,filepath,batch_start_time_str,batch_end_time_str,total_batch_time_taken,missing_in_source,missing_in_target,mismatch_count,layer_type=layer[0],report_pack=report_pack[0] if layer[0] == "reports" else None,report_tile=report_tile if layer[0] == "reports" else None,test_case=test_case if layer[0] == "reports" else None,summary=summary if layer[0] == "reports" else None)
                         # CHANGE: YAML generation. As on PASS, the control table is updated only when there is a freshness watermark.
                         # A historical run has no sync date, and writing it would store 'None' as the watermark.
-                        if sync_date is not None:
-                            logger.info("Updating control table")
-                            update_control_table(control_table_path,target_table_name,layer[0],'data',sync_date)
+                        # Dont update control table on a failure
+                        # if sync_date is not None:
+                        #     logger.info("Updating control table")
+                        #     update_control_table(control_table_path,target_table_name,layer[0],'data',sync_date)
                         print("+"*100)
 
                 except NoNewSyncError as e:
