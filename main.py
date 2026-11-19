@@ -97,7 +97,8 @@ def main():
     # A table that FAILED is left out (no table is skipped: a table with no primary key FAILS). The run exits 1 when a table FAILED or no table is ready.
     if yaml_generation:
         # CHANGE: YAML generation. Imported here, not at the top of the file, so a run with the flag off does not need the yaml_generation folder.
-        from yaml_generation.generate_yaml import run_for_validation
+        # CHANGE: YAML generation (17/11/2026). report_failures writes each generation FAILED into the validation report (Excel/CSV).
+        from yaml_generation.generate_yaml import run_for_validation, report_failures
         # CHANGE: YAML generation. With the data, count and schema flags all 'no', the YAML is written for all three kinds and no
         # validator runs (generate only). Otherwise only the kinds set to 'yes' are written: --schema_validation yes alone
         # writes the schema YAML only.
@@ -123,14 +124,22 @@ def main():
             # CHANGE: YAML generation. A ValueError is an input problem the user can fix (a filter workbook row, the schema mapping
             # sheet, an argument or a setting). Its message says what to fix, so it is logged without a traceback.
             logger.error("YAML generation did not run, so nothing was validated. Fix this and run again: %s", exc)
+            # CHANGE: YAML generation (17/11/2026). The reason goes into the report too, one FAIL row per requested table.
+            report_failures([(table, "table", "FAILED", str(exc)) for table in tables], outputpaths, run_id, run_at, layer[0], logger)
             close_all_databases()
             sys.exit(1)
-        except Exception:
+        except Exception as exc:
             # CHANGE: YAML generation. Any error, not only ValueError, ends the run here: nothing is validated from an old copy of the YAML.
             logger.error("YAML generation did not run, so nothing was validated", exc_info=True)
+            # CHANGE: YAML generation (17/11/2026). The error goes into the report too, one FAIL row per requested table.
+            report_failures([(table, "table", "FAILED", f"unexpected error: {exc}") for table in tables], outputpaths, run_id,
+                            run_at, layer[0], logger)
             close_all_databases()
             sys.exit(1)
 
+        # CHANGE: YAML generation (17/11/2026). Each FAILED table and kind (no mapping row, no primary key, not in Snowflake...) is
+        # written to its validation report with the reason, not only to the console.
+        report_failures(generation_results, outputpaths, run_id, run_at, layer[0], logger)
         not_validated = sorted({f"{table} ({kind}: {status})"
                                 for table, kind, status, _ in generation_results
                                 if status not in ("NEW", "UPDATED", "UNCHANGED", "PRESENT")})
@@ -161,7 +170,7 @@ def main():
     # CHANGE: YAML generation. Without --yaml_generation, a named table whose YAML is missing is created now. A YAML that is
     # already there is used as it is. 'all' is not checked here, because its list comes from the source.
     if not yaml_generation and "all" not in tables and layer[0] in BRONZE_LAYERS:
-        from yaml_generation.generate_yaml import run_for_validation, tables_missing_yaml
+        from yaml_generation.generate_yaml import run_for_validation, tables_missing_yaml, report_failures
         # CHANGE: YAML generation. A named table with no entry in the schema YAML is missing too, when schema validation is asked for.
         missing = tables_missing_yaml(layer[0], run_type, tables, args.data_validation[0], args.count_validation[0],
                                       args.schema_validation[0])
@@ -183,10 +192,15 @@ def main():
                     create_only=True,
                     log=logger,
                 )
-            except Exception:
+            except Exception as exc:
                 logger.error("YAML creation did not run, so nothing was validated", exc_info=True)
+                # CHANGE: YAML generation (17/11/2026). The error goes into the report too, one FAIL row per missing table.
+                report_failures([(table, "table", "FAILED", f"YAML creation did not run: {exc}") for table in missing],
+                                outputpaths, run_id, run_at, layer[0], logger)
                 close_all_databases()
                 sys.exit(1)
+            # CHANGE: YAML generation (17/11/2026). Each FAILED is written to its validation report, as above.
+            report_failures(creation_results, outputpaths, run_id, run_at, layer[0], logger)
             failed = sorted({table for table, _, status, _ in creation_results if status == "FAILED"})
             if failed:
                 logger.error("YAML could not be created for %s. These tables are not validated.", ", ".join(failed))

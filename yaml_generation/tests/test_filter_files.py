@@ -404,10 +404,10 @@ def test_schema_mapping_reads_the_types_and_the_precision_checks(tmp_path):
     assert checks == {"numeric": ["int"], "character": ["nvarchar"]}
 
 
-def test_the_source_type_keeps_its_spelling_for_the_validators_exact_lookup(tmp_path):
+def test_the_source_type_is_written_in_lower_case_so_one_key_serves_every_spelling(tmp_path):
     _mapping_book(tmp_path, sheet="Postgres schema mapping", name="bronze_postgres_edge_master.xlsx",
-                  rows=[["USER-DEFINED", "variant"], ["character varying", "text"]])
-    assert list(ff.schema_mapping("postgres", folder=tmp_path, log=LOG)[0]) == ["USER-DEFINED", "character varying"]
+                  rows=[["USER-DEFINED", "variant"], ["character varying", "text"], ["user-defined", "text"]])
+    assert ff.schema_mapping("postgres", folder=tmp_path, log=LOG)[0] == {"user-defined": "variant", "character varying": "text"}
 
 
 def test_the_mapping_sheet_name_is_matched_without_regard_to_case(tmp_path):
@@ -451,7 +451,7 @@ def test_the_shipped_workbooks_have_a_type_mapping_sheet():
     """Seeded from the old hand-written datatype_map. config/ is not in git, so the check is on the workbooks only."""
     postgres, _ = ff.schema_mapping("postgres", log=LOG)
     mssql, _ = ff.schema_mapping("mssql", log=LOG)
-    assert (len(postgres), postgres["USER-DEFINED"], postgres["timestamp without time zone"]) == (16, "variant", "timestamp_ntz")
+    assert (len(postgres), postgres["user-defined"], postgres["timestamp without time zone"]) == (16, "variant", "timestamp_ntz")
     assert (len(mssql), mssql["nvarchar"], mssql["bit"]) == (9, "text", "boolean")
 
 

@@ -95,6 +95,7 @@ FOLDER = Path(__file__).resolve().parent / "master_files"
 # the YAML's source:). The layer is bronze_<engine>_<application> so a user can tell the application from the name. A new layer
 # is one line here, and its workbook is <layer>_master.xlsx in master_files/.
 LAYERS = {"bronze_postgres_edge": "postgres", "bronze_mssql_sitelink": "mssql", "bronze_mysql_crm": "mysql_crm",
+          "bronze_mysql_ess": "mysql_ess",
           "bronze_newbook_common": "newbook_common", "bronze_newbook_corporation": "newbook_corporation",
           "bronze_newbook_instances": "newbook_instances", "bronze_newbook_login": "newbook_login"}
 # ponytail: one layer per engine key. A second application on the same engine gets its own RULES alias (as mysql_crm does).
@@ -112,7 +113,7 @@ REQUIRED_HEADERS = [name for name in LOCATION_HEADERS if name != "source_schema"
 FILTER_HEADERS = {"historical": "historical filter to apply", "incremental": "incremental filters to apply"}
 # The type mapping sheet of each workbook, read for the schema validation YAML (schema_mapping()). Matched without regard to case.
 SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping",
-                 "mysql_crm": "MySQL schema mapping",
+                 "mysql_crm": "MySQL schema mapping", "mysql_ess": "MySQL schema mapping",
                  # CHANGE: YAML generation. The four Newbook workbooks share the Newbook sheet name.
                  "newbook_common": "Newbook schema mapping", "newbook_corporation": "Newbook schema mapping",
                  "newbook_instances": "Newbook schema mapping", "newbook_login": "Newbook schema mapping"}
@@ -428,8 +429,8 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
 def schema_mapping(source_type, folder=None, log=None):
     """(datatype_map, precision_checks) from the layer workbook's type mapping sheet (SCHEMA_SHEETS), for the schema YAML.
 
-    datatype_map      {source_data_type: target_data_type}. The source type is kept as written: the validator looks up the
-                      catalogue's DATA_TYPE exactly. The Snowflake type is written in lower case, as the validator compares it.
+    datatype_map      {source_data_type: target_data_type}, both in lower case: the validator lower-cases the catalogue's
+                      DATA_TYPE before the lookup, so one key serves every spelling.
     precision_checks  {datetime | numeric | character: [source types]}, from the precision_check column (read in phase 2).
     Raises ValueError naming the file and row: no workbook, no sheet, a missing header, an empty source_data_type or
     target_data_type, or an unknown precision_check. A source type listed twice (in any case) keeps its first row.
@@ -473,9 +474,11 @@ def schema_mapping(source_type, folder=None, log=None):
                             label, source, first[source.lower()])
                 continue
             first[source.lower()] = number
-            datatype_map[source] = target
+            # CHANGE: YAML generation (17/11/2026). Written in lower case, as the validator reads it, so 'TIMESTAMP_NTZ' and
+            # 'timestamp_ntz' are one entry in the YAML, not two.
+            datatype_map[source.lower()] = target
             if check:
-                precision_checks.setdefault(check, []).append(source)
+                precision_checks.setdefault(check, []).append(source.lower())
     finally:
         workbook.close()
     if not datatype_map:

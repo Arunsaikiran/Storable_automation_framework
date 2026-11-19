@@ -239,7 +239,10 @@ RULES = {
 for _app in ("common", "corporation", "instances", "login"):
     RULES[f"newbook_{_app}"] = {**RULES["newbook"], "label": f"Newbook {_app.title()}"}
 
-SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "mysql_crm",
+# CHANGE: YAML generation (17/11/2026). MySQL ESS (bronze_mysql_ess): the same engine as CRM, with its own label and creds block.
+RULES["mysql_ess"] = {**RULES["mysql_crm"], "label": "MySQL ESS"}
+
+SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "mysql_crm", "mysql_ess",
                 "newbook_common", "newbook_corporation", "newbook_instances", "newbook_login"]
 TARGET_TYPES = ["snowflake"]
 
