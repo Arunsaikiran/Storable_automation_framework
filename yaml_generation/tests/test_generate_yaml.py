@@ -33,9 +33,10 @@ def detail_of(results, table, kind):
     return next(detail for t, k, _, detail in results if t == table and k == kind)
 
 
-LOCATION = ["Edge", "fms", SOURCE_SCHEMA, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA]
+# The location columns, then incremental_column (as the shipped workbooks have it).
+LOCATION = ["Edge", "fms", SOURCE_SCHEMA, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA, "updated_at"]
 WORKBOOK_HEADER = ["Target Table Name", "Historical Filter to apply.", "Incremental filters to apply",
-                   *filter_files.LOCATION_HEADERS]
+                   *filter_files.LOCATION_HEADERS, filter_files.INCREMENTAL_HEADER]
 
 
 # The type mapping of the fake source, as the 'Postgres schema mapping' sheet lists it.
@@ -626,6 +627,33 @@ def test_run_for_validation_passes_the_run_type_so_the_incremental_yaml_has_the_
     _run(run_env, run_type="incremental", tables=["units"])
     block = data_block(config_dir_for(run_env.root, "incremental"), "units")
     assert ":start_time" in block["sourcequery"] and ":end_time" in block["targetquery"]
+
+
+def test_the_window_column_is_the_master_workbook_incremental_column(tmp_path, workbook_folder):
+    """19/11/2026: the column comes from the row's incremental_column cell, not settings.INCREMENTAL_COLUMNS."""
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx",
+                          [["units", None, None, *LOCATION[:-1], "created_at"]])
+    rows = filter_files.read("postgres", "incremental")
+    assert rows["units"].incremental_column == "created_at"
+    config = config_dir_for(tmp_path, "incremental")
+    run_generate(make_args("incremental", tables=("units",)), config,
+                 incremental_columns={"units": rows["units"].incremental_column})
+    assert '"created_at" >= :start_time' in data_block(config, "units")["sourcequery"]
+    assert '"CREATED_AT" >= :start_time' in count_block(config, "bronze_postgres_edge", "units")["targetquery"]
+
+
+def test_a_blank_incremental_column_fails_the_incremental_data_and_count(tmp_path):
+    config = config_dir_for(tmp_path, "incremental")
+    results = run_generate(make_args("incremental", tables=("units",)), config, incremental_columns={"units": ""})
+    assert statuses(results) == {("units", "data_validation"): "FAILED", ("units", "count_validation"): "FAILED"}
+    assert "no incremental_column" in detail_of(results, "units", "data_validation")
+    assert not (config / "data_validation" / "units.yaml").exists()
+
+
+def test_a_blank_incremental_column_does_not_matter_on_a_historical_run(tmp_path):
+    config = config_dir_for(tmp_path, "historical")
+    results = run_generate(make_args("historical", tables=("units",)), config, incremental_columns={"units": ""})
+    assert statuses(results)[("units", "data_validation")] == "NEW"
 
 
 DOCS_SOURCE = {("edge", "docs"): [("id", "integer"), ("meta", "jsonb"), ("tags", "hstore"),

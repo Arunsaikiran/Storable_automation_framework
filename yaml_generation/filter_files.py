@@ -20,6 +20,8 @@ lower case, with a trailing dot ignored. One row per table:
   target_schema                  e.g. STOREDGE_FMS_PUBLIC
   Historical Filter to apply     the row filter for --run_type historical (optional)
   Incremental filters to apply   the row filter for --run_type incremental (optional)
+  incremental_column             the column --run_type incremental windows on, e.g. updated_at, dupdated. Blank: the table's
+                                 incremental data and count FAIL (a table rules incremental_column still wins over it)
 Both sides are written database.schema.table: "fms"."public"."units" and {env}_EDGE_BRONZE."STOREDGE_FMS_PUBLIC"."UNITS".
 A source_database that names an engine (PostgreSQL, SQL Server) is refused: it is the database now. --tables all is every row. A named
 table with no row FAILS: without a row there is no schema to read it from. Table names are matched without regard to case
@@ -111,6 +113,8 @@ LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
 # MySQL) use the source_database in its place. REQUIRED_HEADERS are the columns a sheet must have and a row must fill.
 REQUIRED_HEADERS = [name for name in LOCATION_HEADERS if name != "source_schema"]
 FILTER_HEADERS = {"historical": "historical filter to apply", "incremental": "incremental filters to apply"}
+# CHANGE: YAML generation. The column an incremental run windows on, one per row (column M in most workbooks, O in
+INCREMENTAL_HEADER = "incremental_column"
 # The type mapping sheet of each workbook, read for the schema validation YAML (schema_mapping()). Matched without regard to case.
 SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping",
                  "mysql_crm": "MySQL schema mapping", "mysql_ess": "MySQL schema mapping",
@@ -142,6 +146,7 @@ class Row:
     location: Location
     statement: str
     label: str             # "<file> row <n> (<table>)", for the log
+    incremental_column: str = ""   # CHANGE: YAML generation (19/11/2026). The row's incremental_column cell ("" when blank)
 
 # A quoted literal. Text inside quotes is never read as SQL, and never changed.
 LITERAL = re.compile(r"'[^']*'")
@@ -421,7 +426,8 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
         statement = values[filter_at] if filter_at is not None and filter_at < len(values) else None
         location = Location(cell(position["source_application"]), source_type, source_database, source_schema,
                             target_database, target_schema, target_type)
-        found[table] = Row(table, location, str(statement) if statement else "", label)
+        found[table] = Row(table, location, str(statement) if statement else "", label,
+                           cell(position.get(INCREMENTAL_HEADER)))
     log.info("Filter workbook %s: %d table(s) for %s", name, len(found), label_of)
     return found
 
