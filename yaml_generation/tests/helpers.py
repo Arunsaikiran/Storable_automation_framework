@@ -102,12 +102,18 @@ def make_args(run_type="historical", tables=ALL_TABLES, data="yes", count="yes",
 
 
 def run_generate(args, config_dir, source=None, target=None, global_excluded=GLOBAL_EXCLUDED, table_rules=None,
-                 file_filters=None, create_only=False):
-    """Call generate() with fake databases. Returns the results list."""
+                 file_filters=None, create_only=False, incremental_columns=None):
+    """Call generate() with fake databases. Returns the results list.
+
+    incremental_columns  {table: column} as the master workbook gives them; None gives every table updated_at.
+    """
     source = source or FakeDB(SOURCE_TABLES, PRIMARY_KEYS)
     target = target or FakeDB(TARGET_TABLES)
+    if incremental_columns is None:
+        incremental_columns = {table: "updated_at" for table in args.tables}
     return generate_yaml.generate(args, source, target, config_dir, global_excluded, table_rules or {}, LOG, STAMP,
-                                  file_filters=file_filters, create_only=create_only)
+                                  file_filters=file_filters, create_only=create_only,
+                                  incremental_columns=incremental_columns)
 
 
 def statuses(results):

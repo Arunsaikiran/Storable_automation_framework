@@ -92,20 +92,22 @@ MSSQL_MAPPING = [MAPPING_HEADER, ["int", "number", "numeric"], ["varchar", "text
 
 # The filter workbooks are where each table lives. 'extra' (PostgreSQL) and 'Charges' (SQL Server) are in the source only.
 POSTGRES_FILTERS = {"filters": [
-    ["Target Table Name", "Incremental filters to apply", "Historical Filter to apply.", *LOCATION_HEADERS],
-    ["units", "units\nwhere updated_at > '2025-01-01'", "units\nwhere id > 1", *EDGE],
-    ["notes", None, "notes n\nwhere n.body = 'a' or n.body = 'b'", *EDGE],         # refused: 'or'
-    ["lookup", None, None, *EDGE],
+    # incremental_column last, as in the shipped workbooks (19/11/2026).
+    ["Target Table Name", "Incremental filters to apply", "Historical Filter to apply.", *LOCATION_HEADERS, "incremental_column"],
+    ["units", "units\nwhere updated_at > '2025-01-01'", "units\nwhere id > 1", *EDGE, "updated_at"],
+    ["notes", None, "notes n\nwhere n.body = 'a' or n.body = 'b'", *EDGE, "updated_at"],         # refused: 'or'
+    ["lookup", None, None, *EDGE, "updated_at"],
 ], "Postgres schema mapping": POSTGRES_MAPPING}
 
 
 def sitelink_filters(location=SITELINK):
     return {"Sheet1": [
-        ["s.no", "Target Table Name", "Historical Filter to apply", "Incremental filters to Apply", *LOCATION_HEADERS],
-        [1, "Units", "Units t\nwhere t.UnitID > 100", "Units t\nwhere t.UnitID > 100", *location],
+        ["s.no", "Target Table Name", "Historical Filter to apply", "Incremental filters to Apply", *LOCATION_HEADERS,
+         "incremental_column"],
+        [1, "Units", "Units t\nwhere t.UnitID > 100", "Units t\nwhere t.UnitID > 100", *location, "dupdated"],
         [2, "Addresses", "Addresses t\nwhere t.scorpcode = :scorpcode", "Addresses t\nwhere t.scorpcode = :scorpcode",
-         *location],  # bind
-        [3, "Lookup", "compare full", "compare full", *location],
+         *location, "dupdated"],  # bind
+        [3, "Lookup", "compare full", "compare full", *location, "dupdated"],
     ], "MSSQL schema mapping": MSSQL_MAPPING}
 
 

@@ -14,7 +14,8 @@ Two kinds of settings, both optional:
        exclude_columns  columns to leave out for this table only, comma separated
        source_where   a row filter for the SOURCE query, written as SQL without the word WHERE
        target_where   a row filter for the SNOWFLAKE query, written as SQL without the word WHERE. {env} is allowed in it.
-       incremental_column  the column an incremental run windows on (default: updated_at, dupdated for SQL Server). Optional.
+       incremental_column  the column an incremental run windows on, for this table only. Optional: without it the table's
+                      master workbook incremental_column cell is used.
      The same filter is applied to the count and to the data query. A join is written as a condition with a
      sub-select, for example:  customer_id IN (SELECT id FROM public.customers WHERE active = true)
 
@@ -37,11 +38,6 @@ RULES_SHEET = "table_rules"
 RULE_HEADERS = ["source_type", "source_schema", "table_name", "key_columns", "exclude_columns", "source_where", "target_where",
                 "incremental_column"]
 REQUIRED_RULE_HEADERS = ["source_type", "table_name"]
-# The column an incremental run windows on, per database, when the rules workbook does not name one. The validators' freshness
-# check reads the same column: updated_at for PostgreSQL, dupdated for SQL Server (check_freshness in utils/utility.py).
-# A table without it cannot run an incremental window.
-INCREMENTAL_COLUMNS = {"postgres": "updated_at", "mssql": "dupdated"}
-
 
 @dataclass
 class TableRule:
