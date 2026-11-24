@@ -119,7 +119,6 @@ def validate_data(ctx):
                         # same :start_time and :end_time placeholders as a hand-written one.
                         #Check freshness, then get the latest sync date (fivetran) and previous sync date (control table)
                         max_updated_at,min_updated_at,sync_date = get_incremental_dates(BASE_DIR,source_obj,target_obj,source_table_name,target_table_name,control_table_path,layer[0],environment,'data')
-
                         for key, value in {
                             "start_time": min_updated_at,
                             "end_time": max_updated_at

@@ -31,7 +31,6 @@ def create_summary_count(run_at,run_id,validation_type,source_table_name,source_
         "total_time_taken": diff_batch,
         "error_message": error_message
     }])
-
     summary_file = os.path.join(output_path, f"{validation_type}_summary.csv")
 
     summary_df.to_csv(summary_file,
