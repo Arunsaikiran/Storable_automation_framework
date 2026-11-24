@@ -23,6 +23,7 @@ def create_summary_count(run_at,run_id,validation_type,source_table_name,source_
         "target_type": target_type,
         "source_count": source_rows,
         "target_count": target_rows,
+        "failure_percentage": (abs(int(target_rows) - int(source_rows)) / int(source_rows) if target_rows is not None and source_rows else None),
         "count_difference": (abs(int(target_rows) - int(source_rows)) if target_rows is not None and source_rows is not None else None),
         "status": status,
         "batch_start_time": batch_start_time,
