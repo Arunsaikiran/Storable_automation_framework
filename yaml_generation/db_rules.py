@@ -1,7 +1,8 @@
 """Rules for each database: how to read its catalogue, and how to write a value as text.
 
 One block per database ENGINE in RULES, not per application. The generator uses the SOURCE block of the layer's engine
-(filter_files.LAYERS: --layer_type bronze_postgres_edge uses "postgres"), and the TARGET block, which is always "snowflake" for now.
+(filter_files.LAYERS: --layer_type bronze_postgres_edge uses "postgres"), and the TARGET block the workbook row names in
+target_application (normally "snowflake"). The source can be Snowflake as well: the newbook_* blocks (see SOURCE_TYPES).
 
 Where a table lives (application, schema, Snowflake database and schema) is not here: it is in the filter workbooks
 (filter_files.py), one row per table. A new application on an engine that is already here needs only its workbook. A new
@@ -103,9 +104,9 @@ RULES = {
             "ORDER BY TABLE_NAME,ORDINAL_POSITION;"),
     },
     # MySQL CRM (bronze_mysql_crm). A MySQL database is also its schema, so the names are schema.table. The key is the layer's,
-    # so each MySQL application has its own creds block; ESS later is one line after this dict: RULES["mysql_ess"] = RULES["mysql_crm"].
+    # so each MySQL application has its own creds block. ESS has its own block below (mysql_ess).
     "mysql_crm": {
-        "label": "MySQL CRM",   # the workbook's target_application names it so (ESS will be "MySQL ESS")
+        "label": "MySQL CRM",   # the workbook's target_application names it so
         "has_primary_keys": True,
         "two_part_names": True,
         "quote": ("`", "`"),
@@ -124,6 +125,41 @@ RULES = {
         "json_types": {"json"},
         "refused_types": set(),
         # MySQL's COLUMNS has no NUMERIC_PRECISION_RADIX. The validator does not read it, so NULL is selected in its place.
+        "schema_query": (
+            "SELECT\n"
+            "TABLE_NAME AS table_name,\n"
+            "COLUMN_NAME AS column_name,\n"
+            "DATA_TYPE AS data_type,\n"
+            "CHARACTER_MAXIMUM_LENGTH AS character_maximum_length,\n"
+            "CHARACTER_OCTET_LENGTH AS character_octet_length,\n"
+            "NUMERIC_PRECISION AS numeric_precision,\n"
+            "NULL AS numeric_precision_radix,\n"
+            "NUMERIC_SCALE AS numeric_scale,\n"
+            "DATETIME_PRECISION AS datetime_precision\n"
+            "FROM INFORMATION_SCHEMA.COLUMNS\n"
+            "WHERE TABLE_SCHEMA = '{schema}'\n"
+            "AND TABLE_NAME = '{table_name}'\n"
+            "ORDER BY TABLE_NAME,ORDINAL_POSITION;"),
+    },
+    "mysql_ess": {
+        "label": "MySQL ESS",   # the workbook's source_application / target_application names it so
+        "has_primary_keys": True,
+        "two_part_names": True,  # the ESS database (storageunitsoftware_development) is its schema
+        "quote": ("`", "`"),
+        "text_type": "CHAR",
+        "true": "1",
+        "false": "0",
+        "trim": "TRIM({c})",
+        "timestamp": "DATE_FORMAT({c}, '%Y-%m-%d %H:%i:%s.%f')",
+        "date": "DATE_FORMAT({c}, '%Y-%m-%d')",
+        "boolean_types": {"bit"},                                   # not used on ESS today
+        "timestamp_types": {"datetime", "timestamp"},               # both used on ESS
+        "date_types": {"date"},
+        "text_types": {"varchar", "char", "enum", "set"},           # ESS uses varchar
+        "large_text_types": {"text", "tinytext", "mediumtext", "longtext"},  # ESS uses text, mediumtext, longtext
+        "integer_types": {"int", "bigint", "smallint", "mediumint", "tinyint"},  # ESS uses int, bigint, tinyint
+        "json_types": {"json"},                                     # used on ESS
+        "refused_types": set(),
         "schema_query": (
             "SELECT\n"
             "TABLE_NAME AS table_name,\n"
@@ -239,12 +275,12 @@ RULES = {
 for _app in ("common", "corporation", "instances", "login"):
     RULES[f"newbook_{_app}"] = {**RULES["newbook"], "label": f"Newbook {_app.title()}"}
 
-# CHANGE: YAML generation (17/11/2026). MySQL ESS (bronze_mysql_ess): the same engine as CRM, with its own label and creds block.
-RULES["mysql_ess"] = {**RULES["mysql_crm"], "label": "MySQL ESS"}
-
+# The engine keys a layer may use as its SOURCE (filter_files.LAYERS). A source can be Snowflake too: the newbook_* keys are
+# Snowflake sources (Fivetran-landed). A new Snowflake source gets its own key, a copy of the "newbook" block (fivetran_source,
+# catalogue_prefix), never "snowflake" itself: that block is the target's (no keys read, catalogue through the target database).
+# The target is not listed here: each workbook row names it (target_application), Snowflake or another engine (CRM: MySQL CRM).
 SOURCE_TYPES = ["postgres", "mssql", "athena", "redshift", "mysql_crm", "mysql_ess",
                 "newbook_common", "newbook_corporation", "newbook_instances", "newbook_login"]
-TARGET_TYPES = ["snowflake"]
 
 # Lengths and precisions in a type name, e.g. "(10,2)" or "(3)".
 _LENGTH = re.compile(r"\(\s*\d+\s*(,\s*\d+\s*)?\)")
