@@ -214,7 +214,7 @@ def validate_data(ctx):
                         with pd.ExcelWriter(filepath, **writer_kwargs) as writer:
                             sheets_written = 0
                             columns = set()
-                            d = {}
+                            summary = []
                             if not diff_df.empty:
                                 for i in diff_df.columns.to_list():
                                     columns.add(i[0])
@@ -223,12 +223,13 @@ def validate_data(ctx):
                                     col_df = col_df.reset_index()
                                     col_df = col_df[col_df.notna().all(axis=1)]
                                     col_df_count = len(col_df)
+                                    failure_percentage = round((col_df_count / mismatch_count) * 100, 2)
                                     #col_df.iloc[:2000].to_excel(writer, sheet_name=col.rsplit('_', 1)[0], index=False)
                                     col_df.iloc[:2000].to_excel(writer, sheet_name=col, index=False)
-
                                     sheets_written += 1
-                                    d[col] = col_df_count
-                                counts_df = pd.DataFrame(d.items(),index=None,columns=['Column Name','Count'])
+                                    summary.append({"Column Name":col,"Count":col_df_count,"Failure Percentage":failure_percentage})
+                                counts_df = pd.DataFrame(summary)                                    
+                                #counts_df = pd.DataFrame(d.items(),index=None,columns=['Column Name','Count'])
                                 counts_df.to_excel(writer, sheet_name="column_counts", index=False)
 
                             if not missing_in_source_df.empty:
