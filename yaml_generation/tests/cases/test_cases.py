@@ -3,10 +3,11 @@
 Each test asks one question in its docstring. The answers are collected in CASES.md, next to this file.
 Databases are fakes (see conftest.py), so no Snowflake or database access is needed.
 
-The exclusions come from two places: database sections in settings/exclusions.yaml (bidirectional, both sides of a
-pair) and table rules in the rules workbook (one table, one database and schema).
+The exclusions come from two places: each engine's exclude_columns in db_rules.RULES (both sides of a pair; a run uses
+its source's set and Snowflake's) and the exclude_columns cell of a table's row in its master workbook (that table only).
 """
 
+import copy
 import re
 
 import pytest
@@ -172,30 +173,18 @@ def test_pg_14b_yaml_generation_writes_only_the_kinds_asked_for(world, schema, c
     assert found == written
 
 
-# --- PostgreSQL: the exclusions and the rules workbook --------------------------------------------------------------
+# --- PostgreSQL: the exclusions and the master workbook's exclude_columns -------------------------------------------
 
-def test_pg_15_a_table_rule_excludes_its_column_for_that_table(world):
-    """Q: Does a rules row (postgres, public, units, exclude legacy_code) leave that column out of units' YAML?"""
-    world.write_rules([["postgres", "public", "units", None, "legacy_code", None, None, None]])
+def test_pg_15_a_row_exclude_columns_cell_excludes_its_column_for_that_table(world):
+    """Q: Does units' exclude_columns cell (legacy_code) in the Edge workbook leave that column out of units' YAML?"""
+    from conftest import POSTGRES_FILTERS
+    sheets = copy.deepcopy(POSTGRES_FILTERS)
+    sheets["filters"][1][-1] = "legacy_code"   # units' exclude_columns cell
+    world.write_filters("bronze_postgres_edge_master.xlsx", sheets)
     assert pg_run(world, "units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_postgres_edge", "units"))
     assert '"legacy_code"' not in text and '"LEGACY_CODE"' not in text
     assert "Excluded (table rule): legacy_code" in text
-
-
-def test_pg_16_a_sql_server_rule_does_not_apply_to_postgres(world):
-    """Q: Does a table rule for units in mssql leave a postgres run's units alone (the rule is for its own database)?"""
-    world.write_rules([["mssql", "dbo", "units", None, "legacy_code", None, None, None]])
-    assert pg_run(world, "units", yaml="yes") == 0
-    assert '"legacy_code"' in read(world.yaml("historical", "bronze_postgres_edge", "units"))
-
-
-def test_pg_17_a_rule_row_without_source_type_stops_the_run(world):
-    """Q: Does a rules row with no source_type stop the run with exit 1, and write nothing?"""
-    world.write_rules([[None, None, "units", None, "legacy_code", None, None, None]])
-    assert pg_run(world, "units", yaml="yes") == 1
-    assert "source_type must be one of" in world.log()
-    assert not world.exists("historical", "bronze_postgres_edge", "units")
 
 
 def test_pg_18_a_misspelt_argument_is_refused_before_anything_is_written(world):
@@ -208,7 +197,7 @@ def test_pg_18_a_misspelt_argument_is_refused_before_anything_is_written(world):
 
 def test_pg_19_a_postgres_exclusion_leaves_the_column_out_of_both_sides(world):
     """Q: With legacy_code excluded under postgres, is it left out of the postgres side AND the Snowflake side?"""
-    world.write_exclusions("postgres:\n  exclude_columns:\n    - legacy_code\n")
+    world.exclude("postgres", "legacy_code")
     assert pg_run(world, "units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_postgres_edge", "units"))
     assert '"legacy_code"' not in text and '"LEGACY_CODE"' not in text
@@ -217,7 +206,7 @@ def test_pg_19_a_postgres_exclusion_leaves_the_column_out_of_both_sides(world):
 
 def test_pg_20_a_snowflake_exclusion_applies_to_a_postgres_run_on_both_sides(world):
     """Q: With legacy_code excluded under snowflake, is it left out of a postgres run on both sides?"""
-    world.write_exclusions("snowflake:\n  exclude_columns:\n    - legacy_code\n")
+    world.exclude("snowflake", "legacy_code")
     assert pg_run(world, "units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_postgres_edge", "units"))
     assert '"legacy_code"' not in text and '"LEGACY_CODE"' not in text
@@ -253,7 +242,7 @@ def test_ms_03_filter_no_writes_the_whole_table(sitelink_filter_files):
 
 def test_ms_04_rowversion_without_the_sql_server_exclusion_fails_the_table(world):
     """Q: Without the mssql exclusion of uts, does Units (uTS rowversion) fail with exit 1, and write no YAML?"""
-    world.write_exclusions("snowflake:\n  exclude_columns:\n    - _fivetran_synced\n")
+    world.exclude("mssql")
     assert ms_run(world, "Units", yaml="yes") == 1
     assert status(world, "Units") == "FAILED"
     assert "'uTS' is type timestamp" in world.log()
@@ -261,7 +250,7 @@ def test_ms_04_rowversion_without_the_sql_server_exclusion_fails_the_table(world
 
 
 def test_ms_05_the_shipped_mssql_exclusion_leaves_the_rowversion_out(world):
-    """Q: With the shipped exclusions file (mssql: uts), is Units written with uTS left out, and exit 0?"""
+    """Q: With the shipped db_rules exclusion (mssql: uts), is Units written with uTS left out, and exit 0?"""
     assert ms_run(world, "Units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_mssql_sitelink", "Units"))
     assert '"uTS"' not in text and '"UTS"' not in text
@@ -270,7 +259,8 @@ def test_ms_05_the_shipped_mssql_exclusion_leaves_the_rowversion_out(world):
 
 def test_ms_06_a_postgres_exclusion_of_uts_does_not_reach_sql_server(world):
     """Q: Does an exclusion of uts under postgres leave SQL Server's uTS in place, so Units still fails?"""
-    world.write_exclusions("postgres:\n  exclude_columns:\n    - uts\n")
+    world.exclude("mssql")
+    world.exclude("postgres", "uts")
     assert ms_run(world, "Units", yaml="yes") == 1
     assert status(world, "Units") == "FAILED"
 
@@ -330,10 +320,10 @@ def test_ms_12_a_wrong_target_schema_writes_nothing(world):
 
 def test_ms_13_a_snowflake_exclusion_applies_to_a_sql_server_run_on_both_sides(world):
     """Q: With dcwidth excluded under snowflake, is it left out of a SQL Server run on both sides?"""
-    world.write_exclusions("snowflake:\n  exclude_columns:\n    - dcwidth\n    - _fivetran_synced\n")
+    world.exclude("snowflake", "dcwidth", "_fivetran_synced")
+    world.exclude("mssql")
     assert ms_run(world, "Units", yaml="yes") == 1, "uTS still needs its exclusion, so Units still fails"
-    world.write_exclusions("snowflake:\n  exclude_columns:\n    - dcwidth\n    - _fivetran_synced\nmssql:\n  exclude_columns:\n"
-                           "    - uts\n")
+    world.exclude("mssql", "uts")
     assert ms_run(world, "Units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_mssql_sitelink", "Units"))
     assert "[dcWidth]" not in text and '"DCWIDTH"' not in text

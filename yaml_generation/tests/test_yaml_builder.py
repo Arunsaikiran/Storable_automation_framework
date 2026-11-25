@@ -133,8 +133,8 @@ def test_a_key_on_one_side_only_is_listed_as_missing():
 
 
 def test_key_expression_joins_several_keys():
-    assert yb.key_expression(["id"]) == "id_normalized"
-    assert yb.key_expression(["Company_ID", "Site Id"]) == "company_id_normalized,site_id_normalized"
+    assert yb.key_expression(["id"]) == "id"
+    assert yb.key_expression(["Company_ID", "Site Id"]) == "company_id,site_id"
 
 
 # --- value expressions -----------------------------------------------------------------------------------------
@@ -150,8 +150,8 @@ def test_sql_server_large_text_is_cast_before_trimming():
 
 def test_text_column_is_trimmed_and_null_becomes_the_token():
     assert yb.value_expression("s", "varchar", MS) == "LTRIM(RTRIM(s))"
-    item = yb.normalized_item("Access Note", "access_note_normalized", "character varying", PG)
-    assert item == f'COALESCE(CAST(TRIM("Access Note") AS TEXT), \'{yb.NULL_TOKEN}\') AS access_note_normalized'
+    item = yb.normalized_item("Access Note", "access_note", "character varying", PG)
+    assert item == f'COALESCE(CAST(TRIM("Access Note") AS TEXT), \'{yb.NULL_TOKEN}\') AS "access_note"'
 
 
 def test_unknown_type_is_cast_as_it_is_and_reported_as_plain_text():
@@ -183,8 +183,8 @@ def _data_entry(filters=None, pairs=None, keys=("id",)):
 def test_a_column_on_one_side_only_gets_the_token_on_the_side_that_lacks_it():
     pairs = _pairs(("id", "integer", "ID", "NUMBER"), ("gone", "text", None, None)) + [(None, None, "new_col", "TEXT", "new_col")]
     entry = _data_entry(pairs=pairs)
-    assert f"CAST('{yb.MISSING_IN_TARGET}' AS STRING) AS gone_normalized" in entry["targetquery"]
-    assert f"CAST('{yb.MISSING_IN_SOURCE}' AS TEXT) AS new_col_normalized" in entry["sourcequery"]
+    assert f"CAST('{yb.MISSING_IN_TARGET}' AS STRING) AS \"gone\"" in entry["targetquery"]
+    assert f"CAST('{yb.MISSING_IN_SOURCE}' AS TEXT) AS \"new_col\"" in entry["sourcequery"]
     assert '"gone"' in entry["sourcequery"] and '"new_col"' in entry["targetquery"]
 
 
@@ -238,9 +238,9 @@ def test_header_lists_the_key_the_counts_the_filters_and_the_exclusions():
                        [("ID", "NUMBER"), ("UNIT_NAME", "TEXT"), ("_FIVETRAN_SYNCED", "TIMESTAMP_NTZ")],
                        {"_fivetran_synced"}, {"notes"}, PG)
     filters = yb.Filters(source_where="id > 0", target_where="ID > 0")
-    header = "\n".join(yb.data_header(SPEC, "id_normalized", rec, filters, STAMP))
+    header = "\n".join(yb.data_header(SPEC, "id", rec, filters, STAMP))
     assert "# Target: {env}_EDGE_BRONZE.EDGE.UNITS" in header
-    assert "# Key: id_normalized   Columns compared: 2" in header
+    assert "# Key: id   Columns compared: 2" in header
     assert "# Source filter: id > 0" in header and "# Target filter: ID > 0" in header
     assert "# Excluded (exclusions file): _fivetran_synced" in header
     assert "# Excluded (table rule): notes" in header
@@ -365,9 +365,9 @@ def test_a_data_entry_with_a_window_has_the_placeholders_on_both_sides():
 def test_json_columns_are_listed_and_selected_as_text_on_both_sides():
     pairs = _pairs(("id", "integer", "ID", "NUMBER"), ("meta", "jsonb", "META", "VARIANT"), ("tags", "hstore", "TAGS", "TEXT"))
     entry = _data_entry(pairs=pairs)
-    assert entry["json_columns"] == {"meta_normalized": "jsonb", "tags_normalized": "hstore"}
-    assert 'COALESCE(CAST("meta" AS TEXT), \'<<NULL>>\') AS meta_normalized' in entry["sourcequery"]
-    assert 'COALESCE(CAST("META" AS STRING), \'<<NULL>>\') AS meta_normalized' in entry["targetquery"]
+    assert entry["json_columns"] == {"meta": "jsonb", "tags": "hstore"}
+    assert 'COALESCE(CAST("meta" AS TEXT), \'<<NULL>>\') AS "meta"' in entry["sourcequery"]
+    assert 'COALESCE(CAST("META" AS STRING), \'<<NULL>>\') AS "meta"' in entry["targetquery"]
 
 
 def test_a_table_without_json_columns_has_no_json_key():
@@ -376,9 +376,9 @@ def test_a_table_without_json_columns_has_no_json_key():
 
 def test_header_names_the_window_and_the_flattened_columns():
     rec = yb.reconcile([("id", "integer"), ("meta", "jsonb")], [("ID", "NUMBER"), ("META", "VARIANT")], set(), set(), PG)
-    header = "\n".join(yb.data_header(SPEC, "id_normalized", rec, yb.Filters(source_window="w1", target_window="w2"), STAMP))
+    header = "\n".join(yb.data_header(SPEC, "id", rec, yb.Filters(source_window="w1", target_window="w2"), STAMP))
     assert "# Incremental window (source): w1" in header and "# Incremental window (target): w2" in header
-    assert "# Compared as flattened JSON text (json_columns, both sides): meta_normalized" in header
+    assert "# Compared as flattened JSON text (json_columns, both sides): meta" in header
 
 
 # --- the schema validation file ---------------------------------------------------------------------------------

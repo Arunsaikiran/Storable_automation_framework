@@ -26,6 +26,10 @@ What each key means
   boolean_types, timestamp_types, date_types, text_types, large_text_types, integer_types
                         type names as this database reports them
   refused_types         types that cannot be compared as text here. A data file for such a table is refused.
+  exclude_columns       columns every table of this engine leaves out of the comparison, on both sides (optional), written
+                        normalised (lower case, underscores). A run uses its source's set and the snowflake set
+                        (excluded_columns()). Per-table exclusions are the master workbook's exclude_columns cell.
+                        CHANGE: YAML generation (25/11/2026): moved here from settings/exclusions.yaml, which is gone.
   schema_query          the catalogue query of the schema validation YAML (sourcequery / targetquery), today's text.
                         {schema} and {database} are filled from the table's filter workbook row (schema_query());
                         {table_name} is left for validators/schema_validation.py to fill per table.
@@ -87,6 +91,7 @@ RULES = {
         "integer_types": {"int", "bigint", "smallint", "tinyint"},
         # rowversion is reported as "timestamp": a binary counter with no match in Snowflake.
         "refused_types": {"geography", "geometry", "image", "timestamp"},
+        "exclude_columns": {"uts"},   # the rowversion: a binary counter that does not match Snowflake's BINARY copy
         "schema_query": (
             "SELECT\n"
             "TABLE_NAME AS table_name,\n"
@@ -178,7 +183,7 @@ RULES = {
     },
     "athena": {
         "label": "Athena",
-        # Athena tables have no primary key. Name the key in the table rules file (key_columns).
+        # Athena tables have no primary key. Name the key in the master workbook row (key_columns).
         "has_primary_keys": False,
         "quote": ('"', '"'),
         "text_type": "VARCHAR",
@@ -274,6 +279,15 @@ RULES = {
 # _login), each with its own workbook. Same engine as "newbook"; only the label differs, so the log and engine_of() tell them apart.
 for _app in ("common", "corporation", "instances", "login"):
     RULES[f"newbook_{_app}"] = {**RULES["newbook"], "label": f"Newbook {_app.title()}"}
+
+# The Fivetran metadata columns. Every run leaves them out: every run reads a Fivetran copy (the target, or a Newbook source).
+RULES["snowflake"]["exclude_columns"] = {"_fivetran_synced", "_fivetran_deleted", "_fivetran_id", "_fivetran_index",
+                                         "_fivetran_active", "_fivetran_start", "_fivetran_end"}
+
+
+def excluded_columns(source_type) -> set:
+    """The columns a run of source_type leaves out on both sides: its engine's exclude_columns and Snowflake's (Fivetran)."""
+    return set(RULES[source_type].get("exclude_columns", ())) | RULES["snowflake"]["exclude_columns"]
 
 # The engine keys a layer may use as its SOURCE (filter_files.LAYERS). A source can be Snowflake too: the newbook_* keys are
 # Snowflake sources (Fivetran-landed). A new Snowflake source gets its own key, a copy of the "newbook" block (fivetran_source,

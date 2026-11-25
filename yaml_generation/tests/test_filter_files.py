@@ -106,12 +106,15 @@ def test_a_cell_with_only_conditions_is_about_the_rows_table():
 LOG = logging.getLogger("t")
 EDGE = ["Edge", "fms", "public", "Snowflake", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC"]
 SITELINK = ["SiteLink", "DevT5000", "dbo", "Snowflake", "{env}_SITELINK_BRONZE", "SITELINK"]
-HEADER = ["Target Table Name", "Incremental filters to apply", "Historical Filter to apply.", *ff.LOCATION_HEADERS]
+HEADER = ["Target Table Name", "Incremental Source Filter", "Incremental Target Filter", "Historical Source Filter",
+          "Historical Target Filter", *ff.LOCATION_HEADERS]
 
 
 def _rows(*rows, location=EDGE, header=HEADER):
-    """A sheet: the standard header, then [table, incremental, historical] padded, then the location columns."""
-    return [header] + [list(row) + [None] * (3 - len(row)) + list(location) for row in rows]
+    """A sheet: the standard header, then [table, incremental, historical] padded, each filter cell written on both
+    sides (source and target), then the location columns."""
+    padded = [list(row) + [None] * (3 - len(row)) for row in rows]
+    return [header] + [[table, inc, inc, hist, hist, *location] for table, inc, hist in padded]
 
 
 def _filters(folder, run_type, source_type="postgres"):
@@ -122,23 +125,38 @@ def test_read_gives_each_table_its_location_from_the_row(tmp_path):
     _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"filters": _rows(["units"])})
     row = ff.read("postgres", "historical", folder=tmp_path, log=LOG)["units"]
     assert row.location == ff.Location("Edge", "postgres", "fms", "public", "{env}_EDGE_BRONZE", "STOREDGE_FMS_PUBLIC")
-    assert row.statement == "" and row.label == "bronze_postgres_edge_master.xlsx row 2 (units)"
+    assert row.source_statement == row.target_statement == "" and row.label == "bronze_postgres_edge_master.xlsx row 2 (units)"
+    assert row.rule == ff.TableRule() and row.source_incremental_column == row.target_incremental_column == ""
+
+
+def test_source_and_target_names_both_come_from_the_row(tmp_path):
+    # CHANGE: YAML generation (24/11/2026). Source Table Name is optional; blank means the Target Table Name.
+    header = ["Target Table Name", "Source Table Name", *ff.LOCATION_HEADERS]
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx",
+              {"filters": [header, ["STG_UNITS", "units", *EDGE], ["tenants", None, *EDGE]]})
+    rows = ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+    assert set(rows) == {"units", "tenants"}
+    assert rows["units"].target_table == "STG_UNITS" and rows["tenants"].target_table == "tenants"
+    from yaml_generation.yaml_builder import TableSpec
+    assert TableSpec("postgres", "public", "units", "X", "S", target_table_name="stg_units").target_table == "STG_UNITS"
+    assert TableSpec("postgres", "public", "units", "X", "S").target_table == "UNITS"
 
 
 def test_read_uses_the_first_sheet_with_the_columns_and_matches_headers_loosely(tmp_path):
-    header = ["  TARGET TABLE NAME ", "Incremental Filters to apply.", "x", *[f" {name.upper()} " for name in ff.LOCATION_HEADERS]]
+    header = ["  TARGET TABLE NAME ", "Incremental Source Filter.", " INCREMENTAL TARGET FILTER ", "x", "y",
+              *[f" {name.upper()} " for name in ff.LOCATION_HEADERS]]
     _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {
         "notes": [["Target Table Name", "Something else"], ["other"]],          # no location columns: not this sheet
         "filters": _rows(["units", "created_at > '2025-01-01'"], [None], ["notes"], header=header),
     })
     rows = ff.read("postgres", "incremental", folder=tmp_path, log=LOG)
     assert list(rows) == ["units", "notes"], "a row with no table name is skipped"
-    assert rows["units"].statement == "created_at > '2025-01-01'"
+    assert rows["units"].source_statement == rows["units"].target_statement == "created_at > '2025-01-01'"
     assert rows["notes"].label.endswith("row 4 (notes)"), "row numbers are the sheet's"
 
 
 def test_a_workbook_without_the_location_columns_is_an_error_naming_the_file(tmp_path):
-    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [["Target Table Name", "Incremental filters to apply"], ["units", None]]})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [["Target Table Name", "Incremental Source Filter"], ["units", None]]})
     with pytest.raises(ValueError, match="bronze_postgres_edge_master.xlsx has no sheet with the columns"):
         ff.read("postgres", "incremental", folder=tmp_path, log=LOG)
 
@@ -178,8 +196,31 @@ def test_a_workbook_without_the_run_types_filter_column_still_gives_the_location
     _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [["Target Table Name", *ff.LOCATION_HEADERS], ["units", *EDGE]]})
     with caplog.at_level(logging.WARNING):
         rows = ff.read("postgres", "historical", folder=tmp_path, log=LOG)
-    assert rows["units"].statement == "" and rows["units"].location.source_schema == "public"
-    assert "has no 'historical filter to apply' column" in caplog.text
+    assert rows["units"].source_statement == rows["units"].target_statement == ""
+    assert rows["units"].location.source_schema == "public"
+    assert "has no 'historical source filter' column" in caplog.text
+    assert "has no 'historical target filter' column" in caplog.text
+
+
+@pytest.mark.parametrize("old", ["Historical Filter to apply.", "Incremental filters to apply", "incremental_column"])
+def test_a_workbook_with_an_old_header_is_refused(tmp_path, old):
+    """25/11/2026: a workbook still on the old layout is refused, so its filters are not dropped without a word."""
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [["Target Table Name", old, *ff.LOCATION_HEADERS],
+                                                                     ["units", None, *EDGE]]})
+    with pytest.raises(ValueError, match="has the old column"):
+        ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+
+
+def test_key_columns_exclude_columns_and_both_incremental_columns_are_read_from_the_row(tmp_path):
+    header = ["Target Table Name", *ff.LOCATION_HEADERS, "Source_Incremental_Column", "target_incremental_column",
+              "key_columns", "Exclude_Columns"]
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [
+        header, ["units", *EDGE, "dUpdated", "UPDATED_AT", "Company_ID, site id", "Legacy Code,notes"],
+        ["notes", *EDGE, None, None, None, None]]})
+    rows = ff.read("postgres", "incremental", folder=tmp_path, log=LOG)
+    assert rows["units"].rule == ff.TableRule(["company_id", "site_id"], {"legacy_code", "notes"})
+    assert (rows["units"].source_incremental_column, rows["units"].target_incremental_column) == ("dUpdated", "UPDATED_AT")
+    assert rows["notes"].rule == ff.TableRule() and rows["notes"].rule.key_columns is None
 
 
 @pytest.mark.parametrize("column", ff.LOCATION_HEADERS[1:])
@@ -197,7 +238,7 @@ def test_mysql_source_schema_is_optional_and_defaults_to_the_database(tmp_path):
     _workbook(tmp_path / "bronze_mysql_crm_master.xlsx", {"s": _rows(["users"], location=crm)})
     assert ff.read("mysql_crm", "historical", folder=tmp_path, log=LOG)["users"].location.source_schema == "dev"
     header = [name for name in HEADER if name != "source_schema"]
-    _workbook(tmp_path / "bronze_mysql_crm_master.xlsx", {"s": [header, ["users", None, None, "CRM", "dev", "Snowflake", "{env}_CRM_BRONZE", "DEV"]]})
+    _workbook(tmp_path / "bronze_mysql_crm_master.xlsx", {"s": [header, ["users", None, None, None, None, "CRM", "dev", "Snowflake", "{env}_CRM_BRONZE", "DEV"]]})
     assert ff.read("mysql_crm", "historical", folder=tmp_path, log=LOG)["users"].location.source_schema == "dev"
 
 
@@ -223,7 +264,7 @@ def test_mysql_crm_compared_against_itself_needs_no_env_and_no_schemas(tmp_path)
 def test_an_engine_in_source_database_is_an_error(tmp_path, engine):
     """source_database is the database name (fms), not the engine: an old workbook fails loudly, not with bad SQL."""
     other = ["Marketplace", engine, "app", "Snowflake", "{env}_MARKETPLACE_BRONZE", "APP"]
-    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [HEADER, ["units", None, None, *EDGE], ["listings", None, None, *other]]})
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["units"]) + _rows(["listings"], location=other)[1:]})
     with pytest.raises(ValueError, match=rf"row 3 \(listings\): source_database is '{engine}', an engine"):
         ff.read("postgres", "historical", folder=tmp_path, log=LOG)
 
@@ -273,13 +314,13 @@ def folder(tmp_path):
     return tmp_path
 
 
-def test_incremental_run_reads_the_incremental_column(folder):
+def test_incremental_run_reads_the_incremental_filter_columns(folder):
     filters = _filters(folder, "incremental")
     assert filters["units"] == ("created_at >= '2025-01-01'", "created_at >= '2025-01-01'")
     assert "notes" not in filters, "an empty cell means no filter"
 
 
-def test_historical_run_reads_the_historical_column(folder):
+def test_historical_run_reads_the_historical_filter_columns(folder):
     filters = _filters(folder, "historical")
     assert filters["units"][0] == "created_at >= '2020-01-01'"
     assert filters["notes"] == ("body is not null", "body is not null")
@@ -324,6 +365,44 @@ def test_a_cell_about_another_table_is_refused_and_the_table_loaded_in_full(tmp_
         filters = _filters(tmp_path, "incremental")
     assert "discount_plan_ledger_instances" not in filters
     assert "is about 'discount_plan_ledger_instances_line_items', not 'discount_plan_ledger_instances'" in caplog.text
+
+
+def _sided(tmp_path, source_cell, target_cell, table="units", target_table=None):
+    """A workbook with one row whose historical source and target cells differ."""
+    header = ["Target Table Name", "Source Table Name", "Historical Source Filter", "Historical Target Filter", *ff.LOCATION_HEADERS]
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx",
+              {"s": [header, [target_table or table, table, source_cell, target_cell, *EDGE]]})
+
+
+def test_each_filter_cell_gives_its_own_side(tmp_path):
+    _sided(tmp_path, "units\nwhere id > 1", "units\nwhere ID > 2")
+    assert _filters(tmp_path, "historical") == {"units": ("id > 1", "ID > 2")}
+
+
+def test_a_source_only_filter_gives_no_target_condition_and_warns(tmp_path, caplog):
+    _sided(tmp_path, "units\nwhere id > 1", None)
+    with caplog.at_level(logging.WARNING):
+        assert _filters(tmp_path, "historical") == {"units": ("id > 1", None)}
+    assert "only the source is filtered" in caplog.text
+
+
+def test_a_target_only_filter_gives_no_source_condition_and_warns(tmp_path, caplog):
+    _sided(tmp_path, None, "units\nwhere id > 1")
+    with caplog.at_level(logging.WARNING):
+        assert _filters(tmp_path, "historical") == {"units": (None, "id > 1")}
+    assert "only the target is filtered" in caplog.text
+
+
+def test_the_target_cell_may_name_the_target_table(tmp_path):
+    _sided(tmp_path, "units\nwhere id > 1", "STG_UNITS t\nwhere t.id > 1", target_table="STG_UNITS")
+    assert _filters(tmp_path, "historical") == {"units": ("id > 1", "id > 1")}
+
+
+def test_a_refused_target_cell_loads_the_table_in_full_on_both_sides(tmp_path, caplog):
+    _sided(tmp_path, "units\nwhere id > 1", "units\nwhere a = 1 or b = 2")
+    with caplog.at_level(logging.WARNING):
+        assert _filters(tmp_path, "historical") == {}
+    assert "loaded in full" in caplog.text
 
 
 MS_ARGS = ("mssql", "dbo", "DEV_SITELINK_BRONZE", "SITELINK")

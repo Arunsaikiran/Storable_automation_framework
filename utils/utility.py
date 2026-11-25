@@ -634,13 +634,17 @@ def check_freshness(source_conn,target_conn,source_table_name,target_table_name,
     source_database = filt_df['source_database'].iloc[0]
     target_schema = filt_df['target_schema'].iloc[0].replace("{env}", environment)
     target_database = filt_df['target_database'].iloc[0].replace("{env}", environment)
-    incremental_column = filt_df['incremental_column'].iloc[0]
+    # CHANGE: YAML generation (25/11/2026). The master workbook's incremental_column was split into source_incremental_column
+    # and target_incremental_column (one per side). The source query reads the source column and the target query the
+    # target column; nothing else in this function changed.
+    source_incremental_column = filt_df['source_incremental_column'].iloc[0]
+    target_incremental_column = filt_df['target_incremental_column'].iloc[0]
 
     source_query = f"""
-    SELECT max({incremental_column}) as max_date from {source_database}.{source_schema}.{source_table_name}
+    SELECT max({source_incremental_column}) as max_date from {source_database}.{source_schema}.{source_table_name}
         """
     target_query = f"""
-        SELECT max({incremental_column}) as max_date from {target_database}.{target_schema}.{target_table_name}
+        SELECT max({target_incremental_column}) as max_date from {target_database}.{target_schema}.{target_table_name}
         """
 
     # CHANGE: YAML generation (17/11/2026). The bronze_newbook branch was taken out with the layer (now bronze_newbook_<schema>).
@@ -670,7 +674,9 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
     ]
     target_schema = filt_df['target_schema'].iloc[0].replace("{env}", environment)
     target_database = filt_df['target_database'].iloc[0].replace("{env}", environment)
-    incremental_column = filt_df['incremental_column'].iloc[0]
+    # CHANGE: YAML generation (25/11/2026). incremental_column was split per side in the master workbook; this window is
+    # read from the target, so it uses target_incremental_column. The variable name and the queries are unchanged.
+    incremental_column = filt_df['target_incremental_column'].iloc[0]
     target_table =  f"{target_database}.{target_schema}.{target_table_name}"
     
     # control_file = os.path.join(*file)

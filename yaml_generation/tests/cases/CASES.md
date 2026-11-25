@@ -6,7 +6,7 @@ Each case asks one question. The answer is the result of running it. Run them wi
 
 Databases are fakes, and the validators are stubs: a case shows what main.py writes and what it hands to the validators. No Snowflake or database access is needed, so these cases do not prove the checks pass on real data.
 
-Exclusions come from two places. `settings/exclusions.yaml` lists columns per data source, and is bidirectional: a column under a source is left out of that source and of Snowflake. The rules workbook holds table-specific exclusions.
+Exclusions come from two places. `db_rules.RULES[engine]["exclude_columns"]` lists columns per engine, and is bidirectional: a column under a source is left out of that source and of Snowflake (a run uses its source's set and Snowflake's). The `exclude_columns` cell of a table's row in its master workbook holds table-specific exclusions.
 
 | Case | Database | Question | Answer | Test |
 |---|---|---|---|---|
@@ -24,9 +24,7 @@ Exclusions come from two places. `settings/exclusions.yaml` lists columns per da
 | PG-12 | PostgreSQL | With --tables all, are the tables taken from the postgres filter workbook, and not from every table in the source? | Works | `test_pg_12_tables_all_takes_the_names_from_the_postgres_workbook` |
 | PG-13 | PostgreSQL | With --tables all and no workbook for postgres, does the run stop with exit 1 and write nothing? | Works | `test_pg_13_tables_all_without_workbook_names_is_refused` |
 | PG-14 | PostgreSQL | With both validators no and --yaml_generation yes, is the YAML written and no validator run (exit 0)? | Works | `test_pg_14_generate_only_writes_yaml_and_runs_no_validator` |
-| PG-15 | PostgreSQL | Does a rules row (postgres, public, units, exclude legacy_code) leave that column out of units' YAML? | Works | `test_pg_15_a_table_rule_excludes_its_column_for_that_table` |
-| PG-16 | PostgreSQL | Does a table rule for units in mssql leave a postgres run's units alone (the rule is for its own database)? | Works | `test_pg_16_a_sql_server_rule_does_not_apply_to_postgres` |
-| PG-17 | PostgreSQL | Does a rules row with no source_type stop the run with exit 1, and write nothing? | Works | `test_pg_17_a_rule_row_without_source_type_stops_the_run` |
+| PG-15 | PostgreSQL | Does units' exclude_columns cell (legacy_code) in the Edge workbook leave that column out of units' YAML? | Works | `test_pg_15_a_row_exclude_columns_cell_excludes_its_column_for_that_table` |
 | PG-18 | PostgreSQL | Is --from_date (removed) refused with exit 2, before any folder or YAML is created? | Works | `test_pg_18_a_misspelt_argument_is_refused_before_anything_is_written` |
 | PG-19 | PostgreSQL | With legacy_code excluded under postgres, is it left out of the postgres side AND the Snowflake side? | Works | `test_pg_19_a_postgres_exclusion_leaves_the_column_out_of_both_sides` |
 | PG-20 | PostgreSQL | With legacy_code excluded under snowflake, is it left out of a postgres run on both sides? | Works | `test_pg_20_a_snowflake_exclusion_applies_to_a_postgres_run_on_both_sides` |
@@ -38,7 +36,7 @@ Exclusions come from two places. `settings/exclusions.yaml` lists columns per da
 | MS-02 | SQL Server | With --filter_files yes, does Addresses (filter uses :scorpcode, no value) load in full with a warning, and still generate? | Works | `test_ms_02_a_bind_parameter_filter_loads_its_table_in_full` |
 | MS-03 | SQL Server | With --filter_files no, is Units' SiteLink filter ignored? | Works | `test_ms_03_filter_no_writes_the_whole_table` |
 | MS-04 | SQL Server | Without the mssql exclusion of uts, does Units (uTS rowversion) fail with exit 1, and write no YAML? | Works | `test_ms_04_rowversion_without_the_sql_server_exclusion_fails_the_table` |
-| MS-05 | SQL Server | With the shipped exclusions file (mssql: uts), is Units written with uTS left out, and exit 0? | Works | `test_ms_05_the_shipped_mssql_exclusion_leaves_the_rowversion_out` |
+| MS-05 | SQL Server | With the shipped db_rules exclusion (mssql: uts), is Units written with uTS left out, and exit 0? | Works | `test_ms_05_the_shipped_mssql_exclusion_leaves_the_rowversion_out` |
 | MS-06 | SQL Server | Does an exclusion of uts under postgres leave SQL Server's uTS in place, so Units still fails? | Works | `test_ms_06_a_postgres_exclusion_of_uts_does_not_reach_sql_server` |
 | MS-07 | SQL Server | With --yaml_generation no and no YAML for Units, is it created and then validated? | Works | `test_ms_07_missing_yaml_is_created_when_generation_is_off` |
 | MS-08 | SQL Server | On an incremental run, is the SQL Server window on dUpdated (not updated_at)? | Works | `test_ms_08_incremental_window_uses_dupdated` |

@@ -43,7 +43,7 @@ def test_newbook_data_yaml_keys_on_id_and_reads_active_rows_on_both_sides(tmp_pa
     assert ("DENOMINATIONS", "data_validation", "NEW") in [r[:3] for r in results], results
     data = yaml.safe_load((config / "data_validation" / "DENOMINATIONS.yaml").read_text())
     block = data["tables"]["DENOMINATIONS"]["validations"]["data_validation"]
-    assert block["sourcecolumn"] == "id_normalized"
+    assert block["sourcecolumn"] == "id"
     assert "_FIVETRAN_ACTIVE = TRUE" in block["sourcequery"] and "_FIVETRAN_ACTIVE = TRUE" in block["targetquery"]
 
 

@@ -11,9 +11,10 @@ import traceback
 import os
 import pandas as pd
 import numpy as np
-# CHANGE: YAML generation. The column exclusions are read from the one place they are kept (exclusions.yaml and the rules
-# workbook in yaml_generation/settings/), the same files the count and data YAML are generated from.
-from yaml_generation import settings as exclusion_settings
+# CHANGE: YAML generation. The column exclusions are read from the one place they are kept, the same places the count and
+# data YAML are generated from. CHANGE: YAML generation (25/11/2026): that is now db_rules.RULES (exclude_columns per engine)
+# and the master workbook's exclude_columns cell; yaml_generation/settings/ (exclusions.yaml, dev_rules.xlsx) is gone.
+from yaml_generation import db_rules, filter_files
 from yaml_generation.yaml_builder import normalize_name
 
 logger = get_logger(__name__)
@@ -67,9 +68,11 @@ def validate_schema(ctx):
     env = {"stg": "STG", "qat": "QAT", "prod": "PRD"}.get(environment, "DEV")
     # CHANGE: YAML generation. Columns left out on both sides: exclusions.yaml (this source's section and snowflake) and the
     # rules workbook's exclude_columns for the table, matched by normalised name, so no exclusion list is kept in the YAML.
-    global_excluded = exclusion_settings.load_exclusions(source_type=source)
-    rules_path = exclusion_settings.pick_rules_file()
-    table_rules = exclusion_settings.load_table_rules(rules_path, source) if rules_path else {}
+    # CHANGE: YAML generation (25/11/2026). From db_rules and the layer's master workbook rows, by lower-case table name.
+    # A source with no master workbook (a silver or gold YAML) has no table rules, as it had no rules workbook rows before.
+    global_excluded = db_rules.excluded_columns(source) if source in db_rules.RULES else set()
+    table_rules = ({table.lower(): row.rule for table, row in filter_files.read(source, ctx.run_type).items()}
+                   if source in filter_files.WORKBOOKS else {})
     print("="*100)
     print("Started...")
 
@@ -98,7 +101,7 @@ def validate_schema(ctx):
             batch_start_time = datetime.now()
             logger.info("Executing schema validation check for table: %s", table_name)
             # CHANGE: YAML generation. Column exclusion from the settings (see above), the same set on both sides.
-            rule = table_rules.get(table_name)
+            rule = table_rules.get(str(table_name).lower())
             excluded = global_excluded | (rule.exclude if rule else set())
 
             obj = get_database(source,BASE_DIR,environment)

@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import pandas as pd
 
 from yaml_generation import generate_yaml
-from yaml_generation.settings import TableRule  # noqa: F401  (re-exported for the tests)
+from yaml_generation.filter_files import TableRule  # noqa: F401  (re-exported for the tests)
 
 LOG = logging.getLogger("yaml_generation.tests")
 STAMP = "2026-10-28T10:00:00"
@@ -21,7 +21,7 @@ SOURCE_SCHEMA = "edge"
 TARGET_DATABASE = "DEV_EDGE_BRONZE"
 TARGET_SCHEMA = "EDGE"
 
-# The Fivetran columns, as the shipped settings/exclusions.yaml holds them.
+# The Fivetran columns, as db_rules.RULES['snowflake']['exclude_columns'] holds them (a subset).
 GLOBAL_EXCLUDED = {"_fivetran_synced", "_fivetran_deleted", "_fivetran_id", "_fivetran_index", "_fivetran_active"}
 
 # The source (PostgreSQL) and the Snowflake copy of three tables.
@@ -105,12 +105,13 @@ def run_generate(args, config_dir, source=None, target=None, global_excluded=GLO
                  file_filters=None, create_only=False, incremental_columns=None):
     """Call generate() with fake databases. Returns the results list.
 
-    incremental_columns  {table: column} as the master workbook gives them; None gives every table updated_at.
+    incremental_columns  {table: (source column, target column)} as the master workbook gives them; None gives every
+                         table updated_at on both sides.
     """
     source = source or FakeDB(SOURCE_TABLES, PRIMARY_KEYS)
     target = target or FakeDB(TARGET_TABLES)
     if incremental_columns is None:
-        incremental_columns = {table: "updated_at" for table in args.tables}
+        incremental_columns = {table: ("updated_at", "updated_at") for table in args.tables}
     return generate_yaml.generate(args, source, target, config_dir, global_excluded, table_rules or {}, LOG, STAMP,
                                   file_filters=file_filters, create_only=create_only,
                                   incremental_columns=incremental_columns)

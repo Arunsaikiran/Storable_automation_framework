@@ -13,7 +13,7 @@ from openpyxl import Workbook
 
 from helpers import (LOG, PRIMARY_KEYS, SOURCE_SCHEMA, SOURCE_TABLES, TARGET_SCHEMA, TARGET_TABLES, FakeDB, TableRule,
                      config_dir_for, make_args, run_generate, statuses)
-from yaml_generation import filter_files, generate_yaml, settings
+from yaml_generation import filter_files, generate_yaml
 from yaml_generation import yaml_builder as yb
 
 
@@ -33,10 +33,12 @@ def detail_of(results, table, kind):
     return next(detail for t, k, _, detail in results if t == table and k == kind)
 
 
-# The location columns, then incremental_column (as the shipped workbooks have it).
-LOCATION = ["Edge", "fms", SOURCE_SCHEMA, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA, "updated_at"]
-WORKBOOK_HEADER = ["Target Table Name", "Historical Filter to apply.", "Incremental filters to apply",
-                   *filter_files.LOCATION_HEADERS, filter_files.INCREMENTAL_HEADER]
+# The location columns, then source_incremental_column and target_incremental_column (as the shipped workbooks have them),
+# then key_columns and exclude_columns (left blank unless a row gives them).
+LOCATION = ["Edge", "fms", SOURCE_SCHEMA, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA, "updated_at", "updated_at"]
+WORKBOOK_HEADER = ["Target Table Name", "Historical Source Filter", "Historical Target Filter", "Incremental Source Filter",
+                   "Incremental Target Filter", *filter_files.LOCATION_HEADERS, *filter_files.INCREMENTAL_HEADERS,
+                   filter_files.KEY_HEADER, filter_files.EXCLUDE_HEADER]
 
 
 # The type mapping of the fake source, as the 'Postgres schema mapping' sheet lists it.
@@ -46,14 +48,16 @@ TYPE_MAPPING = [["integer", "number", "numeric"], ["character varying", "text", 
 
 
 def write_filter_workbook(path, rows, mapping=TYPE_MAPPING):
-    """rows: [table, historical filter, incremental filter] (+ location, default LOCATION). mapping: the type mapping sheet
+    """rows: [table, historical filter, incremental filter] (+ location, default LOCATION, then optionally key_columns and
+    exclude_columns). Each filter is written in both its source and its target cell. mapping: the type mapping sheet
     rows (None: no sheet). Returns the path."""
     book = Workbook()
     ws = book.active
     ws.title = "filters"
     ws.append(WORKBOOK_HEADER)
     for row in rows:
-        ws.append(list(row[:3]) + [None] * (3 - len(row[:3])) + (list(row[3:]) or LOCATION))
+        table, historical, incremental = list(row[:3]) + [None] * (3 - len(row[:3]))
+        ws.append([table, historical, historical, incremental, incremental] + (list(row[3:]) or LOCATION))
     if mapping is not None:
         types = book.create_sheet(filter_files.SCHEMA_SHEETS["postgres"])
         types.append(["source_data_type", "target_data_type", "precision_check", "notes"])
@@ -154,7 +158,7 @@ def test_historical_data_file_drops_the_global_exclusions_and_lists_them_in_the_
     run_generate(make_args("historical"), config)
     assert "_fivetran" not in data_block(config, "units")["sourcequery"].lower()
     header = (config / "data_validation" / "units.yaml").read_text(encoding="utf-8")
-    assert "# Key: id_normalized   Columns compared: 4" in header
+    assert "# Key: id   Columns compared: 4" in header
     assert "# Excluded (exclusions file): _fivetran_synced, _fivetran_active" in header
 
 
@@ -178,8 +182,8 @@ def test_a_source_column_with_no_target_match_is_compared_as_missing_not_dropped
     assert got[("units", "data_validation")] == "UPDATED"
     assert got[("units", "count_validation")] == "UNCHANGED"
     block = data_block(config, "units")
-    assert "note_text_normalized" in block["sourcequery"]
-    assert f"CAST('{yb.MISSING_IN_TARGET}' AS STRING) AS note_text_normalized" in block["targetquery"]
+    assert "note_text" in block["sourcequery"]
+    assert f"CAST('{yb.MISSING_IN_TARGET}' AS STRING) AS \"note_text\"" in block["targetquery"]
     assert (f"# Source columns not in Snowflake (compared as {yb.MISSING_IN_TARGET}, so every row differs): note_text"
             in (config / "data_validation" / "units.yaml").read_text(encoding="utf-8"))
 
@@ -191,7 +195,7 @@ def test_a_snowflake_column_with_no_source_match_is_compared_as_missing_not_drop
     results = run_generate(make_args("historical"), config, target=FakeDB(target))
     assert statuses(results)[("units", "data_validation")] == "UPDATED"
     block = data_block(config, "units")
-    assert f"CAST('{yb.MISSING_IN_SOURCE}' AS TEXT) AS extra_flag_normalized" in block["sourcequery"]
+    assert f"CAST('{yb.MISSING_IN_SOURCE}' AS TEXT) AS \"extra_flag\"" in block["sourcequery"]
     assert '"EXTRA_FLAG"' in block["targetquery"]
     assert (f"# Snowflake columns not in source (compared as {yb.MISSING_IN_SOURCE}, so every row differs): EXTRA_FLAG"
             in (config / "data_validation" / "units.yaml").read_text(encoding="utf-8"))
@@ -200,13 +204,13 @@ def test_a_snowflake_column_with_no_source_match_is_compared_as_missing_not_drop
 def test_the_global_list_is_what_drops_a_column(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical"), config, global_excluded=set())
-    assert "_fivetran_synced_normalized" in data_block(config, "units")["sourcequery"]
+    assert "_fivetran_synced" in data_block(config, "units")["sourcequery"]
 
 
 def test_a_table_rule_excludes_a_column_and_filters_both_sides_for_that_table_only(tmp_path):
     config = config_dir_for(tmp_path, "historical")
-    rules = {"units": TableRule(exclude={"unit_name"}, source_where="id > 0", target_where="ID > 0")}
-    run_generate(make_args("historical"), config, table_rules=rules)
+    rules = {"units": TableRule(exclude={"unit_name"})}
+    run_generate(make_args("historical"), config, table_rules=rules, file_filters={"units": ("id > 0", "ID > 0")})
     block = data_block(config, "units")
     assert "unit_name" not in block["sourcequery"].lower()
     assert "WHERE (id > 0)" in block["sourcequery"] and "(ID > 0)" in block["targetquery"]
@@ -228,7 +232,7 @@ def test_a_key_rule_gives_a_key_to_a_table_without_one(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     results = run_generate(make_args("historical"), config, table_rules={"lookup": TableRule(key_columns=["code"])})
     assert statuses(results)[("lookup", "data_validation")] == "NEW"
-    assert data_block(config, "lookup")["sourcecolumn"] == "code_normalized"
+    assert data_block(config, "lookup")["sourcecolumn"] == "code"
 
 
 def test_one_table_failing_does_not_stop_the_others(tmp_path):
@@ -292,18 +296,11 @@ def test_an_incremental_run_does_not_touch_the_historical_folder(tmp_path):
 
 # --- row filters from the workbooks ------------------------------------------------------------------------------
 
-def test_a_rules_target_where_with_the_env_placeholder_is_written_as_it_is(tmp_path):
-    """The rules workbook accepts {env} in target_where. The target query carries it as written."""
-    path = tmp_path / "rules.xlsx"
-    book = Workbook()
-    ws = book.active
-    ws.title = settings.RULES_SHEET
-    ws.append(settings.RULE_HEADERS)
-    ws.append(["postgres", None, "units", None, None, None, "ID IN (SELECT ID FROM {env}_EDGE_BRONZE.EDGE.NOTES)", None])
-    book.save(path)
-    rules = settings.load_table_rules(path, "postgres")
+def test_a_target_filter_with_the_env_placeholder_is_written_as_it_is(tmp_path):
+    """A target condition may hold {env}. The target query carries it as written."""
     config = config_dir_for(tmp_path, "historical")
-    results = run_generate(make_args("historical", tables=("units",)), config, table_rules=rules)
+    results = run_generate(make_args("historical", tables=("units",)), config,
+                           file_filters={"units": (None, "ID IN (SELECT ID FROM {env}_EDGE_BRONZE.EDGE.NOTES)")})
     assert statuses(results)[("units", "data_validation")] == "NEW"
     assert "(ID IN (SELECT ID FROM {env}_EDGE_BRONZE.EDGE.NOTES))" in data_block(config, "units")["targetquery"]
 
@@ -324,25 +321,18 @@ def test_a_file_filter_with_the_env_placeholder_on_the_target_side_is_written_an
 
 @pytest.fixture
 def run_env(monkeypatch, tmp_path):
-    """Points the entry point at a temporary folder and fake databases. Returns the folder and a rules workbook."""
+    """Points the entry point at a temporary folder and fake databases. Returns the folder and the databases."""
     monkeypatch.setattr(generate_yaml, "FRAMEWORK_ROOT", tmp_path)
     dbs ={"source": FakeDB(SOURCE_TABLES, PRIMARY_KEYS), "target": FakeDB(TARGET_TABLES)}
     monkeypatch.setattr(generate_yaml, "get_database",
                         lambda db_type, root, env: dbs["source"] if db_type == "postgres" else dbs["target"])
     monkeypatch.setattr(filter_files, "filters", lambda *a, **k: {})
-    rules = tmp_path / "rules.xlsx"
-    book = Workbook()
-    ws = book.active
-    ws.title = settings.RULES_SHEET
-    ws.append(settings.RULE_HEADERS)
-    ws.append(["postgres", None, "units", None, None, None, "ID > 5", None])
-    book.save(rules)
-    return SimpleNamespace(root=tmp_path, dbs=dbs, rules=rules)
+    return SimpleNamespace(root=tmp_path, dbs=dbs)
 
 
 def _run(env, **overrides):
     options = dict(layer_type="bronze_postgres_edge", tables=["all"], environment="dev", run_type="historical",
-                   data_validation="yes", count_validation="yes", rules_file=env.rules, use_filter_files=False, log=LOG)
+                   data_validation="yes", count_validation="yes", use_filter_files=False, log=LOG)
     options.update(overrides)
     return generate_yaml.run_for_validation(**options)
 
@@ -442,10 +432,15 @@ def test_a_table_whose_count_file_could_not_be_updated_is_not_ready(run_env, mon
     assert "units" not in ready, "validating against an old count file would compare the wrong rows"
 
 
-def test_run_for_validation_writes_the_table_rule_from_the_workbook(run_env):
-    _run(run_env)
-    block = data_block(config_dir_for(run_env.root, "historical"), "units")
-    assert "(ID > 5)" in block["targetquery"]
+def test_run_for_validation_writes_the_table_rule_from_the_workbook(run_env, workbook_folder):
+    """The row's key_columns and exclude_columns cells reach the YAML: lookup gets a key, units leaves unit_name out."""
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx",
+                          [["units", None, None, *LOCATION, None, "Unit_Name"], ["lookup", None, None, *LOCATION, "code", None]])
+    results, _ = _run(run_env)
+    config = config_dir_for(run_env.root, "historical")
+    assert "unit_name" not in data_block(config, "units")["sourcequery"].lower()
+    assert statuses(results)[("lookup", "data_validation")] == "NEW"
+    assert data_block(config, "lookup")["sourcecolumn"] == "code"
 
 
 def test_a_table_that_failed_is_not_ready(run_env, monkeypatch):
@@ -465,21 +460,20 @@ def test_a_connection_that_cannot_open_is_a_value_error(run_env, monkeypatch):
         _run(run_env)
 
 
-def test_a_bad_rules_workbook_is_a_settings_problem(run_env):
+def test_a_workbook_with_an_old_header_stops_the_run(run_env, workbook_folder):
     book = Workbook()
-    book.active.title = settings.RULES_SHEET
-    book.active.append(["table_name", "bogus"])
-    book.save(run_env.rules)
-    with pytest.raises(ValueError, match="Settings problem"):
+    book.active.append(["Target Table Name", "Historical Filter to apply.", *filter_files.LOCATION_HEADERS])
+    book.active.append(["units", None, *LOCATION[:6]])
+    book.save(workbook_folder / "bronze_postgres_edge_master.xlsx")
+    with pytest.raises(ValueError, match="Filter workbook problem: .*has the old column"):
         _run(run_env)
 
 
-def test_a_file_filter_is_used_only_where_the_rules_workbook_has_none(run_env, monkeypatch):
+def test_each_side_gets_its_own_file_filter(run_env, monkeypatch):
     monkeypatch.setattr(filter_files, "filters", lambda *a, **k: {"units": ("id > 0", "ID > 1")})
     _run(run_env, use_filter_files=True)
     block = data_block(config_dir_for(run_env.root, "historical"), "units")
-    assert "(id > 0)" in block["sourcequery"], "no rule for the source side, so the file's filter is used"
-    assert "(ID > 5)" in block["targetquery"] and "ID > 1" not in block["targetquery"], "the rules workbook wins"
+    assert "(id > 0)" in block["sourcequery"] and "(ID > 1)" in block["targetquery"]
 
 
 def test_filter_files_are_not_read_without_the_flag(run_env, monkeypatch):
@@ -616,11 +610,13 @@ def test_a_window_column_missing_from_snowflake_is_written_by_name_with_a_warnin
     assert "incremental column updated_at is not compared on the Snowflake side" in caplog.text
 
 
-def test_the_rules_workbook_can_name_the_incremental_column(tmp_path):
+def test_the_source_and_target_incremental_columns_may_differ(tmp_path):
+    """25/11/2026: each side windows on its own column (source_incremental_column, target_incremental_column)."""
     config = config_dir_for(tmp_path, "incremental")
-    run_generate(make_args("incremental"), config, table_rules={"units": TableRule(incremental_column="created_at")})
-    assert '"created_at" >= :start_time' in data_block(config, "units")["sourcequery"]
-    assert '"CREATED_AT" >= :start_time' in data_block(config, "units")["targetquery"]
+    run_generate(make_args("incremental", tables=("units",)), config, incremental_columns={"units": ("created_at", "updated_at")})
+    block = data_block(config, "units")
+    assert '"created_at" >= :start_time' in block["sourcequery"] and '"updated_at" >= :start_time' not in block["sourcequery"]
+    assert '"UPDATED_AT" >= :start_time' in block["targetquery"] and '"CREATED_AT" >= :start_time' not in block["targetquery"]
 
 
 def test_run_for_validation_passes_the_run_type_so_the_incremental_yaml_has_the_window(run_env):
@@ -630,29 +626,39 @@ def test_run_for_validation_passes_the_run_type_so_the_incremental_yaml_has_the_
 
 
 def test_the_window_column_is_the_master_workbook_incremental_column(tmp_path, workbook_folder):
-    """19/11/2026: the column comes from the row's incremental_column cell, not settings.INCREMENTAL_COLUMNS."""
+    """The columns come from the row's source_incremental_column and target_incremental_column cells."""
     write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx",
-                          [["units", None, None, *LOCATION[:-1], "created_at"]])
+                          [["units", None, None, *LOCATION[:6], "created_at", "created_at"]])
     rows = filter_files.read("postgres", "incremental")
-    assert rows["units"].incremental_column == "created_at"
+    assert (rows["units"].source_incremental_column, rows["units"].target_incremental_column) == ("created_at", "created_at")
     config = config_dir_for(tmp_path, "incremental")
     run_generate(make_args("incremental", tables=("units",)), config,
-                 incremental_columns={"units": rows["units"].incremental_column})
+                 incremental_columns={"units": (rows["units"].source_incremental_column,
+                                                rows["units"].target_incremental_column)})
     assert '"created_at" >= :start_time' in data_block(config, "units")["sourcequery"]
     assert '"CREATED_AT" >= :start_time' in count_block(config, "bronze_postgres_edge", "units")["targetquery"]
 
 
 def test_a_blank_incremental_column_fails_the_incremental_data_and_count(tmp_path):
     config = config_dir_for(tmp_path, "incremental")
-    results = run_generate(make_args("incremental", tables=("units",)), config, incremental_columns={"units": ""})
+    results = run_generate(make_args("incremental", tables=("units",)), config, incremental_columns={"units": ("", "")})
     assert statuses(results) == {("units", "data_validation"): "FAILED", ("units", "count_validation"): "FAILED"}
-    assert "no incremental_column" in detail_of(results, "units", "data_validation")
+    assert detail_of(results, "units", "data_validation").startswith(
+        "no source_incremental_column or target_incremental_column in its row of")
     assert not (config / "data_validation" / "units.yaml").exists()
+
+
+def test_a_blank_target_incremental_column_fails_the_incremental_data_and_count(tmp_path):
+    config = config_dir_for(tmp_path, "incremental")
+    results = run_generate(make_args("incremental", tables=("units",)), config,
+                           incremental_columns={"units": ("updated_at", "")})
+    assert statuses(results) == {("units", "data_validation"): "FAILED", ("units", "count_validation"): "FAILED"}
+    assert detail_of(results, "units", "count_validation").startswith("no target_incremental_column in its row of")
 
 
 def test_a_blank_incremental_column_does_not_matter_on_a_historical_run(tmp_path):
     config = config_dir_for(tmp_path, "historical")
-    results = run_generate(make_args("historical", tables=("units",)), config, incremental_columns={"units": ""})
+    results = run_generate(make_args("historical", tables=("units",)), config, incremental_columns={"units": ("", "")})
     assert statuses(results)[("units", "data_validation")] == "NEW"
 
 
@@ -667,10 +673,10 @@ def test_jsonb_and_hstore_columns_are_listed_for_the_validator_and_selected_as_t
     results = run_generate(make_args("historical", tables=("docs",)), config, source=source, target=target)
     assert statuses(results)[("docs", "data_validation")] == "NEW"
     block = data_block(config, "docs")
-    assert block["json_columns"] == {"meta_normalized": "jsonb", "tags_normalized": "hstore"}
+    assert block["json_columns"] == {"meta": "jsonb", "tags": "hstore"}
     assert 'CAST("meta" AS TEXT)' in block["sourcequery"]
     assert 'CAST("META" AS STRING)' in block["targetquery"]
-    assert "# Compared as flattened JSON text (json_columns, both sides): meta_normalized, tags_normalized" in \
+    assert "# Compared as flattened JSON text (json_columns, both sides): meta, tags" in \
         (config / "data_validation" / "docs.yaml").read_text(encoding="utf-8")
 
 
@@ -703,7 +709,7 @@ def test_a_schema_only_run_writes_the_schema_file_and_no_data_or_count(run_env):
 
 
 def test_the_schema_file_holds_no_exclusions_and_an_excluded_column_needs_no_mapping(run_env, workbook_folder):
-    """Exclusions are kept only in the settings (the validator reads them), so the file lists table names only. units'
+    """Exclusions are kept only in db_rules and the master workbook (the validator reads them), so the file lists table names only. units'
     _fivetran_synced is timestamp with time zone; it is excluded, so that type needs no mapping row."""
     write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx", [["units"]],
                           mapping=[row for row in TYPE_MAPPING if row[0] != "timestamp with time zone"])
@@ -813,14 +819,13 @@ def test_all_warns_about_a_schema_entry_no_longer_in_the_workbook_and_keeps_it(r
 def test_the_unchanged_validator_reads_the_generated_file(run_env, monkeypatch, tmp_path):
     """End to end: validators/schema_validation.py runs on the generated YAML against a fake catalogue. The excluded
     Fivetran columns are not reported missing, and every type is in the map, so the table PASSES. _FIVETRAN_DELETED is not
-    in the validator's own hard-coded list, so only the settings (exclusions.yaml, snowflake section) leave it out."""
+    in the validator's own hard-coded list, so only db_rules (RULES['snowflake']['exclude_columns']) leaves it out."""
     import pandas as pd
     from utils.utility import data_context
     from validators import schema_validation as sv
 
     run_env.dbs["target"].tables[("EDGE", "UNITS")] = TARGET_TABLES[("EDGE", "UNITS")] + [("_FIVETRAN_DELETED", "BOOLEAN")]
     _schema_only(run_env, tables=["units"])
-    monkeypatch.setattr(settings, "pick_rules_file", lambda *a, **k: run_env.rules)
     names = ["table_name", "column_name", "data_type", "character_maximum_length", "character_octet_length",
              "numeric_precision", "numeric_precision_radix", "numeric_scale", "datetime_precision"]
     snow_type = {row[0]: row[1] for row in TYPE_MAPPING}

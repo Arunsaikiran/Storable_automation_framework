@@ -104,13 +104,16 @@ Copy `templates/TEMPLATE_layer_master.xlsx` and rename it. Then:
 
 Every master workbook has the **same two sheets and nothing else**: `Sheet1` and `<Engine> schema mapping`. Don't add columns or sheets (counts, notes, test results). Anyone who copies the file later copies them too. Keep that kind of work in a separate file.
 
-**Sheet 1: `Sheet1`, the tables sheet.** It has exactly these twelve headers, in this order. Names are matched **ignoring case**, so `Target Table Name` and `target table name` are the same.
+**Sheet 1: `Sheet1`, the tables sheet.** It has exactly these headers, in this order. Names are matched **ignoring case**, so `Target Table Name` and `target table name` are the same.
 
 | Column header | What to put in it | Example row |
 |---|---|---|
-| `Target Table Name` | The table name | `units` |
-| `Historical Filter to apply` | An optional SQL condition, or empty for the whole table | (empty) |
-| `Incremental filters to apply` | An optional SQL condition, or empty | (empty) |
+| `Target Table Name` | The table name in the target | `units` |
+| `Source Table Name` | The table name in the source. Empty means the same as Target Table Name | (empty) |
+| `Historical Source Filter` | An optional filter on the **source** for historical runs, or empty for the whole table | (empty) |
+| `Historical Target Filter` | The same filter for the **target**. Fill both sides, or the two sides hold different rows | (empty) |
+| `Incremental Source Filter` | An optional filter on the source for incremental runs, or empty | (empty) |
+| `Incremental Target Filter` | The same for the target | (empty) |
 | `source_application` | The application name | `NewApp` |
 | `source_database` | The real source database name (Step 2) | `fms` |
 | `source_schema` | The source schema (Step 2) | `public` |
@@ -120,12 +123,16 @@ Every master workbook has the **same two sheets and nothing else**: `Sheet1` and
 | `count_validation_last_run_date` | When count validation last ran for the table. Seed it with a start date; incremental runs read it and write the new sync date back | `2026-11-01 00:50:59.657 +0000` |
 | `data_validation_last_run_date` | The same, for data validation | `2026-11-01 00:50:59.657 +0000` |
 | `layer` | The `--layer_type` for this workbook: `bronze_<engine>_<application>` | `bronze_postgres_newapp` |
+| `source_incremental_column` | The source column an incremental run windows on. Empty fails the table's incremental run | `updated_at` |
+| `target_incremental_column` | The target column it windows on (the freshness check reads it too) | `updated_at` |
+| `key_columns` | Optional. The key, comma separated, when the table has no primary key | (empty) |
+| `exclude_columns` | Optional. Columns left out of the comparison for this table (PII, tokens), comma separated | (empty) |
 
 **First row (example):**
 
 ```
-Target Table Name | Historical Filter | Incremental filters | source_application | source_database | source_schema | target_application | target_database      | target_schema | count_validation_last_run_date | data_validation_last_run_date | layer
-units             | (empty)           | (empty)             | NewApp            | fms             | public        | Snowflake         | {env}_NEWAPP_BRONZE  | NEWAPP_SCHEMA | 2026-11-01 00:50:59.657 +0000  | 2026-11-01 00:50:59.657 +0000 | bronze_newapp
+Target Table Name | Source Table Name | Historical Source Filter | Historical Target Filter | Incremental Source Filter | Incremental Target Filter | source_application | source_database | source_schema | target_application | target_database     | target_schema | count_validation_last_run_date | data_validation_last_run_date | layer                  | source_incremental_column | target_incremental_column | key_columns | exclude_columns
+units             | (empty)           | (empty)                  | (empty)                  | (empty)                   | (empty)                   | NewApp             | fms             | public        | Snowflake          | {env}_NEWAPP_BRONZE | NEWAPP_SCHEMA | 2026-11-01 00:50:59.657 +0000  | 2026-11-01 00:50:59.657 +0000 | bronze_postgres_newapp | updated_at                | updated_at                | (empty)     | (empty)
 ```
 
 **Rows:** one row per table. A table listed twice keeps its first row, and the second is ignored.
@@ -206,7 +213,7 @@ This folder does not change the code. Routes A and B need no code change. In eac
 
 1. `yaml_generation/filter_files.py`: add `"bronze_<key>": "<key>"` to `LAYERS` (the workbook name `bronze_<key>_master.xlsx`, `WORKBOOKS` and `BRONZE_LAYERS` follow from it), and `"<key>"` to `SCHEMA_SHEETS` (its mapping sheet name).
 2. `yaml_generation/db_rules.py`: add a `"<key>"` block to `RULES`, and `"<key>"` to `SOURCE_TYPES`. Route C copies the reused database's block. Route D writes a new one (Step 6).
-3. `yaml_generation/settings.py`: add `"<key>"` to `INCREMENTAL_COLUMNS`. `yaml_generation/settings/exclusions.yaml`: add a `<key>:` block.
+3. Columns every table of the engine leaves out (like SQL Server's `uts`): an `"exclude_columns"` set in the `"<key>"` block of `RULES`. The Fivetran columns are already excluded for every engine. Per-table exclusions go in the master workbook's `exclude_columns` cell.
 4. `db/factory.py`: add an `elif db_type == "<key>":` branch in `get_database()`, before the final `else`.
    - **Route C:** the branch builds the **existing** class from `file['<key>']`, the way the `newbook` branch builds `Snowflake`. Don't add an import or a package: the class is already imported.
    - **Route D:** the branch builds the new class from step 6 below.

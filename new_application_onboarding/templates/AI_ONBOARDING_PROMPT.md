@@ -37,13 +37,13 @@ FILES TO CHANGE
   Every route:
     - yaml_generation/master_files/<workbook>: one row per table on Sheet1, and a row per source type on '<Label> schema mapping'.
       A new workbook starts as a copy of new_application_onboarding/templates/TEMPLATE_layer_master.xlsx.
-    - yaml_generation/settings/dev_rules.xlsx, sheet table_rules: only for a table that needs key_columns, exclude_columns or a filter.
+      A table that needs a key, an exclusion or a filter uses its own row's key_columns, exclude_columns and filter cells.
   Routes C and D also:
     - yaml_generation/filter_files.py: add "bronze_<key>": "<key>" to LAYERS (WORKBOOKS and BRONZE_LAYERS follow), and "<key>" to SCHEMA_SHEETS.
     - yaml_generation/db_rules.py: add a "<key>" block to RULES and "<key>" to SOURCE_TYPES.
         C: a copy of the reused database's block (newbook for Snowflake), with only the key and the label changed.
         D: a new block written for the engine (start from the mysql block); add a test in yaml_generation/tests/test_db_rules.py.
-    - yaml_generation/settings.py: add "<key>" to INCREMENTAL_COLUMNS.   yaml_generation/settings/exclusions.yaml: a "<key>:" block.
+    - Columns every table of the engine leaves out: an "exclude_columns" set in the RULES "<key>" block (optional).
     - db/factory.py: an elif db_type == "<key>" branch in get_database(), before the final else.
         C: it builds the existing class from file['<key>'], like the newbook branch builds Snowflake. No new import.
         D: it builds the new class; also add "from db.<key> import <Class>" with the other imports at the top.
@@ -60,13 +60,15 @@ FILES TO CHANGE
 
 RULES
   - The master workbook is the only source of truth for locations and filters. Keep its two sheets and their headers exactly:
-    Sheet1: Target Table Name | Historical Filter to apply | Incremental filters to apply | source_application | source_database |
-            source_schema | target_application | target_database | target_schema | count_validation_last_run_date |
-            data_validation_last_run_date | layer
+    Sheet1: Target Table Name | Source Table Name | Historical Source Filter | Historical Target Filter |
+            Incremental Source Filter | Incremental Target Filter | source_application | source_database | source_schema |
+            target_application | target_database | target_schema | count_validation_last_run_date |
+            data_validation_last_run_date | layer | source_incremental_column | target_incremental_column |
+            key_columns | exclude_columns
     '<Label> schema mapping': source_data_type | target_data_type | precision_check | notes
     No extra sheets or columns. target_application is Snowflake. target_database must contain {env}.
-  - When you add to a list or dict (LAYERS, SCHEMA_SHEETS, SOURCE_TYPES, INCREMENTAL_COLUMNS, RULES), keep every existing entry.
-  - Use the same key everywhere: '<key>' in RULES, SOURCE_TYPES, LAYERS, SCHEMA_SHEETS, INCREMENTAL_COLUMNS, exclusions.yaml,
+  - When you add to a list or dict (LAYERS, SCHEMA_SHEETS, SOURCE_TYPES, RULES), keep every existing entry.
+  - Use the same key everywhere: '<key>' in RULES, SOURCE_TYPES, LAYERS, SCHEMA_SHEETS,
     get_database() and the creds block; the layer is 'bronze_<key>'.
   - Every edit to a shared file outside yaml_generation/ gets a comment starting '# CHANGE: YAML generation.' that says what and why.
   - Make only the changes this plan needs: no new flags, helpers or refactors. Do not change other layers.
