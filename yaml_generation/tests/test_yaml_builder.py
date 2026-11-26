@@ -175,8 +175,8 @@ def test_unknown_type_is_cast_as_it_is_and_reported_as_plain_text():
 
 
 def test_a_refused_rowversion_is_not_reported_as_plain_text_because_its_table_is_refused():
-    pairs = _pairs(("uTS", "timestamp", "UTS", "BINARY"), ("shape", "money", "SHAPE", "NUMBER"))
-    assert yb.plain_text_columns(pairs, MS) == ["shape (money)"]
+    pairs = _pairs(("uTS", "timestamp", "UTS", "BINARY"), ("shape", "sql_variant", "SHAPE", "TEXT"))
+    assert yb.plain_text_columns(pairs, MS) == ["shape (sql_variant)"]
     assert yb.comparability_problems(pairs, MS), "the rowversion is the reason the table is refused"
 
 

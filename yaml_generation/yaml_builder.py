@@ -308,6 +308,8 @@ def value_expression(column_sql: str, data_type: str, rules: dict) -> str:
         return rules["date"].format(c=column_sql)
     if kind == "text":
         return rules["trim"].format(c=column_sql)
+    if kind == "money":
+        return rules['money'].format(c=column_sql)
     if kind == "large_text":
         # A large-text column cannot go into TRIM() directly on SQL Server. Trim the cast value instead,
         # so the value is trimmed the same way as a normal text column on the other side.
