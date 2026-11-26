@@ -37,13 +37,13 @@ FILES TO CHANGE
   Every route:
     - yaml_generation/master_files/<workbook>: one row per table on Sheet1, and a row per source type on '<Label> schema mapping'.
       A new workbook starts as a copy of new_application_onboarding/templates/TEMPLATE_layer_master.xlsx.
-      A table that needs a key, an exclusion or a filter uses its own row's key_columns, exclude_columns and filter cells.
+      A table that needs a key, an exclusion or a filter uses its own row's source_/target_ key, exclude and filter cells.
   Routes C and D also:
     - yaml_generation/filter_files.py: add "bronze_<key>": "<key>" to LAYERS (WORKBOOKS and BRONZE_LAYERS follow), and "<key>" to SCHEMA_SHEETS.
     - yaml_generation/db_rules.py: add a "<key>" block to RULES and "<key>" to SOURCE_TYPES.
         C: a copy of the reused database's block (newbook for Snowflake), with only the key and the label changed.
         D: a new block written for the engine (start from the mysql block); add a test in yaml_generation/tests/test_db_rules.py.
-    - Columns every table of the engine leaves out: an "exclude_columns" set in the RULES "<key>" block (optional).
+    - No exclusions in code: every row lists them in source_exclude_columns / target_exclude_columns (Fivetran columns on a Snowflake side).
     - db/factory.py: an elif db_type == "<key>" branch in get_database(), before the final else.
         C: it builds the existing class from file['<key>'], like the newbook branch builds Snowflake. No new import.
         D: it builds the new class; also add "from db.<key> import <Class>" with the other imports at the top.
@@ -64,7 +64,8 @@ RULES
             Incremental Source Filter | Incremental Target Filter | source_application | source_database | source_schema |
             target_application | target_database | target_schema | count_validation_last_run_date |
             data_validation_last_run_date | layer | source_incremental_column | target_incremental_column |
-            key_columns | exclude_columns
+            source_key_columns | target_key_columns | source_exclude_columns | target_exclude_columns |
+            case_insensitive_columns | active (yes: part of --tables all)
     '<Label> schema mapping': source_data_type | target_data_type | precision_check | notes
     No extra sheets or columns. target_application is Snowflake. target_database must contain {env}.
   - When you add to a list or dict (LAYERS, SCHEMA_SHEETS, SOURCE_TYPES, RULES), keep every existing entry.

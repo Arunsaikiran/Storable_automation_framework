@@ -202,7 +202,8 @@ def test_a_workbook_without_the_run_types_filter_column_still_gives_the_location
     assert "has no 'historical target filter' column" in caplog.text
 
 
-@pytest.mark.parametrize("old", ["Historical Filter to apply.", "Incremental filters to apply", "incremental_column"])
+@pytest.mark.parametrize("old", ["Historical Filter to apply.", "Incremental filters to apply", "incremental_column",
+                                 "key_columns", "Exclude_Columns"])
 def test_a_workbook_with_an_old_header_is_refused(tmp_path, old):
     """25/11/2026: a workbook still on the old layout is refused, so its filters are not dropped without a word."""
     _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [["Target Table Name", old, *ff.LOCATION_HEADERS],
@@ -211,16 +212,50 @@ def test_a_workbook_with_an_old_header_is_refused(tmp_path, old):
         ff.read("postgres", "historical", folder=tmp_path, log=LOG)
 
 
+KEY_EXCLUDE_HEADER = ["Target Table Name", *ff.LOCATION_HEADERS, "Source_Incremental_Column", "target_incremental_column",
+                      "Source_Key_Columns", "target_key_columns", "source_exclude_columns", "Target_Exclude_Columns"]
+
+
 def test_key_columns_exclude_columns_and_both_incremental_columns_are_read_from_the_row(tmp_path):
-    header = ["Target Table Name", *ff.LOCATION_HEADERS, "Source_Incremental_Column", "target_incremental_column",
-              "key_columns", "Exclude_Columns"]
     _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [
-        header, ["units", *EDGE, "dUpdated", "UPDATED_AT", "Company_ID, site id", "Legacy Code,notes"],
-        ["notes", *EDGE, None, None, None, None]]})
+        KEY_EXCLUDE_HEADER, ["units", *EDGE, "dUpdated", "UPDATED_AT", "Company_ID, site id", None, "Legacy Code,notes",
+                             "_FIVETRAN_SYNCED"],
+        ["lookup", *EDGE, None, None, None, "code", None, None],
+        ["notes", *EDGE, None, None, None, None, None, None]]})
     rows = ff.read("postgres", "incremental", folder=tmp_path, log=LOG)
-    assert rows["units"].rule == ff.TableRule(["company_id", "site_id"], {"legacy_code", "notes"})
+    assert rows["units"].rule == ff.TableRule(["company_id", "site_id"], {"legacy_code", "notes"}, {"_fivetran_synced"})
+    assert rows["lookup"].rule.key_columns == ["code"], "a target key alone is the key"
     assert (rows["units"].source_incremental_column, rows["units"].target_incremental_column) == ("dUpdated", "UPDATED_AT")
     assert rows["notes"].rule == ff.TableRule() and rows["notes"].rule.key_columns is None
+
+
+def test_source_and_target_key_cells_naming_different_columns_are_refused(tmp_path):
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [
+        KEY_EXCLUDE_HEADER, ["units", *EDGE, None, None, "id", "unit_id", None, None]]})
+    with pytest.raises(ValueError, match="name different columns"):
+        ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+
+
+def test_the_same_key_on_both_sides_is_read_once(tmp_path):
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [
+        KEY_EXCLUDE_HEADER, ["units", *EDGE, None, None, "Site ID", "SITE_ID", None, None]]})
+    assert ff.read("postgres", "historical", folder=tmp_path, log=LOG)["units"].rule.key_columns == ["site_id"]
+
+
+def test_active_is_yes_in_any_case_and_blank_or_missing_is_not_active(tmp_path):
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [
+        ["Target Table Name", *ff.LOCATION_HEADERS, "Active"], ["units", *EDGE, "YES"], ["notes", *EDGE, "no"],
+        ["lookup", *EDGE, None]]})
+    rows = ff.read("postgres", "historical", folder=tmp_path, log=LOG)
+    assert {t: r.active for t, r in rows.items()} == {"units": True, "notes": False, "lookup": False}
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"filters": _rows(["units"])})
+    assert ff.read("postgres", "historical", folder=tmp_path, log=LOG)["units"].active is False
+
+
+def test_case_insensitive_columns_are_read_from_the_row(tmp_path):
+    _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": [
+        ["Target Table Name", *ff.LOCATION_HEADERS, "Case_Insensitive_Columns"], ["units", *EDGE, "UUID, Ref Code"]]})
+    assert ff.read("postgres", "historical", folder=tmp_path, log=LOG)["units"].rule.case_insensitive == {"uuid", "ref_code"}
 
 
 @pytest.mark.parametrize("column", ff.LOCATION_HEADERS[1:])

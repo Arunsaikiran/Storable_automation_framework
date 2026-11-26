@@ -11,8 +11,8 @@ import pytest
 import yaml
 from openpyxl import Workbook
 
-from helpers import (LOG, PRIMARY_KEYS, SOURCE_SCHEMA, SOURCE_TABLES, TARGET_SCHEMA, TARGET_TABLES, FakeDB, TableRule,
-                     config_dir_for, make_args, run_generate, statuses)
+from helpers import (FIVETRAN, LOG, PRIMARY_KEYS, SOURCE_SCHEMA, SOURCE_TABLES, TARGET_SCHEMA, TARGET_TABLES, FakeDB,
+                     TableRule, config_dir_for, make_args, run_generate, statuses)
 from yaml_generation import filter_files, generate_yaml
 from yaml_generation import yaml_builder as yb
 
@@ -34,11 +34,12 @@ def detail_of(results, table, kind):
 
 
 # The location columns, then source_incremental_column and target_incremental_column (as the shipped workbooks have them),
-# then key_columns and exclude_columns (left blank unless a row gives them).
+# then source_key_columns and source_exclude_columns (blank unless a row gives them), target_exclude_columns and active.
 LOCATION = ["Edge", "fms", SOURCE_SCHEMA, "Snowflake", "{env}_EDGE_BRONZE", TARGET_SCHEMA, "updated_at", "updated_at"]
 WORKBOOK_HEADER = ["Target Table Name", "Historical Source Filter", "Historical Target Filter", "Incremental Source Filter",
                    "Incremental Target Filter", *filter_files.LOCATION_HEADERS, *filter_files.INCREMENTAL_HEADERS,
-                   filter_files.KEY_HEADER, filter_files.EXCLUDE_HEADER]
+                   filter_files.KEY_HEADERS[0], filter_files.EXCLUDE_HEADERS[0], filter_files.EXCLUDE_HEADERS[1],
+                   filter_files.ACTIVE_HEADER]
 
 
 # The type mapping of the fake source, as the 'Postgres schema mapping' sheet lists it.
@@ -47,17 +48,19 @@ TYPE_MAPPING = [["integer", "number", "numeric"], ["character varying", "text", 
                 ["boolean", "boolean"]]
 
 
-def write_filter_workbook(path, rows, mapping=TYPE_MAPPING):
-    """rows: [table, historical filter, incremental filter] (+ location, default LOCATION, then optionally key_columns and
-    exclude_columns). Each filter is written in both its source and its target cell. mapping: the type mapping sheet
-    rows (None: no sheet). Returns the path."""
+def write_filter_workbook(path, rows, mapping=TYPE_MAPPING, inactive=()):
+    """rows: [table, historical filter, incremental filter] (+ location, default LOCATION, then optionally source key and
+    source exclude cells). Each filter is written in both its source and its target cell; every row excludes FIVETRAN on
+    the target and is active unless named in inactive. mapping: the type mapping sheet rows (None: no sheet). Returns the path."""
     book = Workbook()
     ws = book.active
     ws.title = "filters"
     ws.append(WORKBOOK_HEADER)
     for row in rows:
         table, historical, incremental = list(row[:3]) + [None] * (3 - len(row[:3]))
-        ws.append([table, historical, historical, incremental, incremental] + (list(row[3:]) or LOCATION))
+        cells = (list(row[3:]) or LOCATION) + [None] * 10
+        ws.append([table, historical, historical, incremental, incremental] + cells[:10] + [",".join(sorted(FIVETRAN)),
+                                                                             "no" if table in inactive else "yes"])
     if mapping is not None:
         types = book.create_sheet(filter_files.SCHEMA_SHEETS["postgres"])
         types.append(["source_data_type", "target_data_type", "precision_check", "notes"])
@@ -153,13 +156,13 @@ def test_the_yaml_holds_the_env_placeholder_on_the_target_side_only(tmp_path):
         assert "DEV_EDGE_BRONZE" not in text, "the environment is filled in by the validators, not written here"
 
 
-def test_historical_data_file_drops_the_global_exclusions_and_lists_them_in_the_header(tmp_path):
+def test_historical_data_file_drops_the_row_exclusions_and_lists_them_in_the_header(tmp_path):
     config = config_dir_for(tmp_path, "historical")
     run_generate(make_args("historical"), config)
     assert "_fivetran" not in data_block(config, "units")["sourcequery"].lower()
     header = (config / "data_validation" / "units.yaml").read_text(encoding="utf-8")
     assert "# Key: id   Columns compared: 4" in header
-    assert "# Excluded (exclusions file): _fivetran_synced, _fivetran_active" in header
+    assert "# Excluded (master file): _fivetran_synced, _fivetran_active" in header
 
 
 def test_second_historical_run_leaves_every_file_unchanged(tmp_path):
@@ -201,27 +204,27 @@ def test_a_snowflake_column_with_no_source_match_is_compared_as_missing_not_drop
             in (config / "data_validation" / "units.yaml").read_text(encoding="utf-8"))
 
 
-def test_the_global_list_is_what_drops_a_column(tmp_path):
+def test_only_the_row_exclusions_drop_a_column(tmp_path):
     config = config_dir_for(tmp_path, "historical")
-    run_generate(make_args("historical"), config, global_excluded=set())
+    run_generate(make_args("historical"), config, table_rules={"units": TableRule()})
     assert "_fivetran_synced" in data_block(config, "units")["sourcequery"]
 
 
 def test_a_table_rule_excludes_a_column_and_filters_both_sides_for_that_table_only(tmp_path):
     config = config_dir_for(tmp_path, "historical")
-    rules = {"units": TableRule(exclude={"unit_name"})}
+    rules = {"units": TableRule(source_exclude={"unit_name"})}
     run_generate(make_args("historical"), config, table_rules=rules, file_filters={"units": ("id > 0", "ID > 0")})
     block = data_block(config, "units")
     assert "unit_name" not in block["sourcequery"].lower()
     assert "WHERE (id > 0)" in block["sourcequery"] and "(ID > 0)" in block["targetquery"]
     assert count_block(config, "bronze_postgres_edge", "units")["sourcequery"].endswith("WHERE (id > 0);")
-    assert "# Excluded (table rule): unit_name" in (config / "data_validation" / "units.yaml").read_text(encoding="utf-8")
+    assert "# Excluded (master file): unit_name" in (config / "data_validation" / "units.yaml").read_text(encoding="utf-8")
     assert "WHERE (" not in data_block(config, "notes")["sourcequery"], "the rule is for one table only"
 
 
 def test_an_excluded_key_column_fails_the_data_file_and_still_counts(tmp_path):
     results = run_generate(make_args("historical"), config_dir_for(tmp_path, "historical"),
-                              table_rules={"notes": TableRule(exclude={"id"})})
+                              table_rules={"notes": TableRule(target_exclude={"id"})})
     assert statuses(results)[("notes", "data_validation")] == "FAILED"
     assert detail_of(results, "notes", "data_validation").startswith(
         "key column(s) not on both sides of the comparison: id")
@@ -433,7 +436,7 @@ def test_a_table_whose_count_file_could_not_be_updated_is_not_ready(run_env, mon
 
 
 def test_run_for_validation_writes_the_table_rule_from_the_workbook(run_env, workbook_folder):
-    """The row's key_columns and exclude_columns cells reach the YAML: lookup gets a key, units leaves unit_name out."""
+    """The row's source key and exclude cells reach the YAML: lookup gets a key, units leaves unit_name out."""
     write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx",
                           [["units", None, None, *LOCATION, None, "Unit_Name"], ["lookup", None, None, *LOCATION, "code", None]])
     results, _ = _run(run_env)
@@ -441,6 +444,16 @@ def test_run_for_validation_writes_the_table_rule_from_the_workbook(run_env, wor
     assert "unit_name" not in data_block(config, "units")["sourcequery"].lower()
     assert statuses(results)[("lookup", "data_validation")] == "NEW"
     assert data_block(config, "lookup")["sourcecolumn"] == "code"
+
+
+def test_all_means_the_active_rows_only(run_env, workbook_folder):
+    """--tables all: a row whose active cell is not yes is left out; named, it still runs."""
+    write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx", [["units"], ["notes"], ["lookup"]],
+                          inactive=("notes",))
+    assert generate_yaml.workbook_spelling("bronze_postgres_edge", "historical", ["all"]) == ["units", "lookup"]
+    results, ready = _run(run_env)
+    assert "notes" not in {table for table, *_ in results} and "notes" not in ready
+    assert generate_yaml.workbook_spelling("bronze_postgres_edge", "historical", ["NOTES"]) == ["notes"]
 
 
 def test_a_table_that_failed_is_not_ready(run_env, monkeypatch):
@@ -709,7 +722,7 @@ def test_a_schema_only_run_writes_the_schema_file_and_no_data_or_count(run_env):
 
 
 def test_the_schema_file_holds_no_exclusions_and_an_excluded_column_needs_no_mapping(run_env, workbook_folder):
-    """Exclusions are kept only in db_rules and the master workbook (the validator reads them), so the file lists table names only. units'
+    """Exclusions are kept only in the master workbook (the validator reads them), so the file lists table names only. units'
     _fivetran_synced is timestamp with time zone; it is excluded, so that type needs no mapping row."""
     write_filter_workbook(workbook_folder / "bronze_postgres_edge_master.xlsx", [["units"]],
                           mapping=[row for row in TYPE_MAPPING if row[0] != "timestamp with time zone"])
@@ -818,13 +831,16 @@ def test_all_warns_about_a_schema_entry_no_longer_in_the_workbook_and_keeps_it(r
 
 def test_the_unchanged_validator_reads_the_generated_file(run_env, monkeypatch, tmp_path):
     """End to end: validators/schema_validation.py runs on the generated YAML against a fake catalogue. The excluded
-    Fivetran columns are not reported missing, and every type is in the map, so the table PASSES. _FIVETRAN_DELETED is not
-    in the validator's own hard-coded list, so only db_rules (RULES['snowflake']['exclude_columns']) leaves it out."""
+    Fivetran columns are not reported missing, and every type is in the map, so the table PASSES. _FIVETRAN_DELETED is left
+    out only by the row's target_exclude_columns cell."""
     import pandas as pd
     from utils.utility import data_context
     from validators import schema_validation as sv
 
     run_env.dbs["target"].tables[("EDGE", "UNITS")] = TARGET_TABLES[("EDGE", "UNITS")] + [("_FIVETRAN_DELETED", "BOOLEAN")]
+    # The fake source has Fivetran columns too, so the row excludes them on the source side as well.
+    write_filter_workbook(filter_files.FOLDER / "bronze_postgres_edge_master.xlsx",
+                          [["units", None, None, *LOCATION, None, ",".join(sorted(FIVETRAN))]])
     _schema_only(run_env, tables=["units"])
     names = ["table_name", "column_name", "data_type", "character_maximum_length", "character_octet_length",
              "numeric_precision", "numeric_precision_radix", "numeric_scale", "datetime_precision"]

@@ -11,10 +11,8 @@ import traceback
 import os
 import pandas as pd
 import numpy as np
-# CHANGE: YAML generation. The column exclusions are read from the one place they are kept, the same places the count and
-# data YAML are generated from. CHANGE: YAML generation (25/11/2026): that is now db_rules.RULES (exclude_columns per engine)
-# and the master workbook's exclude_columns cell; yaml_generation/settings/ (exclusions.yaml, dev_rules.xlsx) is gone.
-from yaml_generation import db_rules, filter_files
+# CHANGE: YAML generation (25/11/2026). Exclusions come from the master workbook's source/target exclude cells.
+from yaml_generation import filter_files
 from yaml_generation.yaml_builder import normalize_name
 
 logger = get_logger(__name__)
@@ -28,8 +26,6 @@ def validate_schema(ctx):
     BASE_DIR = ctx.BASE_DIR
     environment = ctx.environment
     tables = ctx.tables
-    # from_date = ctx.from_date
-    # to_date = ctx.to_date
 
     failure_count = 0
     system_error = False
@@ -53,24 +49,12 @@ def validate_schema(ctx):
     target = config_file['target']
     source_query = config_file['sourcequery']
     target_query = config_file['targetquery']
-    # CHANGE: YAML generation. Types are matched without regard to case: the mapping sheet may write 'USER-DEFINED' or
-    # 'user-defined', 'TEXT' or 'text'. The keys, the targets and the precision check lists are all lower-cased here, and
-    # the source data_type is lower-cased below; the target data_type already is.
     datatype_map = {str(k).strip().lower(): str(v).strip().lower() for k, v in (config_file['datatype_map'] or {}).items()}
-    # CHANGE: YAML generation (V2). The source types each precision check applies to, from the YAML (the mapping sheet's
-    # precision_check column). A file without the key keeps the PostgreSQL types checked before.
     precision_checks = config_file.get('precision_checks') or {}
     datetime_types = [str(t).strip().lower() for t in precision_checks.get('datetime', ['timestamp without time zone'])]
     numeric_types = [str(t).strip().lower() for t in precision_checks.get('numeric', ['integer'])]
     character_types = [str(t).strip().lower() for t in precision_checks.get('character', ['character varying'])]
-    # CHANGE: YAML generation (V1). {env} in the target query is filled for the run's environment, as count_validation.py does,
-    # so one generated YAML serves every environment. local and unknown environments read DEV, as there.
     env = {"stg": "STG", "qat": "QAT", "prod": "PRD"}.get(environment, "DEV")
-    # CHANGE: YAML generation. Columns left out on both sides: exclusions.yaml (this source's section and snowflake) and the
-    # rules workbook's exclude_columns for the table, matched by normalised name, so no exclusion list is kept in the YAML.
-    # CHANGE: YAML generation (25/11/2026). From db_rules and the layer's master workbook rows, by lower-case table name.
-    # A source with no master workbook (a silver or gold YAML) has no table rules, as it had no rules workbook rows before.
-    global_excluded = db_rules.excluded_columns(source) if source in db_rules.RULES else set()
     table_rules = ({table.lower(): row.rule for table, row in filter_files.read(source, ctx.run_type).items()}
                    if source in filter_files.WORKBOOKS else {})
     print("="*100)
@@ -79,8 +63,6 @@ def validate_schema(ctx):
     if tables[0] == 'all':
         table_list = list(table_config.keys())
     else:
-        # CHANGE: YAML generation. A table name is matched to the config keys without regard to case (--tables Addresses finds
-        # the key addresses), as the filter workbook is. A name with no key in any case is still refused below.
         config_keys = {str(key).lower(): key for key in table_config}
         table_list = [config_keys.get(str(table).lower(), table) for table in tables]
         invalid_tables = list(set(table_list) - set(list(table_config.keys())))
@@ -100,29 +82,24 @@ def validate_schema(ctx):
             #Getting dataframe
             batch_start_time = datetime.now()
             logger.info("Executing schema validation check for table: %s", table_name)
-            # CHANGE: YAML generation. Column exclusion from the settings (see above), the same set on both sides.
+            # CHANGE: YAML generation (25/11/2026). Each side drops its own master-file exclude columns.
             rule = table_rules.get(str(table_name).lower())
-            excluded = global_excluded | (rule.exclude if rule else set())
+            source_excluded, target_excluded = (rule.source_exclude, rule.target_exclude) if rule else (set(), set())
 
             obj = get_database(source,BASE_DIR,environment)
             formatted_source_query = source_query.format(table_name = table_name, env = env)  # CHANGE: YAML generation (16/11/2026). {env} on the source too
             source_df = obj.execute_query(formatted_source_query)
             source_df.columns = source_df.columns.str.strip().str.lower()
-            source_df = source_df[~source_df['column_name'].map(normalize_name).isin(excluded)]
+            source_df = source_df[~source_df['column_name'].map(normalize_name).isin(source_excluded)]
             source_df.columns = [f"{i}_source" for i in source_df.columns]
             source_df = source_df.replace({None: np.nan})
             logger.info("Source Query: %s", formatted_source_query)
             obj = get_database(target,BASE_DIR,environment)
-            # CHANGE: YAML generation (V1). env is filled too; a query without {env} is unchanged by it.
-            # CHANGE: YAML generation (MySQL onboarding). The table name is upper-cased for a Snowflake target only. Another
-            # target (MySQL CRM compared against itself, target: mysql_crm) keeps the source spelling, as yaml_builder's
-            # TableSpec.target_table does: MySQL table names are case-sensitive on Linux, so 'RESERVATION_FEE' found nothing
-            # and every CRM table failed with "not found in target".
             target_table_name = table_name.upper() if str(target).lower() == "snowflake" else table_name
             formatted_target_query = target_query.format(table_name = target_table_name, env = env)
             target_df = obj.execute_query(formatted_target_query)
             target_df.columns = target_df.columns.str.lower()
-            target_df = target_df[~target_df['column_name'].map(normalize_name).isin(excluded)]
+            target_df = target_df[~target_df['column_name'].map(normalize_name).isin(target_excluded)]
             target_df.columns = [f"{i}_target" for i in target_df.columns]
 
             for col in target_df.select_dtypes(include=['object','string']).columns:
@@ -131,10 +108,6 @@ def validate_schema(ctx):
             source_df['column_name_source'] = source_df['column_name_source'].str.lower()
             # CHANGE: YAML generation. The source type is lower-cased too, so the datatype_map lookup ignores case (see above).
             source_df['data_type_source'] = source_df['data_type_source'].str.strip().str.lower()
-            # target_df['table_name_target'] = target_df['table_name_target'].str.lower()
-            # target_df['column_name_target'] = target_df['column_name_target'].str.lower()
-
-            #check
 
             logger.info("Target Query: %s", formatted_target_query)
 

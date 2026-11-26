@@ -213,14 +213,14 @@ class Reconciliation:
     problems: list = field(default_factory=list)
 
 
-def reconcile(source_columns, target_columns, global_excluded, table_excluded, source_rules) -> Reconciliation:
+def reconcile(source_columns, target_columns, source_excluded, target_excluded, source_rules) -> Reconciliation:
     """Match source and target columns by normalised name, after applying the exclusions. Exact match only.
 
     A column on one side only is kept in pairs (MISSING_IN_TARGET, EXTRA_IN_TARGET), so it is compared and shows up as
     a difference. Only the exclusions remove a column.
 
     Statuses: MATCHED, MISSING_IN_TARGET (source only), EXTRA_IN_TARGET (target only),
-              EXCLUDED_GLOBAL (db_rules.RULES exclude_columns) and EXCLUDED_TABLE (the row's exclude_columns cell).
+              EXCLUDED (the row's source_/target_exclude_columns; a column on both sides excluded on either is dropped).
     """
     result = Reconciliation()
     target_by_norm = {}
@@ -231,7 +231,7 @@ def reconcile(source_columns, target_columns, global_excluded, table_excluded, s
     for name, dtype in source_columns:
         norm = normalize_name(name)
         target = target_by_norm.get(norm)
-        excluded = "EXCLUDED_GLOBAL" if norm in global_excluded else "EXCLUDED_TABLE" if norm in table_excluded else None
+        excluded = "EXCLUDED" if norm in source_excluded or (target and norm in target_excluded) else None
         if target:
             matched.add(norm)
         if excluded:
@@ -247,10 +247,8 @@ def reconcile(source_columns, target_columns, global_excluded, table_excluded, s
         norm = normalize_name(name)
         if norm in matched:
             continue
-        if norm in global_excluded:
-            status = "EXCLUDED_GLOBAL"
-        elif norm in table_excluded:
-            status = "EXCLUDED_TABLE"
+        if norm in target_excluded:
+            status = "EXCLUDED"
         else:
             status = "EXTRA_IN_TARGET"
             result.pairs.append((None, None, name, dtype, norm))
@@ -317,10 +315,10 @@ def value_expression(column_sql: str, data_type: str, rules: dict) -> str:
     return column_sql
 
 
-def normalized_item(column: str, alias: str, data_type: str, rules: dict) -> str:
-    """One SELECT item: COALESCE(CAST(<value> AS <text type>), '<<NULL>>') AS <alias>. The column name is quoted."""
-    expr = value_expression(quote(column, rules), data_type, rules)
-    return f"COALESCE(CAST({expr} AS {rules['text_type']}), '{NULL_TOKEN}') AS {quote(alias, rules)}"
+def normalized_item(column: str, alias: str, data_type: str, rules: dict, lower=False) -> str:
+    """One SELECT item: COALESCE(CAST(<value> AS <text type>), '<<NULL>>') AS <alias>. lower wraps the text in LOWER()."""
+    expr = f"CAST({value_expression(quote(column, rules), data_type, rules)} AS {rules['text_type']})"
+    return f"COALESCE({f'LOWER({expr})' if lower else expr}, '{NULL_TOKEN}') AS {quote(alias, rules)}"
 
 
 def _checked(sql: str, placeholders=False) -> str:
@@ -371,11 +369,11 @@ def target_ref(spec: TableSpec) -> str:
     return target_name(spec.target_database, spec.target_schema, spec.target_table, spec.target_type)
 
 
-def side_item(column, alias: str, data_type, rules: dict, missing_token: str) -> str:
+def side_item(column, alias: str, data_type, rules: dict, missing_token: str, lower=False) -> str:
     """One SELECT item for one side. A column this side does not have gets the token, so its rows differ from the other side."""
     if column is None:
         return f"CAST('{missing_token}' AS {rules['text_type']}) AS {quote(alias, rules)}"
-    return normalized_item(column, alias, data_type, rules)
+    return normalized_item(column, alias, data_type, rules, lower)
 
 
 def flattened_columns(pairs, source_rules: dict) -> dict:
@@ -386,16 +384,19 @@ def flattened_columns(pairs, source_rules: dict) -> dict:
     return {alias_for(n): s_type for s, s_type, t, _, n in pairs if s and t and kind_of(s_type, source_rules) == "json"}
 
 
-def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters) -> dict:
+def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters, case_insensitive=()) -> dict:
     """The data_validation block: both normalised SELECTs, the key, and the names the framework reads.
 
     Every key column must be on both sides of pairs. generate() checks that before it calls this.
+    case_insensitive: normalised names compared in lower case on both sides (the row's case_insensitive_columns cell).
     """
     source_rules = RULES[spec.source_type]
     snow = RULES[spec.target_type]
     key = key_expression(key_columns)
-    source_items = [side_item(s, alias_for(n), s_type, source_rules, MISSING_IN_SOURCE) for s, s_type, _, _, n in pairs]
-    target_items = [side_item(t, alias_for(n), t_type, snow, MISSING_IN_TARGET) for _, _, t, t_type, n in pairs]
+    source_items = [side_item(s, alias_for(n), s_type, source_rules, MISSING_IN_SOURCE, n in case_insensitive)
+                    for s, s_type, _, _, n in pairs]
+    target_items = [side_item(t, alias_for(n), t_type, snow, MISSING_IN_TARGET, n in case_insensitive)
+                    for _, _, t, t_type, n in pairs]
     entry = {
         "source_table_name": spec.table,
         "source": spec.source_type,
@@ -468,7 +469,7 @@ def data_header(spec: TableSpec, key: str, rec: Reconciliation, filters: Filters
         lines.append(f"# Incremental window (source): {filters.source_window}   (validators bind :start_time, :end_time)")
     if filters.target_window:
         lines.append(f"# Incremental window (target): {filters.target_window}")
-    for status, label in [("EXCLUDED_GLOBAL", "Excluded (exclusions file)"), ("EXCLUDED_TABLE", "Excluded (table rule)"),
+    for status, label in [("EXCLUDED", "Excluded (master file)"),
                           ("MISSING_IN_TARGET", f"Source columns not in Snowflake (compared as {MISSING_IN_TARGET}, "
                                                 "so every row differs)"),
                           ("EXTRA_IN_TARGET", f"Snowflake columns not in source (compared as {MISSING_IN_SOURCE}, "
@@ -700,12 +701,12 @@ if __name__ == "__main__":
     # Reconciliation: exact match after normalising; exclusions; missing and extra columns.
     src = [("ID", "integer"), ("Access Note", "character varying"), ("only_src", "text"), ("_FIVETRAN_SYNCED", "text")]
     tgt = [("id", "NUMBER"), ("ACCESS_NOTE", "TEXT"), ("_FIVETRAN_SYNCED", "TIMESTAMP_NTZ"), ("extra_tgt", "TEXT")]
-    rec = reconcile(src, tgt, {"_fivetran_synced"}, {"extra_tgt"}, pg)
+    rec = reconcile(src, tgt, set(), {"_fivetran_synced", "extra_tgt"}, pg)
     assert [p[4] for p in rec.pairs] == ["id", "access_note", "only_src"], rec.pairs
     statuses = {(s, t): st for s, t, st, _ in rec.rows}
     assert statuses[("only_src", "")] == "MISSING_IN_TARGET"
-    assert statuses[("_FIVETRAN_SYNCED", "_FIVETRAN_SYNCED")] == "EXCLUDED_GLOBAL"
-    assert statuses[("", "extra_tgt")] == "EXCLUDED_TABLE"
+    assert statuses[("_FIVETRAN_SYNCED", "_FIVETRAN_SYNCED")] == "EXCLUDED"
+    assert statuses[("", "extra_tgt")] == "EXCLUDED"
     assert rec.problems == []
     assert missing_key_columns(["ID", "only_src"], rec.pairs) == ["only_src"]
     assert key_expression(["ID", "Site Id"]) == "id,site_id"

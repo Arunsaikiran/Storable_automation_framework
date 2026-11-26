@@ -40,8 +40,7 @@ def run(tmp_path, monkeypatch, source_rows, target_rows, environment="dev", sour
     path.write_text(yaml.safe_dump({"validations": {"schema_validation": block}}), encoding="utf-8")
     fakes = {source: Fake(source_rows), "snowflake": Fake(target_rows, upper=True)}
     monkeypatch.setattr(sv, "get_database", lambda db_type, *a: fakes[db_type])
-    # The real db_rules exclusions (mssql: uts; snowflake: the Fivetran columns). rules: {table: filter_files.TableRule},
-    # the master rows' key_columns / exclude_columns cells (none by default).
+    # rules: {table: filter_files.TableRule}, the master rows' key and exclude cells (none by default).
     rows = {table: SimpleNamespace(rule=rule) for table, rule in (rules or {}).items()}
     monkeypatch.setattr(filter_files, "read", lambda *a, **k: rows)
     out = tmp_path / "out"
@@ -117,13 +116,14 @@ def test_v6_no_debug_print_of_character_rows(tmp_path, monkeypatch, capsys):
     assert "column_name_source" not in capsys.readouterr().out
 
 
-def test_exclusions_come_from_db_rules_and_the_master_row_in_any_case_on_both_sides(tmp_path, monkeypatch):
-    """uTS (db_rules, mssql), _FIVETRAN_DELETED (db_rules, snowflake) and sNote (the row's exclude_columns, this table only)
-    are left out; nothing is kept in the YAML. Without them each would be a missing column or an unmapped type."""
+def test_exclusions_come_from_the_master_row_per_side_in_any_case(tmp_path, monkeypatch):
+    """uTS and sNote (source_exclude) and UTS, _FIVETRAN_DELETED (target_exclude) are left out; nothing is kept in the YAML.
+    Without them each would be a missing column or an unmapped type."""
     source = [col("UnitID", "int", precision=10, scale=0), col("uTS", "timestamp"), col("sNote", "ntext")]
     target = [col("UNITID", "NUMBER", precision=38, scale=0, table="UNITS"), col("UTS", "BINARY", table="UNITS"),
               col("_FIVETRAN_DELETED", "BOOLEAN", table="UNITS")]
-    rules = {"Units": filter_files.TableRule(exclude={"snote"})}   # matched by lower-case table name
+    rules = {"Units": filter_files.TableRule(source_exclude={"uts", "snote"},   # matched by lower-case table name
+                                             target_exclude={"uts", "_fivetran_deleted"})}
     failures, system_error, report, _ = run(tmp_path, monkeypatch, source, target, rules=rules)
     assert (failures, system_error) == (0, False)
     assert set(report) == {next(iter(report))}, "no failure sheet: nothing missing, no type mismatch"

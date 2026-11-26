@@ -28,14 +28,16 @@ lower case, with a trailing dot ignored. One row per table:
   source_incremental_column      the source column --run_type incremental windows on, e.g. updated_at, dupdated
   target_incremental_column      the target column it windows on (the validators' freshness check and window read it too).
                                  Either one blank: the table's incremental data and count FAIL.
-  key_columns                    the key, comma separated, when the table has no primary key or it should not be used (optional)
-  exclude_columns                columns left out of the comparison for this table, on both sides, comma separated (optional).
-                                 The columns every table of an engine leaves out are db_rules.RULES exclude_columns.
-CHANGE: YAML generation (25/11/2026). The filter and incremental columns are one per side, and key_columns and exclude_columns
-moved here from settings/dev_rules.xlsx, which is gone. A workbook with an old header (Historical Filter to apply, Incremental
-filters to apply, incremental_column) is refused, so its filters are never dropped without a word.
+  source_key_columns             the key, comma separated, when the table has no primary key or it should not be used (optional)
+  target_key_columns             the same key on the target (optional); when both are filled they must name the same columns
+  source_exclude_columns         source columns left out of the comparison, comma separated (optional), e.g. uts on SQL Server
+  target_exclude_columns         target columns left out, e.g. the _fivetran_* columns on a Snowflake target (optional)
+  case_insensitive_columns       columns compared in lower case on both sides, e.g. uuid, comma separated (optional)
+  active                         yes: the table is in --tables all. Anything else leaves it out of 'all' (a named table still runs)
+CHANGE: YAML generation (25/11/2026). Filters, incremental, key and exclude columns are per side; active picks --tables all.
+A workbook with an old header (Historical Filter to apply, incremental_column, key_columns) is refused.
 Both sides are written database.schema.table: "fms"."public"."units" and {env}_EDGE_BRONZE."STOREDGE_FMS_PUBLIC"."UNITS".
-A source_database that names an engine (PostgreSQL, SQL Server) is refused: it is the database now. --tables all is every row. A named
+A source_database that names an engine (PostgreSQL, SQL Server) is refused: it is the database now. --tables all is every active row. A named
 table with no row FAILS: without a row there is no schema to read it from. Table names are matched without regard to case
 (--tables addresses is the row Addresses), and the workbook's spelling is used from then on.
 
@@ -124,24 +126,21 @@ TABLE_HEADER = "target table name"
 SOURCE_TABLE_HEADER = "source table name"
 LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
                     "target_application", "target_database", "target_schema"]
-# CHANGE: YAML generation. source_schema may be left out (column or cell): engines with no schema level (rules two_part_names,
-# MySQL) use the source_database in its place. REQUIRED_HEADERS are the columns a sheet must have and a row must fill.
 REQUIRED_HEADERS = [name for name in LOCATION_HEADERS if name != "source_schema"]
 # (source cell, target cell) per run type. CHANGE: YAML generation (25/11/2026). One filter per side, not one for both.
 FILTER_HEADERS = {"historical": ("historical source filter", "historical target filter"),
                   "incremental": ("incremental source filter", "incremental target filter")}
-# The columns an incremental run windows on, (source, target). CHANGE: YAML generation (25/11/2026). One per side.
 INCREMENTAL_HEADERS = ("source_incremental_column", "target_incremental_column")
-# CHANGE: YAML generation (25/11/2026). Moved from settings/dev_rules.xlsx.
-KEY_HEADER, EXCLUDE_HEADER = "key_columns", "exclude_columns"
-# Headers of the layout before 25/11/2026. A workbook that still has one is refused, so its filters are not dropped silently.
+KEY_HEADERS = ("source_key_columns", "target_key_columns")
+EXCLUDE_HEADERS = ("source_exclude_columns", "target_exclude_columns")
+CASE_HEADER, ACTIVE_HEADER = "case_insensitive_columns", "active"
 OLD_HEADERS = {"historical filter to apply": "Historical Source Filter and Historical Target Filter",
                "incremental filters to apply": "Incremental Source Filter and Incremental Target Filter",
-               "incremental_column": "source_incremental_column and target_incremental_column"}
-# The type mapping sheet of each workbook, read for the schema validation YAML (schema_mapping()). Matched without regard to case.
+               "incremental_column": "source_incremental_column and target_incremental_column",
+               "key_columns": "source_key_columns and target_key_columns",
+               "exclude_columns": "source_exclude_columns and target_exclude_columns"}
 SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping",
                  "mysql_crm": "MySQL schema mapping", "mysql_ess": "MySQL schema mapping",
-                 # CHANGE: YAML generation. The four Newbook workbooks share the Newbook sheet name.
                  "newbook_common": "Newbook schema mapping", "newbook_corporation": "Newbook schema mapping",
                  "newbook_instances": "Newbook schema mapping", "newbook_login": "Newbook schema mapping"}
 MAPPING_HEADERS = ["source_data_type", "target_data_type"]          # required; precision_check and notes are optional
@@ -163,11 +162,12 @@ class Location:
 
 @dataclass
 class TableRule:
-    """The row's key_columns and exclude_columns cells. Empty values mean 'no rule'. CHANGE: YAML generation (25/11/2026):
-    moved here from settings.py with the two columns; the raw source_where / target_where went with the settings workbook."""
+    """The row's key, exclude and case_insensitive_columns cells, normalised. Empty means no rule."""
 
     key_columns: list = None    # normalised names, or None: the source primary key is used
-    exclude: set = field(default_factory=set)   # normalised names
+    source_exclude: set = field(default_factory=set)
+    target_exclude: set = field(default_factory=set)
+    case_insensitive: set = field(default_factory=set)   # normalised names compared in lower case on both sides
 
 
 @dataclass
@@ -183,6 +183,7 @@ class Row:
     target_incremental_column: str = ""
     target_table: str = ""   # CHANGE: YAML generation. The Target Table Name cell; table is the source name
     rule: TableRule = field(default_factory=TableRule)
+    active: bool = True    # the active cell is yes: part of --tables all
 
 
 def names(text) -> list:
@@ -476,9 +477,16 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
         # The filter cells keep their line breaks (cell() would only trim them).
         statements = [str(values[at]) if at is not None and at < len(values) and values[at] is not None else ""
                       for at in filter_at]
+        source_key, target_key = (names(cell(position.get(header))) for header in KEY_HEADERS)
+        if source_key and target_key and source_key != target_key:
+            raise ValueError(f"{label}: source_key_columns and target_key_columns name different columns; columns are "
+                             f"paired by name, so both must name the same key")
+        source_exclude, target_exclude = (set(names(cell(position.get(header)))) for header in EXCLUDE_HEADERS)
         found[table] = Row(table, location, *statements, label,
                            *(cell(position.get(header)) for header in INCREMENTAL_HEADERS), target_table,
-                           TableRule(names(cell(position.get(KEY_HEADER))) or None, set(names(cell(position.get(EXCLUDE_HEADER))))))
+                           TableRule(source_key or target_key or None, source_exclude, target_exclude,
+                                     set(names(cell(position.get(CASE_HEADER))))),
+                           cell(position.get(ACTIVE_HEADER)).lower() == "yes")
     log.info("Filter workbook %s: %d table(s) for %s", name, len(found), label_of)
     return found
 
@@ -558,8 +566,6 @@ def _side(text, row, side):
         return None
     where = row.location
     statement = _count_statement(text, row.table)
-    # The statement must be about the row's own table (the target cell may use the target name). A cell copied from another
-    # row would filter the wrong table.
     statement_table = BASE_TABLE.match(statement)
     allowed = {row.table.lower(), (row.target_table or row.table).lower()}
     if not statement_table or statement_table.group(1).lower() not in allowed:
@@ -571,12 +577,8 @@ def _side(text, row, side):
 
 
 def filters(rows: dict, log=None) -> dict:
-    """{table: (source_where, target_where)} from the filter cells of rows (from read()). A table not in it is loaded in full.
-
-    CHANGE: YAML generation (25/11/2026). The source cell gives the source condition and the target cell the target one, each
-    written for the row's own location, so the Snowflake side keeps the {env} placeholder. A refused cell is logged with its
-    file and row, and that table is loaded in full on both sides. A filter on one side only is logged as a warning.
-    """
+    """{table: (source_where, target_where)} from each row's source and target filter cells; a table not in it is loaded in full.
+    A refused cell loads the table in full on both sides; a one-sided filter is a warning."""
     log = log or logging.getLogger(__name__)
     found = {}
     for table, row in rows.items():

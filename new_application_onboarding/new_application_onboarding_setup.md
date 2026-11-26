@@ -29,7 +29,7 @@ The framework reads **one workbook per layer**. A layer is the `--layer_type` yo
 
 **Question 2 (only if the answer to question 1 is no): does the framework already have a connector for its database?** A connector is the class in `db/` that opens the connection. There is one for **PostgreSQL, SQL Server, MySQL, Snowflake, Athena and Redshift**: they are the branches of `get_database()` in `db/factory.py`.
 
-- **Route C: a layer of its own that reuses a connector.** Example: Newbook's source is Snowflake, so the `bronze_newbook_<schema>` layers reuse the existing `snowflake` connection. A source that Fivetran itself landed in Snowflake sets `fivetran_source` in its `db_rules.RULES` block: the key is read with `SHOW PRIMARY KEYS` (excluded `_FIVETRAN_*` columns are dropped from it, so `ID + _FIVETRAN_START` becomes `ID`) and the source keeps only `_FIVETRAN_ACTIVE = TRUE` rows, so no `key_columns` rows are needed. A developer adds the layer's entries (Step 7). There's **no new file in `db/`, no new import and no new package**.
+- **Route C: a layer of its own that reuses a connector.** Example: Newbook's source is Snowflake, so the `bronze_newbook_<schema>` layers reuse the existing `snowflake` connection. A source that Fivetran itself landed in Snowflake sets `fivetran_source` in its `db_rules.RULES` block: the key is read with `SHOW PRIMARY KEYS` (excluded `_FIVETRAN_*` columns are dropped from it, so `ID + _FIVETRAN_START` becomes `ID`) and the source keeps only `_FIVETRAN_ACTIVE = TRUE` rows, so no key cells are needed. A developer adds the layer's entries (Step 7). There's **no new file in `db/`, no new import and no new package**.
 - **Route D: a layer of its own on a completely new engine.** Example: before `bronze_mysql_crm` there was no MySQL connector. A developer does everything in route C, and also writes the connector `db/<key>.py`, imports it at the top of `db/factory.py` and adds its driver to `requirements.txt` (Step 7).
 
 Prompt to answer:
@@ -125,14 +125,18 @@ Every master workbook has the **same two sheets and nothing else**: `Sheet1` and
 | `layer` | The `--layer_type` for this workbook: `bronze_<engine>_<application>` | `bronze_postgres_newapp` |
 | `source_incremental_column` | The source column an incremental run windows on. Empty fails the table's incremental run | `updated_at` |
 | `target_incremental_column` | The target column it windows on (the freshness check reads it too) | `updated_at` |
-| `key_columns` | Optional. The key, comma separated, when the table has no primary key | (empty) |
-| `exclude_columns` | Optional. Columns left out of the comparison for this table (PII, tokens), comma separated | (empty) |
+| `source_key_columns` | Optional. The key, comma separated, when the table has no primary key | (empty) |
+| `target_key_columns` | Optional. The same key on the target; if both are filled they must name the same columns | (empty) |
+| `source_exclude_columns` | Optional. Source columns left out of the comparison (PII, tokens; `uts` on SQL Server; the Fivetran columns on a Snowflake source) | (empty) |
+| `target_exclude_columns` | Optional. Target columns left out. A Snowflake target lists the Fivetran columns here | `_fivetran_synced, _fivetran_deleted, _fivetran_id, _fivetran_index, _fivetran_active, _fivetran_start, _fivetran_end` |
+| `case_insensitive_columns` | Optional. Columns compared in lower case on both sides, comma separated | `uuid` |
+| `active` | `yes`: the table runs with `--tables all`. Anything else leaves it out of `all` (naming it still runs it) | `yes` |
 
 **First row (example):**
 
 ```
-Target Table Name | Source Table Name | Historical Source Filter | Historical Target Filter | Incremental Source Filter | Incremental Target Filter | source_application | source_database | source_schema | target_application | target_database     | target_schema | count_validation_last_run_date | data_validation_last_run_date | layer                  | source_incremental_column | target_incremental_column | key_columns | exclude_columns
-units             | (empty)           | (empty)                  | (empty)                  | (empty)                   | (empty)                   | NewApp             | fms             | public        | Snowflake          | {env}_NEWAPP_BRONZE | NEWAPP_SCHEMA | 2026-11-01 00:50:59.657 +0000  | 2026-11-01 00:50:59.657 +0000 | bronze_postgres_newapp | updated_at                | updated_at                | (empty)     | (empty)
+Target Table Name | Source Table Name | Historical Source Filter | Historical Target Filter | Incremental Source Filter | Incremental Target Filter | source_application | source_database | source_schema | target_application | target_database     | target_schema | count_validation_last_run_date | data_validation_last_run_date | layer                  | source_incremental_column | target_incremental_column | source_key_columns | target_key_columns | source_exclude_columns | target_exclude_columns | case_insensitive_columns | active
+units             | (empty)           | (empty)                  | (empty)                  | (empty)                   | (empty)                   | NewApp             | fms             | public        | Snowflake          | {env}_NEWAPP_BRONZE | NEWAPP_SCHEMA | 2026-11-01 00:50:59.657 +0000  | 2026-11-01 00:50:59.657 +0000 | bronze_postgres_newapp | updated_at                | updated_at                | (empty)            | (empty)            | (empty)                | _fivetran_synced, ... (all 7) | (empty) | yes
 ```
 
 **Rows:** one row per table. A table listed twice keeps its first row, and the second is ignored.
@@ -213,7 +217,7 @@ This folder does not change the code. Routes A and B need no code change. In eac
 
 1. `yaml_generation/filter_files.py`: add `"bronze_<key>": "<key>"` to `LAYERS` (the workbook name `bronze_<key>_master.xlsx`, `WORKBOOKS` and `BRONZE_LAYERS` follow from it), and `"<key>"` to `SCHEMA_SHEETS` (its mapping sheet name).
 2. `yaml_generation/db_rules.py`: add a `"<key>"` block to `RULES`, and `"<key>"` to `SOURCE_TYPES`. Route C copies the reused database's block. Route D writes a new one (Step 6).
-3. Columns every table of the engine leaves out (like SQL Server's `uts`): an `"exclude_columns"` set in the `"<key>"` block of `RULES`. The Fivetran columns are already excluded for every engine. Per-table exclusions go in the master workbook's `exclude_columns` cell.
+3. Nothing to exclude in code: every exclusion (SQL Server's `uts`, the Fivetran columns) is written in each row's `source_exclude_columns` / `target_exclude_columns` cells.
 4. `db/factory.py`: add an `elif db_type == "<key>":` branch in `get_database()`, before the final `else`.
    - **Route C:** the branch builds the **existing** class from `file['<key>']`, the way the `newbook` branch builds `Snowflake`. Don't add an import or a package: the class is already imported.
    - **Route D:** the branch builds the new class from step 6 below.
@@ -238,7 +242,7 @@ Once the workbook is in `yaml_generation/master_files/` and the layer is set up:
 python main.py --layer_type <layer> --tables <table names or all> --schema_validation yes --count_validation no --data_validation no --environment dev
 ```
 
-Use `--tables all` to run every table in the workbook, or name the tables with spaces between them.
+Use `--tables all` to run every table whose `active` cell is `yes`, or name the tables with spaces between them.
 
 What the result means:
 

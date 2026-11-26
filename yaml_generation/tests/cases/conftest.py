@@ -3,11 +3,12 @@
   - Databases: fakes (helpers.FakeDB). PostgreSQL and SQL Server each have a source; Snowflake is one target holding both
     schemas. No connection is opened, so the cases run without database or Snowflake access.
   - Folders: config/, output/ and the master (filter) workbooks live under a temporary root.
-  - Exclusions: db_rules.RULES exclude_columns, changed per case with World.exclude() (restored after the case).
+  - Exclusions: only the master rows' source/target_exclude_columns cells, changed per case with World.set_cell().
   - Validators: stubs that record the data YAML they are given, so a case can show what main.py would validate.
   - Exit code: main.main() ends in sys.exit(code). The harness returns that code.
 """
 
+import copy
 import logging
 import os
 import sys
@@ -19,7 +20,7 @@ from openpyxl import Workbook
 
 import main
 from helpers import FakeDB
-from yaml_generation import db_rules, filter_files, generate_yaml
+from yaml_generation import filter_files, generate_yaml
 
 REPO = os.path.dirname(os.path.abspath(main.__file__))
 
@@ -91,27 +92,34 @@ POSTGRES_MAPPING = [MAPPING_HEADER, ["integer", "number", "numeric"], ["characte
 MSSQL_MAPPING = [MAPPING_HEADER, ["int", "number", "numeric"], ["varchar", "text", "character"],
                  ["datetime", "timestamp_ntz", "datetime"], ["timestamp", "binary"], ["money", "number", "numeric"]]
 
+# The Fivetran columns of the fake Snowflake copies, as a target_exclude_columns cell names them.
+FIVETRAN = "_fivetran_synced,_fivetran_active"
+EXCLUDE_AND_ACTIVE = ["source_exclude_columns", "target_exclude_columns", "active"]
+SITELINK_EXCLUDE = ["uts", "uts," + FIVETRAN, "yes"]   # uts, the rowversion, on both sides as the shipped rows do
+
 # The filter workbooks are where each table lives. 'extra' (PostgreSQL) and 'Charges' (SQL Server) are in the source only.
 POSTGRES_FILTERS = {"filters": [
-    # One filter per side, one incremental column per side, then key_columns and exclude_columns (25/11/2026).
+    # One filter, incremental column, key and exclude cell per side, and active (25/11/2026).
     ["Target Table Name", "Incremental Source Filter", "Incremental Target Filter", "Historical Source Filter",
      "Historical Target Filter", *LOCATION_HEADERS, "source_incremental_column", "target_incremental_column",
-     "key_columns", "exclude_columns"],
+     "source_key_columns", *EXCLUDE_AND_ACTIVE],
     ["units", "units\nwhere updated_at > '2025-01-01'", "units\nwhere updated_at > '2025-01-01'", "units\nwhere id > 1",
-     "units\nwhere id > 1", *EDGE, "updated_at", "updated_at", None, None],
+     "units\nwhere id > 1", *EDGE, "updated_at", "updated_at", None, None, FIVETRAN, "yes"],
     ["notes", None, None, "notes n\nwhere n.body = 'a' or n.body = 'b'", "notes n\nwhere n.body = 'a' or n.body = 'b'",
-     *EDGE, "updated_at", "updated_at", None, None],         # refused: 'or'
-    ["lookup", None, None, None, None, *EDGE, "updated_at", "updated_at", None, None],
+     *EDGE, "updated_at", "updated_at", None, None, FIVETRAN, "yes"],         # refused: 'or'
+    ["lookup", None, None, None, None, *EDGE, "updated_at", "updated_at", None, None, FIVETRAN, "yes"],
 ], "Postgres schema mapping": POSTGRES_MAPPING}
 
 
 def sitelink_filters(location=SITELINK):
     return {"Sheet1": [
         ["s.no", "Target Table Name", "Historical Source Filter", "Historical Target Filter", "Incremental Source Filter",
-         "Incremental Target Filter", *LOCATION_HEADERS, "source_incremental_column", "target_incremental_column"],
-        [1, "Units", *["Units t\nwhere t.UnitID > 100"] * 4, *location, "dupdated", "dupdated"],
-        [2, "Addresses", *["Addresses t\nwhere t.scorpcode = :scorpcode"] * 4, *location, "dupdated", "dupdated"],  # bind
-        [3, "Lookup", *["compare full"] * 4, *location, "dupdated", "dupdated"],
+         "Incremental Target Filter", *LOCATION_HEADERS, "source_incremental_column", "target_incremental_column",
+         *EXCLUDE_AND_ACTIVE],
+        [1, "Units", *["Units t\nwhere t.UnitID > 100"] * 4, *location, "dupdated", "dupdated", *SITELINK_EXCLUDE],
+        [2, "Addresses", *["Addresses t\nwhere t.scorpcode = :scorpcode"] * 4, *location, "dupdated", "dupdated",
+         *SITELINK_EXCLUDE],  # bind
+        [3, "Lookup", *["compare full"] * 4, *location, "dupdated", "dupdated", *SITELINK_EXCLUDE],
     ], "MSSQL schema mapping": MSSQL_MAPPING}
 
 
@@ -129,10 +137,21 @@ class World:
         self.validated = []          # [(kind, [data YAML file names given to the validator])]
         self.filters = root / "filters"
         self.filters.mkdir()
+        self.sheets = {}             # {workbook name: sheets as last written}
 
     # the workbooks
     def write_filters(self, name, sheets):
-        write_workbook(self.filters / name, sheets)
+        self.sheets[name] = copy.deepcopy(sheets)
+        write_workbook(self.filters / name, self.sheets[name])
+
+    def set_cell(self, name, table, header, value):
+        """Sets one cell of a table's row in workbook name (its first sheet) and writes the workbook again."""
+        rows = next(iter(self.sheets[name].values()))
+        at, table_at = rows[0].index(header), rows[0].index("Target Table Name")
+        for row in rows[1:]:
+            if row[table_at] == table:
+                row[at] = value
+        write_workbook(self.filters / name, self.sheets[name])
 
     # the run
     def run(self, *args):
@@ -142,10 +161,6 @@ class World:
         except SystemExit as stop:
             return stop.code
         raise AssertionError("main.main() did not end with sys.exit")
-
-    # the engine exclusions (db_rules.RULES exclude_columns). A case sets an engine's set, or keeps the shipped one.
-    def exclude(self, engine, *columns):
-        self.monkeypatch.setitem(db_rules.RULES[engine], "exclude_columns", set(columns))
 
     # what was written
     def yaml(self, run_type, layer, table):

@@ -5,8 +5,9 @@ import pandas as pd
 import yaml
 
 from yaml_generation import db_rules
-from yaml_generation.tests.helpers import FakeDB, GLOBAL_EXCLUDED, LOG, STAMP, make_args
+from yaml_generation.tests.helpers import FakeDB, FIVETRAN, LOG, STAMP, make_args
 from yaml_generation import generate_yaml
+from yaml_generation.filter_files import TableRule
 
 SCHEMA = "NB_DEV_AU_SQL01_NEWBOOK_COMMON"
 COLUMNS = [("ID", "NUMBER"), ("NAME", "TEXT"), ("_FIVETRAN_START", "TIMESTAMP_TZ"), ("_FIVETRAN_ACTIVE", "BOOLEAN")]
@@ -38,8 +39,10 @@ def test_newbook_data_yaml_keys_on_id_and_reads_active_rows_on_both_sides(tmp_pa
     args = make_args(tables=["DENOMINATIONS"], source_type="newbook_common", source_schema=SCHEMA,
                      source_database="{env}_NEWBOOK_AU_BRONZE", target_template="{env}_NEWBOOK_AU_BRONZE", target_schema=SCHEMA)
     config = tmp_path / "config"
-    results = generate_yaml.generate(args, SnowflakeSource(tables), FakeDB(tables), config,
-                                     GLOBAL_EXCLUDED | {"_fivetran_start"}, {}, LOG, STAMP)
+    # A Fivetran source: the row names the Fivetran columns in both exclude cells.
+    fivetran = FIVETRAN | {"_fivetran_start"}
+    rules = {"DENOMINATIONS": TableRule(source_exclude=set(fivetran), target_exclude=set(fivetran))}
+    results = generate_yaml.generate(args, SnowflakeSource(tables), FakeDB(tables), config, rules, LOG, STAMP)
     assert ("DENOMINATIONS", "data_validation", "NEW") in [r[:3] for r in results], results
     data = yaml.safe_load((config / "data_validation" / "DENOMINATIONS.yaml").read_text())
     block = data["tables"]["DENOMINATIONS"]["validations"]["data_validation"]

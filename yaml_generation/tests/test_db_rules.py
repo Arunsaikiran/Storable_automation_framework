@@ -149,12 +149,3 @@ def test_schema_query_has_no_trailing_space_so_the_yaml_keeps_block_style():
 def test_an_engine_with_no_schema_query_is_refused():
     with pytest.raises(ValueError, match="Athena has no schema_query"):
         db_rules.schema_query(ATH, "glue_db")
-
-
-def test_the_shipped_exclusions_are_uts_on_sql_server_and_the_fivetran_columns_everywhere():
-    """25/11/2026: the per-engine exclusions moved from settings/exclusions.yaml to RULES exclude_columns."""
-    fivetran = {"_fivetran_synced", "_fivetran_deleted", "_fivetran_id", "_fivetran_index", "_fivetran_active",
-                "_fivetran_start", "_fivetran_end"}
-    assert db_rules.excluded_columns("mssql") == fivetran | {"uts"}
-    assert db_rules.excluded_columns("postgres") == fivetran, "a SQL Server exclusion does not reach PostgreSQL"
-    assert all(db_rules.excluded_columns(engine) >= fivetran for engine in SOURCE_TYPES)

@@ -21,8 +21,8 @@ SOURCE_SCHEMA = "edge"
 TARGET_DATABASE = "DEV_EDGE_BRONZE"
 TARGET_SCHEMA = "EDGE"
 
-# The Fivetran columns, as db_rules.RULES['snowflake']['exclude_columns'] holds them (a subset).
-GLOBAL_EXCLUDED = {"_fivetran_synced", "_fivetran_deleted", "_fivetran_id", "_fivetran_index", "_fivetran_active"}
+# The Fivetran columns a master row's target_exclude_columns cell names (a subset); run_generate() excludes them by default.
+FIVETRAN = {"_fivetran_synced", "_fivetran_deleted", "_fivetran_id", "_fivetran_index", "_fivetran_active"}
 
 # The source (PostgreSQL) and the Snowflake copy of three tables.
 #   units   has an id, an updated_at, and Fivetran columns.
@@ -101,9 +101,11 @@ def make_args(run_type="historical", tables=ALL_TABLES, data="yes", count="yes",
     return generate_yaml.resolve_args(args)
 
 
-def run_generate(args, config_dir, source=None, target=None, global_excluded=GLOBAL_EXCLUDED, table_rules=None,
+def run_generate(args, config_dir, source=None, target=None, table_rules=None,
                  file_filters=None, create_only=False, incremental_columns=None):
     """Call generate() with fake databases. Returns the results list.
+
+    table_rules          {table: TableRule}; a table not in it gets TableRule(target_exclude=FIVETRAN), as a master row would.
 
     incremental_columns  {table: (source column, target column)} as the master workbook gives them; None gives every
                          table updated_at on both sides.
@@ -112,7 +114,9 @@ def run_generate(args, config_dir, source=None, target=None, global_excluded=GLO
     target = target or FakeDB(TARGET_TABLES)
     if incremental_columns is None:
         incremental_columns = {table: ("updated_at", "updated_at") for table in args.tables}
-    return generate_yaml.generate(args, source, target, config_dir, global_excluded, table_rules or {}, LOG, STAMP,
+    rules = {table: TableRule(target_exclude=set(FIVETRAN)) for table in args.tables}
+    rules.update(table_rules or {})
+    return generate_yaml.generate(args, source, target, config_dir, rules, LOG, STAMP,
                                   file_filters=file_filters, create_only=create_only,
                                   incremental_columns=incremental_columns)
 

@@ -33,9 +33,13 @@ def main():
     # CHANGE: YAML generation. A table name is matched to the layer's filter workbook without regard to case (--tables addresses
     # becomes the workbook's Addresses), so the generator, every validator and the reports use the workbook's spelling. A name
     # not in the workbook is kept as typed, and the generation step reports it.
-    if layer[0] in BRONZE_LAYERS and "all" not in tables:
+    # CHANGE: YAML generation (25/11/2026). --tables all is the workbook rows with active = yes.
+    if layer[0] in BRONZE_LAYERS:
         from yaml_generation.generate_yaml import workbook_spelling
         tables = workbook_spelling(layer[0], run_type, tables)
+        if not tables:
+            logger.error("--tables all: no row has active = yes in the master workbook, so nothing was run")
+            sys.exit(1)
 
     # CHANGE: YAML generation (23/11/2026). Shared YAML on S3 (utils/s3_yaml_store.py): newer YAML is downloaded into config/
     # before any path is read. Only when creds/<environment>.yaml has an 's3:' block; without it the run is as before. If S3

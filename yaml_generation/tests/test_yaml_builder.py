@@ -78,21 +78,29 @@ def test_reconcile_matches_on_normalised_names_only():
     assert rec.problems == []
 
 
-def test_reconcile_global_exclusion_status_on_both_sides():
+def test_reconcile_a_target_exclusion_drops_a_column_on_both_sides():
     rec = yb.reconcile([("_FIVETRAN_SYNCED", "text")], [("_FIVETRAN_SYNCED", "TIMESTAMP_NTZ")],
-                       {"_fivetran_synced"}, set(), PG)
-    assert rec.rows == [("_FIVETRAN_SYNCED", "_FIVETRAN_SYNCED", "EXCLUDED_GLOBAL", "")]
+                       set(), {"_fivetran_synced"}, PG)
+    assert rec.rows == [("_FIVETRAN_SYNCED", "_FIVETRAN_SYNCED", "EXCLUDED", "")]
     assert rec.pairs == []
 
 
-def test_reconcile_table_exclusion_status_on_the_target_side():
+def test_reconcile_a_source_exclusion_drops_a_column_on_both_sides():
+    rec = yb.reconcile([("x", "text"), ("id", "integer")], [("X", "TEXT"), ("ID", "NUMBER")], {"x"}, set(), PG)
+    assert ("x", "X", "EXCLUDED", "") in rec.rows and [p[4] for p in rec.pairs] == ["id"]
+
+
+def test_reconcile_a_target_only_column_is_excluded_by_the_target_set_only():
+    # The source set does not reach a column the source does not have: it stays EXTRA_IN_TARGET.
+    rec = yb.reconcile([("id", "integer")], [("id", "NUMBER"), ("extra_tgt", "TEXT")], {"extra_tgt"}, set(), PG)
+    assert ("", "extra_tgt", "EXTRA_IN_TARGET", "") in rec.rows
     rec = yb.reconcile([("id", "integer")], [("id", "NUMBER"), ("extra_tgt", "TEXT")], set(), {"extra_tgt"}, PG)
-    assert ("", "extra_tgt", "EXCLUDED_TABLE", "") in rec.rows
+    assert ("", "extra_tgt", "EXCLUDED", "") in rec.rows
 
 
-def test_reconcile_global_list_takes_precedence_over_the_table_list():
-    rec = yb.reconcile([("x", "text")], [("x", "TEXT")], {"x"}, {"x"}, PG)
-    assert rec.rows[0][2] == "EXCLUDED_GLOBAL"
+def test_reconcile_a_source_only_column_is_excluded_by_the_source_set_only():
+    rec = yb.reconcile([("id", "integer"), ("only_src", "text")], [("id", "NUMBER")], set(), {"only_src"}, PG)
+    assert ("only_src", "", "MISSING_IN_TARGET", "") in rec.rows
 
 
 def test_reconcile_reports_missing_and_extra_columns_and_keeps_them_in_the_comparison():
@@ -154,6 +162,13 @@ def test_text_column_is_trimmed_and_null_becomes_the_token():
     assert item == f'COALESCE(CAST(TRIM("Access Note") AS TEXT), \'{yb.NULL_TOKEN}\') AS "access_note"'
 
 
+def test_a_case_insensitive_column_is_lower_cased_on_both_sides_and_null_keeps_its_token():
+    assert yb.normalized_item("uuid", "uuid", "uuid", PG, lower=True) == \
+        f'COALESCE(LOWER(CAST("uuid" AS TEXT)), \'{yb.NULL_TOKEN}\') AS "uuid"'
+    assert yb.side_item("UUID", "uuid", "text", RULES["snowflake"], "x", lower=True) == \
+        f'COALESCE(LOWER(CAST(TRIM("UUID") AS STRING)), \'{yb.NULL_TOKEN}\') AS "uuid"'
+
+
 def test_unknown_type_is_cast_as_it_is_and_reported_as_plain_text():
     pairs = _pairs(("shape", "money", "SHAPE", "TEXT"), ("id", "integer", "ID", "NUMBER"))
     assert yb.plain_text_columns(pairs, PG) == ["shape (money)"]
@@ -166,11 +181,11 @@ def test_a_refused_rowversion_is_not_reported_as_plain_text_because_its_table_is
 
 
 def test_an_excluded_name_is_left_out_of_both_sides():
-    """Bidirectional: an excluded column is left out of the source and of the Snowflake copy."""
+    """A source exclusion of a column on both sides leaves it out of the source and of the Snowflake copy."""
     rec = yb.reconcile([("legacy_code", "character varying"), ("id", "integer")],
                        [("LEGACY_CODE", "TEXT"), ("ID", "NUMBER")], {"legacy_code"}, set(), PG)
     assert [pair[4] for pair in rec.pairs] == ["id"]
-    assert ("legacy_code", "LEGACY_CODE", "EXCLUDED_GLOBAL", "") in rec.rows, "one report row names both sides"
+    assert ("legacy_code", "LEGACY_CODE", "EXCLUDED", "") in rec.rows, "one report row names both sides"
 
 
 # --- the SQL of the data and count entries ---------------------------------------------------------------------
@@ -236,14 +251,13 @@ def test_multi_line_sql_is_written_as_a_block_scalar():
 def test_header_lists_the_key_the_counts_the_filters_and_the_exclusions():
     rec = yb.reconcile([("id", "integer"), ("unit_name", "character varying"), ("_fivetran_synced", "text"), ("notes", "text")],
                        [("ID", "NUMBER"), ("UNIT_NAME", "TEXT"), ("_FIVETRAN_SYNCED", "TIMESTAMP_NTZ")],
-                       {"_fivetran_synced"}, {"notes"}, PG)
+                       {"notes"}, {"_fivetran_synced"}, PG)
     filters = yb.Filters(source_where="id > 0", target_where="ID > 0")
     header = "\n".join(yb.data_header(SPEC, "id", rec, filters, STAMP))
     assert "# Target: {env}_EDGE_BRONZE.EDGE.UNITS" in header
     assert "# Key: id   Columns compared: 2" in header
     assert "# Source filter: id > 0" in header and "# Target filter: ID > 0" in header
-    assert "# Excluded (exclusions file): _fivetran_synced" in header
-    assert "# Excluded (table rule): notes" in header
+    assert "# Excluded (master file): _fivetran_synced, notes" in header
 
 
 # --- files: NEW, UNCHANGED, UPDATED, deletion, the count file --------------------------------------------------

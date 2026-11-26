@@ -9,7 +9,7 @@ several applications on the same engine. For each table, in the same order as th
      Snowflake database come from the table's workbook row. The target is Snowflake.
   2. Read the columns of the source table and of the Snowflake table, and the source primary key.
   3. Reconcile the two column lists: normalise the names, match them exactly, and apply the exclusions
-     (db_rules.RULES exclude_columns for the engine, and the row's exclude_columns cell). No fuzzy matching, no schema or
+     (the row's source_exclude_columns and target_exclude_columns cells). No fuzzy matching, no schema or
      type check. A column on one side only is kept: the other side holds a token, so its rows differ and the validation
      reports it.
   4. Apply the row filters: the row's source filter cell on the source, its target filter cell on the target. An
@@ -38,7 +38,7 @@ so the tables of a second location in the workbook FAIL their schema.
 Nothing is ever deleted. A named table with no row in the filter workbooks is FAILED (its schema is not known). A table that
 is not in the source or not in Snowflake is FAILED, and the YAML it already
 has is left as it is. A table with no usable key has its data FAILED, with the reason in the log, and its count still
-written: the count needs no key. A table has no usable key when it has no primary key (and no key_columns in the table
+written: the count needs no key. A table has no usable key when it has no primary key (and no source_key_columns in the table
 rules), or when a key column is not on both sides of the comparison. A named table whose YAML is missing is created
 (main.py asks for it with create_only).
 
@@ -114,7 +114,7 @@ def resolve_args(args):
     return args
 
 
-def generate(args, source_db, target_db, config_dir, global_excluded, table_rules, log, stamp, file_filters=None,
+def generate(args, source_db, target_db, config_dir, table_rules, log, stamp, file_filters=None,
              create_only=False, schema_mapping=None, incremental_columns=None, target_tables=None):
     """Write the YAML for the tables of one location. Returns results.
 
@@ -131,7 +131,7 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                         and only a missing one is written.
     schema_mapping      (datatype_map, precision_checks) from filter_files.schema_mapping() to write the schema file for
                         these tables, or None for no schema file.
-    table_rules         {table: filter_files.TableRule}: the row's key_columns and exclude_columns cells.
+    table_rules         {table: filter_files.TableRule}: the row's key and exclude cells, per side.
     incremental_columns {table: (source column, target column)} from the master workbook's source_incremental_column and
                         target_incremental_column cells (filter_files.Row). Read on an incremental run only. Either one
                         blank: the table's data and count FAIL.
@@ -207,7 +207,7 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                 results.append((table, "table", "FAILED", f"{reason}; nothing was changed"))
                 continue
 
-            rec = reconcile(source_columns, target_columns, global_excluded, rule.exclude, source)
+            rec = reconcile(source_columns, target_columns, rule.source_exclude, rule.target_exclude, source)
             only_source = [r[0] for r in rec.rows if r[2] == "MISSING_IN_TARGET"]
             only_target = [r[1] for r in rec.rows if r[2] == "EXTRA_IN_TARGET"]
             log.info("%s: %d columns compared; %d only in source; %d only in %s; %d excluded",
@@ -267,11 +267,11 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
             if data_wanted:
                 # CHANGE: YAML generation. The source key is read in the source's own database (source_prefix, Newbook).
                 # Excluded columns are dropped from a key read from the database: Fivetran declares ID + _FIVETRAN_START, and
-                # _FIVETRAN_START is never compared, so the key is ID. A key named in the row's key_columns cell is used as written.
+                # _FIVETRAN_START is never compared, so the key is ID. A key named in the row's key cells is used as written.
                 key_columns = rule.key_columns
                 if not key_columns:
                     read_key = db_rules.primary_key_columns(source_db, args.source_schema, table, source, prefix=source_prefix)
-                    dropped = {normalize_name(k) for k in read_key} & (global_excluded | rule.exclude)
+                    dropped = {normalize_name(k) for k in read_key} & (rule.source_exclude | rule.target_exclude)
                     # A key that is all excluded is kept as read, so the failure below names the excluded column.
                     key_columns = [k for k in read_key if normalize_name(k) not in dropped] or read_key
                     if dropped and key_columns != read_key:
@@ -282,7 +282,7 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                     reason = "columns cannot be compared: " + "; ".join(rec.problems)
                 elif not key_columns:
                     reason = (f"unable to find the primary key of {args.source_schema}.{table} in the source; name it in "
-                              f"the key_columns cell of its row in {filter_files.WORKBOOKS[args.source_type]}, or add the key to the source")
+                              f"the source_key_columns cell of its row in {filter_files.WORKBOOKS[args.source_type]}, or add the key to the source")
                 elif not_on_both:
                     reason = "key column(s) not on both sides of the comparison: " + ", ".join(not_on_both)
                 else:
@@ -293,7 +293,10 @@ def generate(args, source_db, target_db, config_dir, global_excluded, table_rule
                     if rec.problems:
                         continue  # a table whose columns cannot be compared is not counted either
                 else:
-                    entry = build_data_entry(spec, rec.pairs, key_columns, filters)
+                    unknown = rule.case_insensitive - {p[4] for p in rec.pairs}
+                    if unknown:
+                        log.warning("%s: case_insensitive_columns not compared, ignored: %s", table, ", ".join(sorted(unknown)))
+                    entry = build_data_entry(spec, rec.pairs, key_columns, filters, rule.case_insensitive)
                     header = data_header(spec, key_expression(key_columns), rec, filters, stamp)
                     path, status = write_data_file(config_dir, spec, entry, header)
                     results.append((table, "data_validation", status, str(path)))
@@ -360,11 +363,11 @@ def tables_missing_yaml(layer_type: str, run_type: str, tables, data_validation:
 def workbook_spelling(layer_type, run_type, tables) -> list:
     """The table names as the layer's filter workbook writes them (case is ignored), for main.py before anything runs.
 
-    'all', a name not in the workbook, and a workbook that cannot be read leave the names as typed: run_for_validation()
-    reports those.
+    'all' becomes the active rows. A name not in the workbook, and a workbook that cannot be read, leave the names as typed.
     """
     try:
-        return filter_files.spelled(tables, filter_files.read(filter_files.LAYERS[layer_type], run_type))
+        rows = filter_files.read(filter_files.LAYERS[layer_type], run_type)
+        return [t for t, row in rows.items() if row.active] if list(tables) == ["all"] else filter_files.spelled(tables, rows)
     except (ValueError, KeyError):  # KeyError: a layer with no engine in db_rules.RULES
         return list(tables)
 
@@ -410,7 +413,7 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
         raise ValueError(f"no table in the filter workbook {filter_files.WORKBOOKS[source_type]}: add one row per table, with "
                          f"source_database {label} and its source and target columns")
     # A name is matched without regard to case, and the workbook's spelling is used from here on (--tables addresses is Addresses).
-    requested = list(rows) if "all" in tables else filter_files.spelled(tables, rows)
+    requested = [t for t, row in rows.items() if row.active] if "all" in tables else filter_files.spelled(tables, rows)
     results = [(table, "table", "FAILED", f"no row in the filter workbooks for {label}, so its schema is not known; "
                                           f"nothing was changed") for table in requested if table not in rows]
     by_location = {}
@@ -418,11 +421,8 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
         if table in rows:
             by_location.setdefault(rows[table].location, []).append(table)
 
-    # CHANGE: YAML generation (25/11/2026). Keys and exclusions come from the master rows (key_columns, exclude_columns) and
-    # db_rules.RULES; the settings folder (dev_rules.xlsx, exclusions.yaml) is gone.
+    # CHANGE: YAML generation (25/11/2026). Keys and exclusions come only from the master rows, per side.
     table_rules = {where: {table: rows[table].rule for table in names} for where, names in by_location.items()}
-    global_excluded = db_rules.excluded_columns(source_type)
-    log.info("Exclusions for %s and snowflake: %d", source_type, len(global_excluded))
 
     try:
         # The same cached connections the validators use. They are closed by main.py, not here.
@@ -458,7 +458,7 @@ def run_for_validation(layer_type, tables, environment, run_type, data_validatio
                  where.source_database, where.source_schema, RULES[where.target_type]["label"], group.target_database,
                  where.target_schema, len(table_rules[where]))
         try:
-            results += generate(group, source_db, target_dbs[where.target_type], config_dir, global_excluded, table_rules[where], log, stamp,
+            results += generate(group, source_db, target_dbs[where.target_type], config_dir, table_rules[where], log, stamp,
                                 file_filters=file_filters, create_only=create_only,
                                 schema_mapping=schema_mapping if where == schema_home else None,
                                 incremental_columns={table: (rows[table].source_incremental_column,
