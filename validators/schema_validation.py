@@ -156,7 +156,7 @@ def validate_schema(ctx):
                 missing_in_source_df = pd.concat([missing_in_source_df, new_missing_in_source_df], ignore_index=True)
 
             else:
-                table_result["missing_in_source"] = {"status":"PASS"}
+                table_result["columns_missing_in_source"] = {"status":"PASS"}
 
 
             if join_df['column_name_target'].isna().any():
@@ -167,7 +167,7 @@ def validate_schema(ctx):
                 missing_in_target_df = pd.concat([missing_in_target_df, new_missing_in_target_df], ignore_index=True)
 
             else:
-                table_result["missing_in_target"] = {"status":"PASS"}
+                table_result["columns_missing_in_target"] = {"status":"PASS"}
 
             join_df = (
                 join_df[(~join_df['column_name_source'].isna()) &
