@@ -301,16 +301,26 @@ def value_expression(column_sql: str, data_type: str, rules: dict) -> str:
         return rules["date"].format(c=column_sql)
     if kind == "text":
         return rules["trim"].format(c=column_sql)
+    if kind == "money":
+        return rules['money'].format(c=column_sql)
     if kind == "large_text":
         # A large-text column cannot go into TRIM() directly on SQL Server. Trim the cast value instead,
         # so the value is trimmed the same way as a normal text column on the other side.
         return rules["trim"].format(c=f"CAST({column_sql} AS {rules['text_type']})")
+
     return column_sql
 
 
 def normalized_item(column: str, alias: str, data_type: str, rules: dict) -> str:
     """One SELECT item: COALESCE(CAST(<value> AS <text type>), '<<NULL>>') AS <alias>. The column name is quoted."""
     expr = value_expression(quote(column, rules), data_type, rules)
+    # print("x"*100)
+    # print("x"*100)
+    
+    # print("Expr:",expr)
+    # print("Data_type:",data_type)
+    # print("x"*100)
+    # print("x"*100)
     return f"COALESCE(CAST({expr} AS {rules['text_type']}), '{NULL_TOKEN}') AS {alias}"
 
 

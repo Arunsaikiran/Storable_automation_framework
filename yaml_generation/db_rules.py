@@ -87,6 +87,8 @@ RULES = {
         "integer_types": {"int", "bigint", "smallint", "tinyint"},
         # rowversion is reported as "timestamp": a binary counter with no match in Snowflake.
         "refused_types": {"geography", "geometry", "image", "timestamp"},
+        "money_types": {"money"},
+        "money": "CAST({c} AS DECIMAL(38,4))",
         "schema_query": (
             "SELECT\n"
             "TABLE_NAME AS table_name,\n"
@@ -312,6 +314,8 @@ def kind_of(dtype, rules) -> str:
         return "integer"
     if t in rules.get("json_types", set()):
         return "json"
+    if t in rules["money_types"]:
+        return "money"
     return "other"
 
 
