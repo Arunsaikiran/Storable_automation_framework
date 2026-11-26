@@ -350,10 +350,13 @@ def create_summary(run_at,run_id,validation_type,source_table_name,source_type,t
         "target_count": target_rows,
         "missing_in_target": missing_in_target,
         "mismatch_count":mismatch_count,
+        "failure_percentage": (
+                        round(
+                            (max(int(mismatch_count), int(missing_in_source), int(missing_in_target))/ int(source_rows)) * 100,2) if source_rows is not None and target_rows is not None else None),
         "status": status,
         "output_file_path":output_file_path,
         "batch_start_time": batch_start_time,
-        "batch_end_time": batch_end_time,
+        "batch_end_time": batch_end_time,   
         "total_time_taken": diff_batch,
         "error_message": error_message
     }
