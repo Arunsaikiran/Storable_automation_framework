@@ -9,7 +9,7 @@ This file makes no database calls. The generator reads the columns and keys (db_
      in the same way on both sides, so the framework can compare them.
   3. Adds the optional row filters (the same condition on the count and on the data query).
   4. Writes the YAML files that the framework's main.py reads: data, count, and the schema validation file
-     (write_schema_file(): table names, queries and type map; no exclusions, the validator reads the settings).
+     (write_schema_file(): table names, queries and type map; no exclusions, the validator reads db_rules and the master workbook).
 
 Why normalise: the two databases store the same value in different types. A boolean is true/false in
 PostgreSQL and 1/0 in SQL Server, and a timestamp prints differently in each. The rules are in db_rules.py.
@@ -77,8 +77,12 @@ def normalize_name(name: str) -> str:
 
 
 def alias_for(normalized: str) -> str:
-    """Name of the normalised column in both queries, e.g. 'id' -> 'id_normalized'."""
-    return f"{normalized}_normalized"
+    """Name of the normalised column in both queries: the normalised column name, e.g. 'Access Note' -> 'access_note'.
+
+    CHANGE: YAML generation (24/11/2026). The '_normalized' suffix is dropped, so the result sheets show the column names. The
+    values are still normalised; the alias is quoted in the SQL, so a name such as order or user still works.
+    """
+    return normalized
 
 
 def check_filter(text, label: str, source_type=None, placeholders=False):
@@ -113,12 +117,16 @@ class TableSpec:
     # CHANGE: YAML generation. The target engine, the db_rules.RULES key of the row's target_application (filter_files.Location).
     # Snowflake unless the workbook names another, e.g. MySQL CRM compared against itself while CRM has no Snowflake target.
     target_type: str = "snowflake"
+    # CHANGE: YAML generation (24/11/2026). The master workbook's Target Table Name, when the target name differs from the
+    # source name. None: the source name.
+    target_table_name: str = None
 
     @property
     def target_table(self) -> str:
-        """Snowflake table name: upper case, as the existing framework files show it (gate_access_event -> GATE_ACCESS_EVENT).
-        Another target keeps the source spelling."""
-        return self.table.upper() if self.target_type == "snowflake" else self.table
+        """Target table name, from the master workbook (else the source name). Snowflake: upper case, as the existing framework
+        files show it (gate_access_event -> GATE_ACCESS_EVENT). Another target keeps the workbook spelling."""
+        name = self.target_table_name or self.table
+        return name.upper() if self.target_type == "snowflake" else name
 
     # CHANGE: YAML generation (MySQL onboarding). The schema as the YAML writes it. An engine with no schema level (rules
     # two_part_names, MySQL) is given its database as the schema by filter_files when the workbook cell is blank, so the queries
@@ -170,23 +178,24 @@ def window_condition(column_sql: str) -> str:
     return f"{column_sql} >= :start_time AND {column_sql} <= :end_time"
 
 
-def incremental_window(pairs, column: str, source_rules: dict, target_rules: dict = None):
+def incremental_window(pairs, column: str, source_rules: dict, target_rules: dict = None, target_column: str = None):
     """(source_window, target_window, missing) on the incremental column. missing lists the sides ("source", "target")
     that do not compare it, because the column is absent there or excluded.
+
+    column is the source column; target_column the target's (None: the same name). CHANGE: YAML generation (25/11/2026):
+    the master workbook names one per side (source_incremental_column, target_incremental_column).
 
     The window is always written, by name: the source as the source reports it (lower case when it lacks the column),
     the target in upper case. The validation query then fails on a side that lacks the column; the schema check reports it.
     """
-    norm = normalize_name(column)
-    source = target = None
-    for s, _, t, _, name in pairs:
-        if name == norm:
-            source, target = s, t
+    norm, target_norm = normalize_name(column), normalize_name(target_column or column)
+    source = next((s for s, _, _, _, name in pairs if name == norm), None)
+    target = next((t for _, _, t, _, name in pairs if name == target_norm), None)
     missing = [side for side, name in (("source", source), ("target", target)) if name is None]
     target_rules = target_rules or RULES["snowflake"]
     snowflake = target_rules is RULES["snowflake"]
     return (window_condition(quote(source or norm, source_rules)),
-            window_condition(quote(target or (norm.upper() if snowflake else norm), target_rules)), missing)
+            window_condition(quote(target or (target_norm.upper() if snowflake else target_norm), target_rules)), missing)
 
 
 @dataclass
@@ -204,14 +213,14 @@ class Reconciliation:
     problems: list = field(default_factory=list)
 
 
-def reconcile(source_columns, target_columns, global_excluded, table_excluded, source_rules) -> Reconciliation:
+def reconcile(source_columns, target_columns, source_excluded, target_excluded, source_rules) -> Reconciliation:
     """Match source and target columns by normalised name, after applying the exclusions. Exact match only.
 
     A column on one side only is kept in pairs (MISSING_IN_TARGET, EXTRA_IN_TARGET), so it is compared and shows up as
     a difference. Only the exclusions remove a column.
 
     Statuses: MATCHED, MISSING_IN_TARGET (source only), EXTRA_IN_TARGET (target only),
-              EXCLUDED_GLOBAL (excluded by settings/exclusions.yaml) and EXCLUDED_TABLE (by the table rules).
+              EXCLUDED (the row's source_/target_exclude_columns; a column on both sides excluded on either is dropped).
     """
     result = Reconciliation()
     target_by_norm = {}
@@ -222,7 +231,7 @@ def reconcile(source_columns, target_columns, global_excluded, table_excluded, s
     for name, dtype in source_columns:
         norm = normalize_name(name)
         target = target_by_norm.get(norm)
-        excluded = "EXCLUDED_GLOBAL" if norm in global_excluded else "EXCLUDED_TABLE" if norm in table_excluded else None
+        excluded = "EXCLUDED" if norm in source_excluded or (target and norm in target_excluded) else None
         if target:
             matched.add(norm)
         if excluded:
@@ -238,10 +247,8 @@ def reconcile(source_columns, target_columns, global_excluded, table_excluded, s
         norm = normalize_name(name)
         if norm in matched:
             continue
-        if norm in global_excluded:
-            status = "EXCLUDED_GLOBAL"
-        elif norm in table_excluded:
-            status = "EXCLUDED_TABLE"
+        if norm in target_excluded:
+            status = "EXCLUDED"
         else:
             status = "EXTRA_IN_TARGET"
             result.pairs.append((None, None, name, dtype, norm))
@@ -281,7 +288,7 @@ def missing_key_columns(key_columns, pairs) -> list:
 def key_expression(key_columns) -> str:
     """The key as the framework reads it: one alias, or several joined with commas (ADR 0072 A3).
 
-    ['id'] -> 'id_normalized'; ['company_id', 'site_id'] -> 'company_id_normalized,site_id_normalized'.
+    ['id'] -> 'id'; ['company_id', 'site_id'] -> 'company_id,site_id'.
     """
     return ",".join(alias_for(normalize_name(column)) for column in key_columns)
 
@@ -307,21 +314,13 @@ def value_expression(column_sql: str, data_type: str, rules: dict) -> str:
         # A large-text column cannot go into TRIM() directly on SQL Server. Trim the cast value instead,
         # so the value is trimmed the same way as a normal text column on the other side.
         return rules["trim"].format(c=f"CAST({column_sql} AS {rules['text_type']})")
-
     return column_sql
 
 
-def normalized_item(column: str, alias: str, data_type: str, rules: dict) -> str:
-    """One SELECT item: COALESCE(CAST(<value> AS <text type>), '<<NULL>>') AS <alias>. The column name is quoted."""
-    expr = value_expression(quote(column, rules), data_type, rules)
-    # print("x"*100)
-    # print("x"*100)
-    
-    # print("Expr:",expr)
-    # print("Data_type:",data_type)
-    # print("x"*100)
-    # print("x"*100)
-    return f"COALESCE(CAST({expr} AS {rules['text_type']}), '{NULL_TOKEN}') AS {alias}"
+def normalized_item(column: str, alias: str, data_type: str, rules: dict, lower=False) -> str:
+    """One SELECT item: COALESCE(CAST(<value> AS <text type>), '<<NULL>>') AS <alias>. lower wraps the text in LOWER()."""
+    expr = f"CAST({value_expression(quote(column, rules), data_type, rules)} AS {rules['text_type']})"
+    return f"COALESCE({f'LOWER({expr})' if lower else expr}, '{NULL_TOKEN}') AS {quote(alias, rules)}"
 
 
 def _checked(sql: str, placeholders=False) -> str:
@@ -372,11 +371,11 @@ def target_ref(spec: TableSpec) -> str:
     return target_name(spec.target_database, spec.target_schema, spec.target_table, spec.target_type)
 
 
-def side_item(column, alias: str, data_type, rules: dict, missing_token: str) -> str:
+def side_item(column, alias: str, data_type, rules: dict, missing_token: str, lower=False) -> str:
     """One SELECT item for one side. A column this side does not have gets the token, so its rows differ from the other side."""
     if column is None:
-        return f"CAST('{missing_token}' AS {rules['text_type']}) AS {alias}"
-    return normalized_item(column, alias, data_type, rules)
+        return f"CAST('{missing_token}' AS {rules['text_type']}) AS {quote(alias, rules)}"
+    return normalized_item(column, alias, data_type, rules, lower)
 
 
 def flattened_columns(pairs, source_rules: dict) -> dict:
@@ -387,16 +386,19 @@ def flattened_columns(pairs, source_rules: dict) -> dict:
     return {alias_for(n): s_type for s, s_type, t, _, n in pairs if s and t and kind_of(s_type, source_rules) == "json"}
 
 
-def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters) -> dict:
+def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters, case_insensitive=()) -> dict:
     """The data_validation block: both normalised SELECTs, the key, and the names the framework reads.
 
     Every key column must be on both sides of pairs. generate() checks that before it calls this.
+    case_insensitive: normalised names compared in lower case on both sides (the row's case_insensitive_columns cell).
     """
     source_rules = RULES[spec.source_type]
     snow = RULES[spec.target_type]
     key = key_expression(key_columns)
-    source_items = [side_item(s, alias_for(n), s_type, source_rules, MISSING_IN_SOURCE) for s, s_type, _, _, n in pairs]
-    target_items = [side_item(t, alias_for(n), t_type, snow, MISSING_IN_TARGET) for _, _, t, t_type, n in pairs]
+    source_items = [side_item(s, alias_for(n), s_type, source_rules, MISSING_IN_SOURCE, n in case_insensitive)
+                    for s, s_type, _, _, n in pairs]
+    target_items = [side_item(t, alias_for(n), t_type, snow, MISSING_IN_TARGET, n in case_insensitive)
+                    for _, _, t, t_type, n in pairs]
     entry = {
         "source_table_name": spec.table,
         "source": spec.source_type,
@@ -469,7 +471,7 @@ def data_header(spec: TableSpec, key: str, rec: Reconciliation, filters: Filters
         lines.append(f"# Incremental window (source): {filters.source_window}   (validators bind :start_time, :end_time)")
     if filters.target_window:
         lines.append(f"# Incremental window (target): {filters.target_window}")
-    for status, label in [("EXCLUDED_GLOBAL", "Excluded (exclusions file)"), ("EXCLUDED_TABLE", "Excluded (table rule)"),
+    for status, label in [("EXCLUDED", "Excluded (master file)"),
                           ("MISSING_IN_TARGET", f"Source columns not in Snowflake (compared as {MISSING_IN_TARGET}, "
                                                 "so every row differs)"),
                           ("EXTRA_IN_TARGET", f"Snowflake columns not in source (compared as {MISSING_IN_SOURCE}, "
@@ -641,7 +643,7 @@ def schema_table_names(config_dir) -> set:
 def write_schema_file(config_dir, entries: dict, shared: dict, header: list, create_only=False):
     """Add or replace tables in the schema file, keeping every other table, and write the shared keys (queries, maps).
 
-    entries  {table: {}} (the validator reads the exclusions from the settings). A table already in the file (in any case) keeps its position, under the
+    entries  {table: {}} (the validator reads the exclusions from db_rules and the master workbook). A table already in the file (in any case) keeps its position, under the
              workbook's spelling.
     shared   {source, sourcequery, target, targetquery, datatype_map, precision_checks}. With create_only, an existing
              file keeps its own.
@@ -701,15 +703,15 @@ if __name__ == "__main__":
     # Reconciliation: exact match after normalising; exclusions; missing and extra columns.
     src = [("ID", "integer"), ("Access Note", "character varying"), ("only_src", "text"), ("_FIVETRAN_SYNCED", "text")]
     tgt = [("id", "NUMBER"), ("ACCESS_NOTE", "TEXT"), ("_FIVETRAN_SYNCED", "TIMESTAMP_NTZ"), ("extra_tgt", "TEXT")]
-    rec = reconcile(src, tgt, {"_fivetran_synced"}, {"extra_tgt"}, pg)
+    rec = reconcile(src, tgt, set(), {"_fivetran_synced", "extra_tgt"}, pg)
     assert [p[4] for p in rec.pairs] == ["id", "access_note", "only_src"], rec.pairs
     statuses = {(s, t): st for s, t, st, _ in rec.rows}
     assert statuses[("only_src", "")] == "MISSING_IN_TARGET"
-    assert statuses[("_FIVETRAN_SYNCED", "_FIVETRAN_SYNCED")] == "EXCLUDED_GLOBAL"
-    assert statuses[("", "extra_tgt")] == "EXCLUDED_TABLE"
+    assert statuses[("_FIVETRAN_SYNCED", "_FIVETRAN_SYNCED")] == "EXCLUDED"
+    assert statuses[("", "extra_tgt")] == "EXCLUDED"
     assert rec.problems == []
     assert missing_key_columns(["ID", "only_src"], rec.pairs) == ["only_src"]
-    assert key_expression(["ID", "Site Id"]) == "id_normalized,site_id_normalized"
+    assert key_expression(["ID", "Site Id"]) == "id,site_id"
 
     # Comparability: duplicates after normalising, and SQL Server types that cannot be compared as text.
     dup = reconcile([("Id", "int"), ("ID", "int")], [("ID", "NUMBER")], set(), set(), ms)
@@ -730,14 +732,14 @@ if __name__ == "__main__":
     spec = TableSpec("postgres", "edge", "gate_access_event", "DEV_EDGE_BRONZE", "EDGE")
     filters = Filters(source_where="created_at >= '2025-01-01'", target_where="created_at >= '2025-01-01'")
     entry = build_data_entry(spec, rec.pairs, ["ID"], filters)
-    assert entry["sourcecolumn"] == entry["targetcolumn"] == "id_normalized"
+    assert entry["sourcecolumn"] == entry["targetcolumn"] == "id"
     assert entry["sourcequery"].endswith(
         'FROM "edge"."gate_access_event"\nWHERE (created_at >= \'2025-01-01\');'), entry["sourcequery"]
     assert entry["targetquery"].endswith(
         "FROM DEV_EDGE_BRONZE.\"EDGE\".\"GATE_ACCESS_EVENT\"\n"
         "WHERE _FIVETRAN_ACTIVE = TRUE\n  AND (created_at >= '2025-01-01');"), entry["targetquery"]
     plain_entry = build_data_entry(spec, rec.pairs, ["ID"], Filters())
-    assert f"COALESCE(CAST(TRIM(\"Access Note\") AS TEXT), '{NULL_TOKEN}') AS access_note_normalized" in plain_entry["sourcequery"]
+    assert f"COALESCE(CAST(TRIM(\"Access Note\") AS TEXT), '{NULL_TOKEN}') AS \"access_note\"" in plain_entry["sourcequery"]
     assert "WHERE _FIVETRAN_ACTIVE = TRUE;" in plain_entry["targetquery"]  # no filter: only the Fivetran rule
 
     count = build_count_entry(spec, Filters())

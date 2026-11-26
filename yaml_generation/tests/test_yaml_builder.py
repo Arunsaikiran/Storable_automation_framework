@@ -78,21 +78,29 @@ def test_reconcile_matches_on_normalised_names_only():
     assert rec.problems == []
 
 
-def test_reconcile_global_exclusion_status_on_both_sides():
+def test_reconcile_a_target_exclusion_drops_a_column_on_both_sides():
     rec = yb.reconcile([("_FIVETRAN_SYNCED", "text")], [("_FIVETRAN_SYNCED", "TIMESTAMP_NTZ")],
-                       {"_fivetran_synced"}, set(), PG)
-    assert rec.rows == [("_FIVETRAN_SYNCED", "_FIVETRAN_SYNCED", "EXCLUDED_GLOBAL", "")]
+                       set(), {"_fivetran_synced"}, PG)
+    assert rec.rows == [("_FIVETRAN_SYNCED", "_FIVETRAN_SYNCED", "EXCLUDED", "")]
     assert rec.pairs == []
 
 
-def test_reconcile_table_exclusion_status_on_the_target_side():
+def test_reconcile_a_source_exclusion_drops_a_column_on_both_sides():
+    rec = yb.reconcile([("x", "text"), ("id", "integer")], [("X", "TEXT"), ("ID", "NUMBER")], {"x"}, set(), PG)
+    assert ("x", "X", "EXCLUDED", "") in rec.rows and [p[4] for p in rec.pairs] == ["id"]
+
+
+def test_reconcile_a_target_only_column_is_excluded_by_the_target_set_only():
+    # The source set does not reach a column the source does not have: it stays EXTRA_IN_TARGET.
+    rec = yb.reconcile([("id", "integer")], [("id", "NUMBER"), ("extra_tgt", "TEXT")], {"extra_tgt"}, set(), PG)
+    assert ("", "extra_tgt", "EXTRA_IN_TARGET", "") in rec.rows
     rec = yb.reconcile([("id", "integer")], [("id", "NUMBER"), ("extra_tgt", "TEXT")], set(), {"extra_tgt"}, PG)
-    assert ("", "extra_tgt", "EXCLUDED_TABLE", "") in rec.rows
+    assert ("", "extra_tgt", "EXCLUDED", "") in rec.rows
 
 
-def test_reconcile_global_list_takes_precedence_over_the_table_list():
-    rec = yb.reconcile([("x", "text")], [("x", "TEXT")], {"x"}, {"x"}, PG)
-    assert rec.rows[0][2] == "EXCLUDED_GLOBAL"
+def test_reconcile_a_source_only_column_is_excluded_by_the_source_set_only():
+    rec = yb.reconcile([("id", "integer"), ("only_src", "text")], [("id", "NUMBER")], set(), {"only_src"}, PG)
+    assert ("only_src", "", "MISSING_IN_TARGET", "") in rec.rows
 
 
 def test_reconcile_reports_missing_and_extra_columns_and_keeps_them_in_the_comparison():
@@ -133,8 +141,8 @@ def test_a_key_on_one_side_only_is_listed_as_missing():
 
 
 def test_key_expression_joins_several_keys():
-    assert yb.key_expression(["id"]) == "id_normalized"
-    assert yb.key_expression(["Company_ID", "Site Id"]) == "company_id_normalized,site_id_normalized"
+    assert yb.key_expression(["id"]) == "id"
+    assert yb.key_expression(["Company_ID", "Site Id"]) == "company_id,site_id"
 
 
 # --- value expressions -----------------------------------------------------------------------------------------
@@ -150,8 +158,15 @@ def test_sql_server_large_text_is_cast_before_trimming():
 
 def test_text_column_is_trimmed_and_null_becomes_the_token():
     assert yb.value_expression("s", "varchar", MS) == "LTRIM(RTRIM(s))"
-    item = yb.normalized_item("Access Note", "access_note_normalized", "character varying", PG)
-    assert item == f'COALESCE(CAST(TRIM("Access Note") AS TEXT), \'{yb.NULL_TOKEN}\') AS access_note_normalized'
+    item = yb.normalized_item("Access Note", "access_note", "character varying", PG)
+    assert item == f'COALESCE(CAST(TRIM("Access Note") AS TEXT), \'{yb.NULL_TOKEN}\') AS "access_note"'
+
+
+def test_a_case_insensitive_column_is_lower_cased_on_both_sides_and_null_keeps_its_token():
+    assert yb.normalized_item("uuid", "uuid", "uuid", PG, lower=True) == \
+        f'COALESCE(LOWER(CAST("uuid" AS TEXT)), \'{yb.NULL_TOKEN}\') AS "uuid"'
+    assert yb.side_item("UUID", "uuid", "text", RULES["snowflake"], "x", lower=True) == \
+        f'COALESCE(LOWER(CAST(TRIM("UUID") AS STRING)), \'{yb.NULL_TOKEN}\') AS "uuid"'
 
 
 def test_unknown_type_is_cast_as_it_is_and_reported_as_plain_text():
@@ -160,17 +175,17 @@ def test_unknown_type_is_cast_as_it_is_and_reported_as_plain_text():
 
 
 def test_a_refused_rowversion_is_not_reported_as_plain_text_because_its_table_is_refused():
-    pairs = _pairs(("uTS", "timestamp", "UTS", "BINARY"), ("shape", "money", "SHAPE", "NUMBER"))
-    assert yb.plain_text_columns(pairs, MS) == ["shape (money)"]
+    pairs = _pairs(("uTS", "timestamp", "UTS", "BINARY"), ("shape", "sql_variant", "SHAPE", "TEXT"))
+    assert yb.plain_text_columns(pairs, MS) == ["shape (sql_variant)"]
     assert yb.comparability_problems(pairs, MS), "the rowversion is the reason the table is refused"
 
 
 def test_an_excluded_name_is_left_out_of_both_sides():
-    """Bidirectional: an excluded column is left out of the source and of the Snowflake copy."""
+    """A source exclusion of a column on both sides leaves it out of the source and of the Snowflake copy."""
     rec = yb.reconcile([("legacy_code", "character varying"), ("id", "integer")],
                        [("LEGACY_CODE", "TEXT"), ("ID", "NUMBER")], {"legacy_code"}, set(), PG)
     assert [pair[4] for pair in rec.pairs] == ["id"]
-    assert ("legacy_code", "LEGACY_CODE", "EXCLUDED_GLOBAL", "") in rec.rows, "one report row names both sides"
+    assert ("legacy_code", "LEGACY_CODE", "EXCLUDED", "") in rec.rows, "one report row names both sides"
 
 
 # --- the SQL of the data and count entries ---------------------------------------------------------------------
@@ -183,8 +198,8 @@ def _data_entry(filters=None, pairs=None, keys=("id",)):
 def test_a_column_on_one_side_only_gets_the_token_on_the_side_that_lacks_it():
     pairs = _pairs(("id", "integer", "ID", "NUMBER"), ("gone", "text", None, None)) + [(None, None, "new_col", "TEXT", "new_col")]
     entry = _data_entry(pairs=pairs)
-    assert f"CAST('{yb.MISSING_IN_TARGET}' AS STRING) AS gone_normalized" in entry["targetquery"]
-    assert f"CAST('{yb.MISSING_IN_SOURCE}' AS TEXT) AS new_col_normalized" in entry["sourcequery"]
+    assert f"CAST('{yb.MISSING_IN_TARGET}' AS STRING) AS \"gone\"" in entry["targetquery"]
+    assert f"CAST('{yb.MISSING_IN_SOURCE}' AS TEXT) AS \"new_col\"" in entry["sourcequery"]
     assert '"gone"' in entry["sourcequery"] and '"new_col"' in entry["targetquery"]
 
 
@@ -236,14 +251,13 @@ def test_multi_line_sql_is_written_as_a_block_scalar():
 def test_header_lists_the_key_the_counts_the_filters_and_the_exclusions():
     rec = yb.reconcile([("id", "integer"), ("unit_name", "character varying"), ("_fivetran_synced", "text"), ("notes", "text")],
                        [("ID", "NUMBER"), ("UNIT_NAME", "TEXT"), ("_FIVETRAN_SYNCED", "TIMESTAMP_NTZ")],
-                       {"_fivetran_synced"}, {"notes"}, PG)
+                       {"notes"}, {"_fivetran_synced"}, PG)
     filters = yb.Filters(source_where="id > 0", target_where="ID > 0")
-    header = "\n".join(yb.data_header(SPEC, "id_normalized", rec, filters, STAMP))
+    header = "\n".join(yb.data_header(SPEC, "id", rec, filters, STAMP))
     assert "# Target: {env}_EDGE_BRONZE.EDGE.UNITS" in header
-    assert "# Key: id_normalized   Columns compared: 2" in header
+    assert "# Key: id   Columns compared: 2" in header
     assert "# Source filter: id > 0" in header and "# Target filter: ID > 0" in header
-    assert "# Excluded (exclusions file): _fivetran_synced" in header
-    assert "# Excluded (table rule): notes" in header
+    assert "# Excluded (master file): _fivetran_synced, notes" in header
 
 
 # --- files: NEW, UNCHANGED, UPDATED, deletion, the count file --------------------------------------------------
@@ -365,9 +379,9 @@ def test_a_data_entry_with_a_window_has_the_placeholders_on_both_sides():
 def test_json_columns_are_listed_and_selected_as_text_on_both_sides():
     pairs = _pairs(("id", "integer", "ID", "NUMBER"), ("meta", "jsonb", "META", "VARIANT"), ("tags", "hstore", "TAGS", "TEXT"))
     entry = _data_entry(pairs=pairs)
-    assert entry["json_columns"] == {"meta_normalized": "jsonb", "tags_normalized": "hstore"}
-    assert 'COALESCE(CAST("meta" AS TEXT), \'<<NULL>>\') AS meta_normalized' in entry["sourcequery"]
-    assert 'COALESCE(CAST("META" AS STRING), \'<<NULL>>\') AS meta_normalized' in entry["targetquery"]
+    assert entry["json_columns"] == {"meta": "jsonb", "tags": "hstore"}
+    assert 'COALESCE(CAST("meta" AS TEXT), \'<<NULL>>\') AS "meta"' in entry["sourcequery"]
+    assert 'COALESCE(CAST("META" AS STRING), \'<<NULL>>\') AS "meta"' in entry["targetquery"]
 
 
 def test_a_table_without_json_columns_has_no_json_key():
@@ -376,9 +390,9 @@ def test_a_table_without_json_columns_has_no_json_key():
 
 def test_header_names_the_window_and_the_flattened_columns():
     rec = yb.reconcile([("id", "integer"), ("meta", "jsonb")], [("ID", "NUMBER"), ("META", "VARIANT")], set(), set(), PG)
-    header = "\n".join(yb.data_header(SPEC, "id_normalized", rec, yb.Filters(source_window="w1", target_window="w2"), STAMP))
+    header = "\n".join(yb.data_header(SPEC, "id", rec, yb.Filters(source_window="w1", target_window="w2"), STAMP))
     assert "# Incremental window (source): w1" in header and "# Incremental window (target): w2" in header
-    assert "# Compared as flattened JSON text (json_columns, both sides): meta_normalized" in header
+    assert "# Compared as flattened JSON text (json_columns, both sides): meta" in header
 
 
 # --- the schema validation file ---------------------------------------------------------------------------------

@@ -3,8 +3,8 @@
 Each test asks one question in its docstring. The answers are collected in CASES.md, next to this file.
 Databases are fakes (see conftest.py), so no Snowflake or database access is needed.
 
-The exclusions come from two places: database sections in settings/exclusions.yaml (bidirectional, both sides of a
-pair) and table rules in the rules workbook (one table, one database and schema).
+The exclusions come only from a table's row in its master workbook: source_exclude_columns and target_exclude_columns.
+A column on both sides is left out if either side excludes it; --tables all is the rows with active = yes.
 """
 
 import re
@@ -172,30 +172,15 @@ def test_pg_14b_yaml_generation_writes_only_the_kinds_asked_for(world, schema, c
     assert found == written
 
 
-# --- PostgreSQL: the exclusions and the rules workbook --------------------------------------------------------------
+# --- PostgreSQL: the exclusions and the master workbook's source/target exclude cells ---------------------------------
 
-def test_pg_15_a_table_rule_excludes_its_column_for_that_table(world):
-    """Q: Does a rules row (postgres, public, units, exclude legacy_code) leave that column out of units' YAML?"""
-    world.write_rules([["postgres", "public", "units", None, "legacy_code", None, None, None]])
+def test_pg_15_a_row_source_exclude_cell_leaves_the_column_out_of_both_sides(world):
+    """Q: Does units' source_exclude_columns cell (legacy_code) leave that column out of both sides of units' YAML?"""
+    world.set_cell("bronze_postgres_edge_master.xlsx", "units", "source_exclude_columns", "legacy_code")
     assert pg_run(world, "units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_postgres_edge", "units"))
     assert '"legacy_code"' not in text and '"LEGACY_CODE"' not in text
-    assert "Excluded (table rule): legacy_code" in text
-
-
-def test_pg_16_a_sql_server_rule_does_not_apply_to_postgres(world):
-    """Q: Does a table rule for units in mssql leave a postgres run's units alone (the rule is for its own database)?"""
-    world.write_rules([["mssql", "dbo", "units", None, "legacy_code", None, None, None]])
-    assert pg_run(world, "units", yaml="yes") == 0
-    assert '"legacy_code"' in read(world.yaml("historical", "bronze_postgres_edge", "units"))
-
-
-def test_pg_17_a_rule_row_without_source_type_stops_the_run(world):
-    """Q: Does a rules row with no source_type stop the run with exit 1, and write nothing?"""
-    world.write_rules([[None, None, "units", None, "legacy_code", None, None, None]])
-    assert pg_run(world, "units", yaml="yes") == 1
-    assert "source_type must be one of" in world.log()
-    assert not world.exists("historical", "bronze_postgres_edge", "units")
+    assert "Excluded (master file): legacy_code" in text
 
 
 def test_pg_18_a_misspelt_argument_is_refused_before_anything_is_written(world):
@@ -206,21 +191,23 @@ def test_pg_18_a_misspelt_argument_is_refused_before_anything_is_written(world):
     assert not (world.root / "config").exists()
 
 
-def test_pg_19_a_postgres_exclusion_leaves_the_column_out_of_both_sides(world):
-    """Q: With legacy_code excluded under postgres, is it left out of the postgres side AND the Snowflake side?"""
-    world.write_exclusions("postgres:\n  exclude_columns:\n    - legacy_code\n")
+def test_pg_19_a_row_target_exclude_cell_leaves_the_column_out_of_both_sides(world):
+    """Q: With legacy_code in units' target_exclude_columns cell, is it left out of the postgres side AND the Snowflake side?"""
+    from conftest import FIVETRAN
+    world.set_cell("bronze_postgres_edge_master.xlsx", "units", "target_exclude_columns", FIVETRAN + ",legacy_code")
     assert pg_run(world, "units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_postgres_edge", "units"))
     assert '"legacy_code"' not in text and '"LEGACY_CODE"' not in text
-    assert "Excluded (exclusions file): legacy_code" in text
+    assert re.search(r"Excluded \(master file\):.*legacy_code", text)
 
 
-def test_pg_20_a_snowflake_exclusion_applies_to_a_postgres_run_on_both_sides(world):
-    """Q: With legacy_code excluded under snowflake, is it left out of a postgres run on both sides?"""
-    world.write_exclusions("snowflake:\n  exclude_columns:\n    - legacy_code\n")
+def test_pg_20_without_exclude_cells_the_fivetran_columns_are_compared(world):
+    """Q: With units' exclude cells blank, are the Fivetran columns compared (no exclusion is built in)?"""
+    world.set_cell("bronze_postgres_edge_master.xlsx", "units", "target_exclude_columns", None)
     assert pg_run(world, "units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_postgres_edge", "units"))
-    assert '"legacy_code"' not in text and '"LEGACY_CODE"' not in text
+    assert '"_fivetran_synced"' in text and '"_FIVETRAN_ACTIVE"' in text
+    assert "Excluded (master file)" not in text
 
 
 # --- SQL Server: row filters ----------------------------------------------------------------------------------------
@@ -251,26 +238,28 @@ def test_ms_03_filter_no_writes_the_whole_table(sitelink_filter_files):
 
 # --- SQL Server: rowversion, exclusions, YAML generation ----------------------------------------------------------
 
-def test_ms_04_rowversion_without_the_sql_server_exclusion_fails_the_table(world):
-    """Q: Without the mssql exclusion of uts, does Units (uTS rowversion) fail with exit 1, and write no YAML?"""
-    world.write_exclusions("snowflake:\n  exclude_columns:\n    - _fivetran_synced\n")
+def test_ms_04_rowversion_without_the_row_exclusion_fails_the_table(world):
+    """Q: Without uts in Units' exclude cells, does Units (uTS rowversion) fail with exit 1, and write no YAML?"""
+    world.set_cell("bronze_mssql_sitelink_master.xlsx", "Units", "source_exclude_columns", None)
+    world.set_cell("bronze_mssql_sitelink_master.xlsx", "Units", "target_exclude_columns", "_fivetran_active")
     assert ms_run(world, "Units", yaml="yes") == 1
     assert status(world, "Units") == "FAILED"
     assert "'uTS' is type timestamp" in world.log()
     assert not world.exists("historical", "bronze_mssql_sitelink", "Units")
 
 
-def test_ms_05_the_shipped_mssql_exclusion_leaves_the_rowversion_out(world):
-    """Q: With the shipped exclusions file (mssql: uts), is Units written with uTS left out, and exit 0?"""
+def test_ms_05_the_row_exclusion_leaves_the_rowversion_out(world):
+    """Q: With uts in Units' exclude cells (as the shipped SiteLink rows have it), is Units written with uTS left out, and exit 0?"""
     assert ms_run(world, "Units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_mssql_sitelink", "Units"))
     assert '"uTS"' not in text and '"UTS"' not in text
-    assert "Excluded (exclusions file): uTS" in text
+    assert re.search(r"Excluded \(master file\):.*uTS", text)
 
 
-def test_ms_06_a_postgres_exclusion_of_uts_does_not_reach_sql_server(world):
-    """Q: Does an exclusion of uts under postgres leave SQL Server's uTS in place, so Units still fails?"""
-    world.write_exclusions("postgres:\n  exclude_columns:\n    - uts\n")
+def test_ms_06_another_rows_exclusion_of_uts_does_not_reach_units(world):
+    """Q: With uts excluded on the Addresses row only, is Units' uTS kept in place, so Units fails?"""
+    world.set_cell("bronze_mssql_sitelink_master.xlsx", "Units", "source_exclude_columns", None)
+    world.set_cell("bronze_mssql_sitelink_master.xlsx", "Units", "target_exclude_columns", None)
     assert ms_run(world, "Units", yaml="yes") == 1
     assert status(world, "Units") == "FAILED"
 
@@ -328,16 +317,13 @@ def test_ms_12_a_wrong_target_schema_writes_nothing(world):
     assert not world.exists("historical", "bronze_mssql_sitelink", "Units")
 
 
-def test_ms_13_a_snowflake_exclusion_applies_to_a_sql_server_run_on_both_sides(world):
-    """Q: With dcwidth excluded under snowflake, is it left out of a SQL Server run on both sides?"""
-    world.write_exclusions("snowflake:\n  exclude_columns:\n    - dcwidth\n    - _fivetran_synced\n")
-    assert ms_run(world, "Units", yaml="yes") == 1, "uTS still needs its exclusion, so Units still fails"
-    world.write_exclusions("snowflake:\n  exclude_columns:\n    - dcwidth\n    - _fivetran_synced\nmssql:\n  exclude_columns:\n"
-                           "    - uts\n")
+def test_ms_13_a_target_exclude_cell_applies_to_a_sql_server_run_on_both_sides(world):
+    """Q: With dcwidth in Units' target_exclude_columns cell, is it left out of a SQL Server run on both sides?"""
+    world.set_cell("bronze_mssql_sitelink_master.xlsx", "Units", "target_exclude_columns", "uts,_fivetran_active,dcwidth")
     assert ms_run(world, "Units", yaml="yes") == 0
     text = read(world.yaml("historical", "bronze_mssql_sitelink", "Units"))
     assert "[dcWidth]" not in text and '"DCWIDTH"' not in text
-    assert re.search(r"Excluded \(exclusions file\):.*dcWidth", text)
+    assert re.search(r"Excluded \(master file\):.*dcWidth", text)
 
 
 # --- the defaults and the arguments: the workbook replaces --source_schema, --target_database, --target_schema ---------
@@ -374,6 +360,22 @@ def test_pg_24_a_table_named_but_not_in_the_workbook_fails_and_the_others_valida
     assert status(world, "extra", kind="table") == "FAILED"
     assert "no row in the filter workbooks for PostgreSQL" in world.log()
     assert world.validated[-1] == ("data", ["units.yaml"])
+
+
+def test_pg_25_tables_all_runs_only_the_active_rows(world):
+    """Q: With notes' active cell blank, does --tables all leave notes out while units is still written?"""
+    world.set_cell("bronze_postgres_edge_master.xlsx", "notes", "active", None)
+    pg_run(world, "all", yaml="yes", count="no", data="no")
+    assert world.exists("historical", "bronze_postgres_edge", "units")
+    assert not world.exists("historical", "bronze_postgres_edge", "notes")
+
+
+def test_pg_26_tables_all_with_no_active_row_exits_1(world):
+    """Q: With no row active, does --tables all stop with exit 1 and write nothing?"""
+    for table in ("units", "notes", "lookup"):
+        world.set_cell("bronze_postgres_edge_master.xlsx", table, "active", "no")
+    assert pg_run(world, "all", yaml="yes") == 1
+    assert not (world.root / "config").exists() or not any((world.root / "config").rglob("*.yaml"))
 
 
 def test_ms_14_the_sql_server_location_comes_from_its_workbook(world):

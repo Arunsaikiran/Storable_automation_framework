@@ -237,23 +237,23 @@
   <h3>The source: one per run, from --layer_type</h3>
   <div class="sheet"><table>
     <tr><th>Step</th><th>What happens</th><th>Code</th></tr>
-    <tr><td>1. The command</td><td><code>--layer_type bronze_mysql_crm</code> (must be in BRONZE_LAYERS)</td><td>utils/utility.py:16</td></tr>
-    <tr><td>2. Layer key</td><td><code>filter_files.LAYERS["bronze_mysql_crm"]</code> = <code>mysql_crm</code>. This one key names the source engine everywhere (bronze_postgres_edge maps to postgres).</td><td>yaml_generation/filter_files.py:96</td></tr>
-    <tr><td>3. Workbook</td><td>The layer name plus <code>_master.xlsx</code>: <code>bronze_mysql_crm_master.xlsx</code></td><td>yaml_generation/filter_files.py:94</td></tr>
+    <tr><td>1. The command</td><td><code>--layer_type bronze_mysql_crm</code> (must be in BRONZE_LAYERS)</td><td>utils/utility.py:20</td></tr>
+    <tr><td>2. Layer key</td><td><code>filter_files.LAYERS["bronze_mysql_crm"]</code> = <code>mysql_crm</code>. This one key names the source engine everywhere (bronze_postgres_edge maps to postgres).</td><td>yaml_generation/filter_files.py:114</td></tr>
+    <tr><td>3. Workbook</td><td>The layer name plus <code>_master.xlsx</code>: <code>bronze_mysql_crm_master.xlsx</code></td><td>yaml_generation/filter_files.py:122</td></tr>
     <tr><td>4. SQL rules</td><td><code>RULES["mysql_crm"]</code>: quoting, formats, two-part names (label "MySQL CRM")</td><td>yaml_generation/db_rules.py:108</td></tr>
     <tr><td>5. Connection</td><td><code>get_database("mysql_crm")</code> reads the <code>mysql_crm:</code> block of <code>creds/&lt;env&gt;.yaml</code></td><td>db/factory.py:79</td></tr>
-    <tr><td>6. Where in the source</td><td>Each row's <code>source_database</code> and <code>source_schema</code>. MySQL has no schema level, so a blank <code>source_schema</code> means the database.</td><td>yaml_generation/filter_files.py:381</td></tr>
+    <tr><td>6. Where in the source</td><td>Each row's <code>source_database</code> and <code>source_schema</code>. MySQL has no schema level, so a blank <code>source_schema</code> means the database.</td><td>yaml_generation/filter_files.py:451</td></tr>
   </table></div>
 
   <h3>The target: per workbook row, from target_application</h3>
   <div class="sheet"><table>
     <tr><th>Step</th><th>What happens</th><th>Code</th></tr>
-    <tr><td>1. The cell</td><td><code>target_application</code> holds an engine's label or key, in any case: <code>Snowflake</code>, <code>MySQL CRM</code>, <code>mysql_crm</code></td><td>yaml_generation/filter_files.py:380</td></tr>
-    <tr><td>2. Engine</td><td><code>engine_of()</code> turns it into a RULES key. A name that is not an engine (e.g. Oracle) stops the run and names the row.</td><td>yaml_generation/filter_files.py:308, 395</td></tr>
-    <tr><td>3. Location</td><td>Kept as <code>Location.target_type</code>, with <code>target_database</code> and <code>target_schema</code> (a blank schema on a MySQL target means the database)</td><td>yaml_generation/filter_files.py:112</td></tr>
-    <tr><td>4. Connection</td><td>One connection per target engine the rows name: <code>get_database(target_type)</code>, using the creds block of the same name</td><td>yaml_generation/generate_yaml.py:400</td></tr>
-    <tr><td>5. The YAML</td><td><code>target: snowflake</code> or <code>target: mysql_crm</code>, and the target query written in that engine's SQL</td><td>yaml_generation/yaml_builder.py:333</td></tr>
-    <tr><td>6. Validation</td><td>The validators read <code>target:</code> from the YAML and connect with <code>get_database(target)</code>. They never assume Snowflake.</td><td>validators/data_validation.py:98, validators/count_validation.py:108</td></tr>
+    <tr><td>1. The cell</td><td><code>target_application</code> holds an engine's label or key, in any case: <code>Snowflake</code>, <code>MySQL CRM</code>, <code>mysql_crm</code></td><td>yaml_generation/filter_files.py:449</td></tr>
+    <tr><td>2. Engine</td><td><code>engine_of()</code> turns it into a RULES key. A name that is not an engine (e.g. Oracle) stops the run and names the row.</td><td>yaml_generation/filter_files.py:370, 464</td></tr>
+    <tr><td>3. Location</td><td>Kept as <code>Location.target_type</code>, with <code>target_database</code> and <code>target_schema</code> (a blank schema on a MySQL target means the database)</td><td>yaml_generation/filter_files.py:151</td></tr>
+    <tr><td>4. Connection</td><td>One connection per target engine the rows name: <code>get_database(target_type)</code>, using the creds block of the same name</td><td>yaml_generation/generate_yaml.py:431</td></tr>
+    <tr><td>5. The YAML</td><td><code>target: snowflake</code> or <code>target: mysql_crm</code>, and the target query written in that engine's SQL</td><td>yaml_generation/yaml_builder.py:408</td></tr>
+    <tr><td>6. Validation</td><td>The validators read <code>target:</code> from the YAML and connect with <code>get_database(target)</code>. They never assume Snowflake.</td><td>validators/data_validation.py:101, validators/count_validation.py:111</td></tr>
   </table></div>
 
   <h3>What changes with the target engine</h3>
@@ -262,6 +262,7 @@
     <tr><td><code>{env}</code> in target_database</td><td>Required: <code>{env}_EDGE_BRONZE</code></td><td>Not needed: <code>dev</code></td></tr>
     <tr><td>Fivetran rule</td><td><code>_FIVETRAN_ACTIVE = TRUE</code> on every query</td><td>None</td></tr>
     <tr><td>Table name</td><td>Upper case: <code>DEV_EDGE_BRONZE."EDGE"."UNITS"</code></td><td>As in the workbook: <code>`dev`.`roles`</code></td></tr>
+    <tr><td>Excluded columns</td><td>The seven <code>_fivetran_*</code> columns, written in the row's <code>target_exclude_columns</code></td><td>Whatever the row's exclude cells name</td></tr>
     <tr><td>Catalogue lookup</td><td><code>&lt;database&gt;.INFORMATION_SCHEMA</code></td><td>That engine's own catalogue</td></tr>
   </table></div>
 
@@ -284,10 +285,10 @@
   <p>Newbook's tables are read from Snowflake (Fivetran-landed) and compared with Snowflake. So <code>source_database</code> is a Snowflake database and keeps <code>{env}</code> (<code>{env}_NEWBOOK_AU_BRONZE</code>), like a Snowflake target.</p>
   <div class="sheet"><table>
     <tr><th>What</th><th>A Snowflake source (newbook_*)</th><th>Code</th></tr>
-    <tr><td>Key</td><td>Its own key per layer (<code>newbook_common</code>, ...), in <code>SOURCE_TYPES</code>. <b>Never</b> <code>snowflake</code>: that block is the target's.</td><td>yaml_generation/db_rules.py:282</td></tr>
+    <tr><td>Key</td><td>Its own key per layer (<code>newbook_common</code>, ...), in <code>SOURCE_TYPES</code>. <b>Never</b> <code>snowflake</code>: that block is the target's.</td><td>yaml_generation/db_rules.py:284</td></tr>
     <tr><td>Rules</td><td>A copy of the <code>"newbook"</code> block: <code>catalogue_prefix</code> (catalogue read through <code>&lt;database&gt;.INFORMATION_SCHEMA</code>) and <code>fivetran_source</code></td><td>yaml_generation/db_rules.py:244</td></tr>
-    <tr><td>Primary key</td><td><code>SHOW PRIMARY KEYS IN SCHEMA</code> (Fivetran declares ID + _FIVETRAN_START; excluded columns are dropped, so the key is ID)</td><td>yaml_generation/db_rules.py:400</td></tr>
-    <tr><td>Rows compared</td><td><code>_FIVETRAN_ACTIVE = TRUE</code> on the source as well as the target</td><td>yaml_generation/db_rules.py:14</td></tr>
+    <tr><td>Primary key</td><td><code>SHOW PRIMARY KEYS IN SCHEMA</code> (Fivetran declares ID + _FIVETRAN_START; excluded columns are dropped, so the key is ID)</td><td>yaml_generation/db_rules.py:402</td></tr>
+    <tr><td>Rows compared</td><td><code>_FIVETRAN_ACTIVE = TRUE</code> on the source as well as the target; the <code>_fivetran_*</code> columns go in <code>source_exclude_columns</code> too</td><td>yaml_generation/db_rules.py:14</td></tr>
     <tr><td>Connection</td><td>The cached <code>snowflake</code> connection (same account, one SSO): no creds block of its own</td><td>db/factory.py:53</td></tr>
   </table></div>
 </section>
@@ -302,9 +303,9 @@
     <svg class="map" id="map" viewBox="0 0 1080 520" role="img" aria-label="Map of the files in a YAML generation run"></svg>
     <div id="caption">Press <b>Play the flow</b>, or click a box.</div>
   </div>
-  <h3 class="fgroup">Framework files</h3><div class="files"><div class="fcard core"><h3>main.py</h3><div class="role">The entry point: one command, one run, start to end</div><dl><dt>Why this file exists</dt><dd>The framework already had main.py to run the validators. YAML generation was added as one step <b>before</b> the validators, so the user runs the same command as before and the YAML is made ready automatically. No separate CLI.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">main.py:14</span> <code>main()</code>: parses flags, builds paths, runs generation, then the validators, exits 0 / 1 / 2</li><li><span class="loc">main.py:95</span> <code>if yaml_generation</code>: check every requested table's YAML against the live structure, rewrite where it differs, keep only ready tables</li><li><span class="loc">main.py:142</span> <code>if not yaml_generation</code>: named tables only, create a YAML only when it is missing</li><li><span class="loc">main.py:202</span> <code>schema_ctx</code>: schema validation gets the tables as requested; count and data get the ready list</li><li><span class="loc">main.py:245</span> exit: 0 all matched, 2 differences, 1 system error or a FAILED table</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Calls <code>utility.parse_arguments()</code>, <code>generate_yaml.run_for_validation()</code> / <code>tables_missing_yaml()</code>, then the four validators.</dd><dt>If someone asks</dt><dd><i>Why import yaml_generation inside the if?</i> So a run on silver / reports / sanity never needs the folder. <i>Why exit 1 on a FAILED table?</i> A table we could not build YAML for is a failure, never a silent skip.</dd></dl></div><div class="fcard core"><h3>utils/utility.py</h3><div class="role">Shared helpers of the framework: arguments, logging, output paths, summaries, incremental window</div><dl><dt>Why this file exists</dt><dd>Existing framework file. YAML generation only touched what it needed: the new flags and their defaults. The incremental window helpers here are what fill <code>:start_time</code> and <code>:end_time</code> in the generated SQL.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">utils/utility.py:447</span> <code>parse_arguments()</code>: all flags; <code>--yaml_generation</code> and <code>--filter_files</code> default to yes on bronze, no elsewhere (<span class="loc">utils/utility.py:572</span>)</li><li><span class="loc">utils/utility.py:23</span> <code>get_config_output_paths()</code>: finds the YAML files for the run and where results go</li><li><span class="loc">utils/utility.py:322</span> <code>create_summary()</code> and the summary Excel writers: the PASS/FAIL report</li><li><span class="loc">utils/utility.py:26</span> <code>get_config_output_paths()</code> also picks the layer's master workbook, <code>&lt;layer&gt;_master.xlsx</code> (<code>masterfilepath</code>): the count and data validators use it as their control table</li><li><span class="loc">utils/utility.py:623</span> <code>check_freshness()</code>: is Snowflake synced recently enough (50 hours)</li><li><span class="loc">utils/utility.py:662</span> <code>get_dates()</code>: the window from the master workbook's last-run date + <code>max(_fivetran_synced)</code> in Snowflake</li><li><span class="loc">utils/utility.py:816</span> <code>update_control_table()</code>: writes the new sync date into the master workbook after the check</li><li><span class="loc">utils/utility.py:843</span> <code>get_incremental_dates()</code>: freshness + dates in one call</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by main.py and by the validators. Does not call the generator.</dd><dt>If someone asks</dt><dd><i>Where do incremental dates come from?</i> Not from the filter cells. The validators work them out at run time: the rows Fivetran synced since the last-run date in the master workbook, and the min and max <code>updated_at</code> of those rows. Applied as <code>updated_at &gt;= :start_time AND updated_at &lt;= :end_time</code> (both ends included: the start is itself a new row).</dd></dl></div><div class="fcard core"><h3>validators/</h3><div class="role">The existing checks: schema, count, data (and integrity on sanity)</div><dl><dt>Why this file exists</dt><dd>Existing framework files. They read the YAML the generator wrote in <code>config/</code>, run the source and Snowflake queries, and compare. YAML generation only makes sure that YAML is there and up to date before they start.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">validators/schema_validation.py:17</span> <code>validate_schema()</code>: column structure</li><li><span class="loc">validators/count_validation.py:40</span> <code>validate_count()</code>: the two counts must be equal</li><li><span class="loc">validators/data_validation.py:21</span> <code>validate_data()</code>: rows sorted by the key, then compared</li><li><span class="loc">validators/integrity_check.py:40</span> <code>validate_integrity()</code>: sanity layer only</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by main.py. Uses <code>db/factory.get_database()</code> and, for an incremental run, <code>utility.get_incremental_dates()</code>.</dd><dt>If someone asks</dt><dd><i>How are json columns compared?</i> A generated YAML lists them in <code>json_columns</code>; they are compared as flattened text (<span class="loc">utils/json_normalize.py:88</span>).</dd></dl></div></div>
-  <h3 class="fgroup">yaml_generation/ code</h3><div class="files"><div class="fcard core"><h3>yaml_generation/generate_yaml.py</h3><div class="role">The orchestrator: the only file main.py talks to</div><dl><dt>Why this file exists</dt><dd>Keeps main.py small. It ties the other files together: read the workbook, group tables, open connections, generate the YAML, and tell main.py which tables are ready.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/generate_yaml.py:77</span> <code>resolve_args()</code>: check flags, fill <code>{env}</code> (DEV, STG, QAT, PRD) into the Snowflake name</li><li><span class="loc">yaml_generation/generate_yaml.py:98</span> <code>generate()</code>: per location, per table: columns, reconcile, filters, window, key, write data YAML + count entry</li><li><span class="loc">yaml_generation/generate_yaml.py:232</span> <code>config_dir_for()</code>: which config folder a layer and run type writes to</li><li><span class="loc">yaml_generation/generate_yaml.py:237</span> <code>tables_missing_yaml()</code>: file check only, no database, for <code>--yaml_generation no</code></li><li><span class="loc">yaml_generation/generate_yaml.py:249</span> <code>workbook_spelling()</code>: use the workbook's spelling of a table name (names ignore case)</li><li><span class="loc">yaml_generation/generate_yaml.py:261</span> <code>run_for_validation()</code>: the entry point; returns (results, ready_tables)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by main.py. Calls filter_files, settings, db_rules, yaml_builder and <code>db/factory.get_database()</code>.</dd><dt>If someone asks</dt><dd><i>Statuses?</i> NEW, UPDATED, UNCHANGED, PRESENT are ready; FAILED is not. <i>Does it delete YAML?</i> Never. <i>Why group by location?</i> One run can hold tables from different schemas or applications on the same engine.</dd></dl></div><div class="fcard core"><h3>yaml_generation/filter_files.py</h3><div class="role">The master workbook reader: the one source of truth</div><dl><dt>Why this file exists</dt><dd>Where each table lives (application, source schema, Snowflake database and schema) and its row filter come from the Excel the team already maintains. Nothing about location is on the command line or in code, so adding a table means adding a row.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/filter_files.py:94</span> <code>LAYERS</code> / <code>WORKBOOKS</code>: each layer, its engine key, and its workbook <code>&lt;layer&gt;_master.xlsx</code> (bronze_postgres_edge, bronze_mssql_sitelink, bronze_mysql_crm, bronze_mysql_ess, the four bronze_newbook_* layers). The validators find their control table here too.</li><li><span class="loc">yaml_generation/filter_files.py:96</span> <code>Location</code> / <code>Row</code>: where a table lives, and its filter cell</li><li><span class="loc">yaml_generation/filter_files.py:324</span> <code>read()</code>: reads the layer's workbook, one Row per table; refuses a blank location or a target without <code>{env}</code></li><li><span class="loc">yaml_generation/filter_files.py:389</span> <code>filters()</code>: each filter cell becomes a source WHERE and a Snowflake WHERE</li><li><span class="loc">yaml_generation/filter_files.py:264</span> <code>convert()</code> with <code>_plan()</code> <span class="loc">yaml_generation/filter_files.py:176</span> and <code>_where()</code> <span class="loc">yaml_generation/filter_files.py:250</span>: joins become <code>col IN (SELECT id FROM ...)</code>; the Snowflake side adds <code>_FIVETRAN_ACTIVE = TRUE</code></li><li><span class="loc">yaml_generation/filter_files.py:131</span> <code>Refused</code>: OR, BETWEEN, outer joins, subqueries are refused, not guessed</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml. Uses db_rules for the engine names.</dd><dt>If someone asks</dt><dd><i>Why filters at all?</i> Big tables (notes 100M rows, account_balance_taxes 35M) cannot be loaded into RAM; the filter keeps a slice, applied the same way on both sides for count and data. <i>Why convert joins?</i> The framework query is one table per side; a sub-select keeps it one table.</dd></dl></div><div class="fcard core"><h3>yaml_generation/yaml_builder.py</h3><div class="role">Builds the YAML: column matching, the SQL, the files. No database calls</div><dl><dt>Why this file exists</dt><dd>Pure logic, so it is easy to unit test. Given two column lists it decides what to compare and writes SQL that turns every value into text the same way on both sides, so PostgreSQL / SQL Server and Snowflake can be compared row by row.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/yaml_builder.py:83</span> <code>check_filter()</code>: refuses <code>; { } -- /* */</code> and line breaks (SQL injection guard)</li><li><span class="loc">yaml_generation/yaml_builder.py:171</span> <code>incremental_window()</code>: adds <code>&gt;= :start_time AND &lt;= :end_time</code> on the window column</li><li><span class="loc">yaml_generation/yaml_builder.py:179</span> <code>reconcile()</code>: normalise names, exact match, apply exclusions; a one-sided column is kept with a MISSING token</li><li><span class="loc">yaml_generation/yaml_builder.py:226</span> <code>comparability_problems()</code>: types that cannot become text (rowversion) fail the table</li><li><span class="loc">yaml_generation/yaml_builder.py:261</span> <code>value_expression()</code>: booleans, timestamps, NULL become the same text on both sides</li><li><span class="loc">yaml_generation/yaml_builder.py:334</span> <code>build_data_entry()</code> / <span class="loc">yaml_generation/yaml_builder.py:363</span> <code>build_count_entry()</code>: the two SELECTs and the count queries</li><li><span class="loc">yaml_generation/yaml_builder.py:466</span> <code>write_data_file()</code>: writes only when the text changed (NEW / UPDATED / UNCHANGED)</li><li><span class="loc">yaml_generation/yaml_builder.py:526</span> <code>upsert_count_file()</code>: adds or replaces this table in the layer's count YAML, keeps the others</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml. Uses db_rules for how to quote and cast per engine.</dd><dt>If someone asks</dt><dd><i>Why not fuzzy-match columns?</i> A wrong match would hide a real difference. <i>Why a MISSING token instead of dropping the column?</i> Fail, don't skip: the difference shows up in the report.</dd></dl></div><div class="fcard core"><h3>yaml_generation/db_rules.py</h3><div class="role">Per-engine rules: how to read a catalogue and how to write a value as text</div><dl><dt>Why this file exists</dt><dd>PostgreSQL, SQL Server and Snowflake each have different catalogues, quoting and casting. Keeping those differences in one dictionary means a new engine is one new block, not changes all over the code.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/db_rules.py:40</span> <code>RULES</code>: one block per engine (postgres, mssql, mysql_crm, mysql_ess, newbook, snowflake ...)</li><li><span class="loc">yaml_generation/db_rules.py:282</span> <code>SOURCE_TYPES</code>: the keys a layer may use as its source. The source can be Snowflake too (the newbook_* keys); <code>snowflake</code> itself is the target's block</li><li><span class="loc">yaml_generation/db_rules.py:294</span> <code>kind_of()</code>: data type to kind (text, number, boolean, timestamp, json)</li><li><span class="loc">yaml_generation/db_rules.py:318</span> <code>quote()</code>: quote a name the engine's way</li><li><span class="loc">yaml_generation/db_rules.py:344</span> <code>list_tables()</code>: is the schema visible? An empty listing is refused</li><li><span class="loc">yaml_generation/db_rules.py:360</span> <code>list_columns()</code>: pg_catalog for PostgreSQL, INFORMATION_SCHEMA otherwise</li><li><span class="loc">yaml_generation/db_rules.py:400</span> <code>primary_key_columns()</code>: the rules workbook key wins, else the source primary key (SHOW PRIMARY KEYS on a Snowflake source)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml (catalogue reads) and yaml_builder (casting).</dd><dt>If someone asks</dt><dd><i>Why pg_catalog?</i> It shows columns and keys even where INFORMATION_SCHEMA hides them for our role. <i>No primary key?</i> The data YAML FAILS with a log line; the count is still written.</dd></dl></div><div class="fcard core"><h3>yaml_generation/settings.py</h3><div class="role">The optional settings you edit: exclusions and table rules</div><dl><dt>Why this file exists</dt><dd>Things that are not a location: columns to leave out and per-table overrides (key, filters, window column). Optional: without them the run is normal.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/settings.py:60</span> <code>load_exclusions()</code>: <code>settings/exclusions.yaml</code>, the engine's section + snowflake (Fivetran columns)</li><li><span class="loc">yaml_generation/settings.py:79</span> <code>load_table_rules()</code>: rows of the rules workbook per engine and schema</li><li><span class="loc">yaml_generation/settings.py:138</span> <code>pick_rules_file()</code>: the one .xlsx in <code>settings/</code> (dev_rules.xlsx)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml.</dd><dt>If someone asks</dt><dd><i>Which filter wins?</i> A filter in the rules workbook beats the filter workbook for the same side. <i>Why exclude Fivetran columns?</i> They exist only in Snowflake (_FIVETRAN_SYNCED, ...).</dd></dl></div></div>
-  <h3 class="fgroup">yaml_generation/ data and tests</h3><div class="files"><div class="fcard"><h3>master_files/*.xlsx</h3><div class="role">One per layer: edge, sitelink, crm, ess, and newbook_common / _corporation / _instances / _login. Also the incremental control table: the last-run date columns, <code>layer</code> and <code>incremental_column</code>.</div><dl><dt>Why this file exists</dt><dd>The data behind filter_files.py: one row per table.</dd><dt>Main pieces</dt><dd><ul><li>Target Table Name, source_application, source_database (the real database: fms, DevT5000), source_schema, target_application, target_database (<code>{env}_...</code>), target_schema</li><li>Historical / Incremental filter cells (optional)</li><li>incremental_column: the column an incremental run windows on (updated_at, dupdated ...). Blank: that table's incremental data and count FAIL</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Read by filter_files.read()</dd><dt>If someone asks</dt><dd><i>Add a table?</i> Add a row. <i>Add an application on a known engine?</i> Its rows in that layer's workbook, if the connection can reach it. The step-by-step tab checks that.</dd></dl></div><div class="fcard"><h3>settings/: exclusions.yaml, dev_rules.xlsx, templates/</h3><div class="role">The settings files</div><dl><dt>Why this file exists</dt><dd>The data behind settings.py.</dd><dt>Main pieces</dt><dd><ul><li>exclusions.yaml: columns left out, per engine</li><li>dev_rules.xlsx: per-table key, exclusions, filters</li><li>templates/table_rules_template.xlsx: blank copy to start from</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Read by settings.py</dd><dt>If someone asks</dt><dd><i>Why a template?</i> So a new rules file has the right headers.</dd></dl></div><div class="fcard"><h3>config/&lt;run_type&gt;/&lt;layer&gt;/</h3><div class="role">The YAML the generator writes and the validators read</div><dl><dt>Why this file exists</dt><dd>The hand-off between the two halves of a run: yaml_builder.py writes here, the validators read from here.</dd><dt>Main pieces</dt><dd><ul><li><code>data_validation/&lt;table&gt;.yaml</code>: one file per table, the two normalised SELECTs</li><li><code>count_validation/&lt;layer&gt;.yaml</code>: one file per layer, one entry per table</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Written by yaml_builder (<code>write_data_file()</code>, <code>upsert_count_file()</code>); found by <code>utility.get_config_output_paths()</code>.</dd><dt>If someone asks</dt><dd><i>Is old YAML deleted?</i> Never. A table no longer in the workbook is logged and left as it is.</dd></dl></div><div class="fcard"><h3>tests/</h3><div class="role">Unit tests and scenario cases (pytest)</div><dl><dt>Why this file exists</dt><dd>Each module has its own test file, so a change can be checked without a database.</dd><dt>Main pieces</dt><dd><ul><li>test_filter_files, test_generate_yaml, test_yaml_builder, test_db_rules, test_settings, test_json_normalize</li><li>test_connections, test_live_postgres: need real database access</li><li>cases/ + CASES.md: end-to-end scenarios (what if the Excel says ...)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Run with <code>pytest yaml_generation/tests</code></dd><dt>If someone asks</dt><dd><i>How do we know it works?</i> Unit tests + scenario cases + the integration runs in YAML_GENERATION_TEST_ISSUES.md.</dd></dl></div></div>
+  <h3 class="fgroup">Framework files</h3><div class="files"><div class="fcard core"><h3>main.py</h3><div class="role">The entry point: one command, one run, start to end</div><dl><dt>Why this file exists</dt><dd>The framework already had main.py to run the validators. YAML generation was added as one step <b>before</b> the validators, so the user runs the same command as before and the YAML is made ready automatically. No separate CLI.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">main.py:14</span> <code>main()</code>: parses flags, builds paths, runs generation, then the validators, exits 0 / 1 / 2</li><li><span class="loc">main.py:37</span> <code>workbook_spelling()</code>: <code>--tables all</code> becomes the rows whose <code>active</code> cell is yes; none active: exit 1</li><li><span class="loc">main.py:112</span> <code>if yaml_generation</code>: check every requested table's YAML against the live structure, rewrite where it differs, keep only ready tables</li><li><span class="loc">main.py:186</span> <code>if not yaml_generation</code>: the named (or active) tables, create a YAML only when it is missing</li><li><span class="loc">main.py:265</span> <code>schema_ctx</code>: schema validation gets the tables as requested; count and data get the ready list</li><li><span class="loc">main.py:313</span> exit: 0 all matched, 2 differences, 1 system error or a FAILED table</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Calls <code>utility.parse_arguments()</code>, <code>generate_yaml.run_for_validation()</code> / <code>tables_missing_yaml()</code>, then the four validators.</dd><dt>If someone asks</dt><dd><i>Why import yaml_generation inside the if?</i> So a run on silver / reports / sanity never needs the folder. <i>Why exit 1 on a FAILED table?</i> A table we could not build YAML for is a failure, never a silent skip.</dd></dl></div><div class="fcard core"><h3>utils/utility.py</h3><div class="role">Shared helpers of the framework: arguments, logging, output paths, summaries, incremental window</div><dl><dt>Why this file exists</dt><dd>Existing framework file. YAML generation only touched what it needed: the new flags and their defaults. The incremental window helpers here are what fill <code>:start_time</code> and <code>:end_time</code> in the generated SQL.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">utils/utility.py:461</span> <code>parse_arguments()</code>: all flags; <code>--yaml_generation</code> and <code>--filter_files</code> default to yes on bronze, no elsewhere (<span class="loc">utils/utility.py:588</span>)</li><li><span class="loc">utils/utility.py:28</span> <code>get_config_output_paths()</code>: finds the YAML files for the run and where results go</li><li><span class="loc">utils/utility.py:339</span> <code>create_summary()</code> and the summary Excel writers: the PASS/FAIL report</li><li><span class="loc">utils/utility.py:42</span> <code>get_config_output_paths()</code> also picks the layer's master workbook, <code>&lt;layer&gt;_master.xlsx</code> (<code>masterfilepath</code>): the count and data validators use it as their control table</li><li><span class="loc">utils/utility.py:625</span> <code>check_freshness()</code>: is Snowflake synced recently enough (50 hours), on the row's <code>source_incremental_column</code> / <code>target_incremental_column</code></li><li><span class="loc">utils/utility.py:665</span> <code>get_dates()</code>: the window from the master workbook's last-run date + <code>max(_fivetran_synced)</code> in Snowflake</li><li><span class="loc">utils/utility.py:783</span> <code>update_control_table()</code>: writes the new sync date into the master workbook after the check</li><li><span class="loc">utils/utility.py:812</span> <code>get_incremental_dates()</code>: freshness + dates in one call</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by main.py and by the validators. Does not call the generator.</dd><dt>If someone asks</dt><dd><i>Where do incremental dates come from?</i> Not from the filter cells. The validators work them out at run time: the rows Fivetran synced since the last-run date in the master workbook, and the min and max <code>updated_at</code> of those rows. Applied as <code>updated_at &gt;= :start_time AND updated_at &lt;= :end_time</code> (both ends included: the start is itself a new row).</dd></dl></div><div class="fcard core"><h3>validators/</h3><div class="role">The existing checks: schema, count, data (and integrity on sanity)</div><dl><dt>Why this file exists</dt><dd>Existing framework files. They read the YAML the generator wrote in <code>config/</code>, run the source and Snowflake queries, and compare. YAML generation only makes sure that YAML is there and up to date before they start.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">validators/schema_validation.py:20</span> <code>validate_schema()</code>: column structure; each side drops the master row's exclude columns for that side</li><li><span class="loc">validators/count_validation.py:41</span> <code>validate_count()</code>: the two counts must be equal</li><li><span class="loc">validators/data_validation.py:17</span> <code>validate_data()</code>: rows sorted by the key, then compared</li><li><span class="loc">validators/integrity_check.py:40</span> <code>validate_integrity()</code>: sanity layer only</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by main.py. Uses <code>db/factory.get_database()</code> and, for an incremental run, <code>utility.get_incremental_dates()</code>.</dd><dt>If someone asks</dt><dd><i>How are json columns compared?</i> A generated YAML lists them in <code>json_columns</code>; they are compared as flattened text (<span class="loc">utils/json_normalize.py:88</span>).</dd></dl></div></div>
+  <h3 class="fgroup">yaml_generation/ code</h3><div class="files"><div class="fcard core"><h3>yaml_generation/generate_yaml.py</h3><div class="role">The orchestrator: the only file main.py talks to</div><dl><dt>Why this file exists</dt><dd>Keeps main.py small. It ties the other files together: read the workbook, group tables, open connections, generate the YAML, and tell main.py which tables are ready.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/generate_yaml.py:92</span> <code>resolve_args()</code>: check flags, fill <code>{env}</code> (DEV, STG, QAT, PRD) into the Snowflake name</li><li><span class="loc">yaml_generation/generate_yaml.py:117</span> <code>generate()</code>: per location, per table: columns, reconcile, filters, window, key, write data YAML + count entry</li><li><span class="loc">yaml_generation/generate_yaml.py:343</span> <code>config_dir_for()</code>: which config folder a layer and run type writes to</li><li><span class="loc">yaml_generation/generate_yaml.py:348</span> <code>tables_missing_yaml()</code>: file check only, no database, for <code>--yaml_generation no</code></li><li><span class="loc">yaml_generation/generate_yaml.py:363</span> <code>workbook_spelling()</code>: use the workbook's spelling of a table name (names ignore case); 'all' becomes the active rows</li><li><span class="loc">yaml_generation/generate_yaml.py:375</span> <code>run_for_validation()</code>: the entry point; returns (results, ready_tables)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by main.py. Calls filter_files, db_rules, yaml_builder and <code>db/factory.get_database()</code>.</dd><dt>If someone asks</dt><dd><i>Statuses?</i> NEW, UPDATED, UNCHANGED, PRESENT are ready; FAILED is not. <i>Does it delete YAML?</i> Never. <i>Why group by location?</i> One run can hold tables from different schemas or applications on the same engine.</dd></dl></div><div class="fcard core"><h3>yaml_generation/filter_files.py</h3><div class="role">The master workbook reader: the one source of truth</div><dl><dt>Why this file exists</dt><dd>Where each table lives (application, source schema, Snowflake database and schema), its row filters, key, excluded columns and active flag come from the Excel the team already maintains. Nothing about location is on the command line or in code, so adding a table means adding a row.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/filter_files.py:114</span> <code>LAYERS</code> / <code>WORKBOOKS</code>: each layer, its engine key, and its workbook <code>&lt;layer&gt;_master.xlsx</code> (bronze_postgres_edge, bronze_mssql_sitelink, bronze_mysql_crm, bronze_mysql_ess, the four bronze_newbook_* layers). The validators find their control table here too.</li><li><span class="loc">yaml_generation/filter_files.py:151</span> <code>Location</code> / <code>TableRule</code> / <code>Row</code>: where a table lives, its per-side filters, incremental, key and exclude cells, case_insensitive_columns and active</li><li><span class="loc">yaml_generation/filter_files.py:405</span> <code>read()</code>: reads the layer's workbook, one Row per table; refuses a blank location, a target without <code>{env}</code>, an old header, or source and target key columns that differ</li><li><span class="loc">yaml_generation/filter_files.py:579</span> <code>filters()</code>: the source filter cell becomes the source WHERE, the target cell the target WHERE</li><li><span class="loc">yaml_generation/filter_files.py:342</span> <code>convert()</code> with <code>_plan()</code> <span class="loc">yaml_generation/filter_files.py:254</span> and <code>_where()</code> <span class="loc">yaml_generation/filter_files.py:328</span>: joins become <code>col IN (SELECT id FROM ...)</code>; the Snowflake side adds <code>_FIVETRAN_ACTIVE = TRUE</code></li><li><span class="loc">yaml_generation/filter_files.py:209</span> <code>Refused</code>: OR, BETWEEN, outer joins, subqueries are refused, not guessed</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml. Uses db_rules for the engine names.</dd><dt>If someone asks</dt><dd><i>Why filters at all?</i> Big tables (notes 100M rows, account_balance_taxes 35M) cannot be loaded into RAM; the filter keeps a slice: the source cell on the source, the target cell on the target, for count and data. <i>Why convert joins?</i> The framework query is one table per side; a sub-select keeps it one table.</dd></dl></div><div class="fcard core"><h3>yaml_generation/yaml_builder.py</h3><div class="role">Builds the YAML: column matching, the SQL, the files. No database calls</div><dl><dt>Why this file exists</dt><dd>Pure logic, so it is easy to unit test. Given two column lists it decides what to compare and writes SQL that turns every value into text the same way on both sides, so PostgreSQL / SQL Server and Snowflake can be compared row by row.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/yaml_builder.py:88</span> <code>check_filter()</code>: refuses <code>; { } -- /* */</code> and line breaks (SQL injection guard)</li><li><span class="loc">yaml_generation/yaml_builder.py:181</span> <code>incremental_window()</code>: adds <code>&gt;= :start_time AND &lt;= :end_time</code> on each side's window column</li><li><span class="loc">yaml_generation/yaml_builder.py:216</span> <code>reconcile()</code>: normalise names, exact match, apply each side's exclusions (status EXCLUDED); a one-sided column is kept with a MISSING token</li><li><span class="loc">yaml_generation/yaml_builder.py:261</span> <code>comparability_problems()</code>: types that cannot become text (rowversion) fail the table</li><li><span class="loc">yaml_generation/yaml_builder.py:296</span> <code>value_expression()</code>: booleans, timestamps, NULL become the same text on both sides</li><li><span class="loc">yaml_generation/yaml_builder.py:387</span> <code>build_data_entry()</code> / <span class="loc">yaml_generation/yaml_builder.py:420</span> <code>build_count_entry()</code>: the two SELECTs and the count queries; case_insensitive_columns become <code>LOWER(...)</code> on both sides</li><li><span class="loc">yaml_generation/yaml_builder.py:528</span> <code>write_data_file()</code>: writes only when the text changed (NEW / UPDATED / UNCHANGED)</li><li><span class="loc">yaml_generation/yaml_builder.py:590</span> <code>upsert_count_file()</code>: adds or replaces this table in the layer's count YAML, keeps the others</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml. Uses db_rules for how to quote and cast per engine.</dd><dt>If someone asks</dt><dd><i>Why not fuzzy-match columns?</i> A wrong match would hide a real difference. <i>Why a MISSING token instead of dropping the column?</i> Fail, don't skip: the difference shows up in the report.</dd></dl></div><div class="fcard core"><h3>yaml_generation/db_rules.py</h3><div class="role">Per-engine rules: how to read a catalogue and how to write a value as text</div><dl><dt>Why this file exists</dt><dd>PostgreSQL, SQL Server and Snowflake each have different catalogues, quoting and casting. Keeping those differences in one dictionary means a new engine is one new block, not changes all over the code. No column exclusions live here: each master row names them.</dd><dt>Main pieces</dt><dd><ul><li><span class="loc">yaml_generation/db_rules.py:40</span> <code>RULES</code>: one block per engine (postgres, mssql, mysql_crm, mysql_ess, newbook, snowflake ...)</li><li><span class="loc">yaml_generation/db_rules.py:284</span> <code>SOURCE_TYPES</code>: the keys a layer may use as its source. The source can be Snowflake too (the newbook_* keys); <code>snowflake</code> itself is the target's block</li><li><span class="loc">yaml_generation/db_rules.py:296</span> <code>kind_of()</code>: data type to kind (text, number, boolean, timestamp, json)</li><li><span class="loc">yaml_generation/db_rules.py:320</span> <code>quote()</code>: quote a name the engine's way</li><li><span class="loc">yaml_generation/db_rules.py:346</span> <code>list_tables()</code>: is the schema visible? An empty listing is refused</li><li><span class="loc">yaml_generation/db_rules.py:362</span> <code>list_columns()</code>: pg_catalog for PostgreSQL, INFORMATION_SCHEMA otherwise</li><li><span class="loc">yaml_generation/db_rules.py:402</span> <code>primary_key_columns()</code>: the source primary key, used when the master row has no key cells (SHOW PRIMARY KEYS on a Snowflake source)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Called by generate_yaml (catalogue reads) and yaml_builder (casting).</dd><dt>If someone asks</dt><dd><i>Why pg_catalog?</i> It shows columns and keys even where INFORMATION_SCHEMA hides them for our role. <i>No primary key?</i> The data YAML FAILS with a log line; the count is still written.</dd></dl></div></div>
+  <h3 class="fgroup">yaml_generation/ data and tests</h3><div class="files"><div class="fcard"><h3>master_files/*.xlsx</h3><div class="role">One per layer: edge, sitelink, crm, ess, and newbook_common / _corporation / _instances / _login. Also the incremental control table: the last-run date columns, <code>layer</code> and the two incremental columns.</div><dl><dt>Why this file exists</dt><dd>The data behind filter_files.py: one row per table. Everything per table is here; there is no settings folder.</dd><dt>Main pieces</dt><dd><ul><li>Target Table Name, Source Table Name (optional), source_application, source_database (the real database: fms, DevT5000), source_schema, target_application, target_database (<code>{env}_...</code>), target_schema</li><li>Historical Source / Target Filter, Incremental Source / Target Filter (optional, one per side)</li><li>source_incremental_column / target_incremental_column: the window column per side (updated_at, dupdated ...). Either blank: that table's incremental data and count FAIL</li><li>source_key_columns / target_key_columns (optional; if both are filled they must name the same columns)</li><li>source_exclude_columns / target_exclude_columns: the <code>_fivetran_*</code> columns on a Snowflake target (and source, for Newbook); <code>uts</code> on the SiteLink source</li><li>case_insensitive_columns: compared as <code>LOWER(...)</code> on both sides (e.g. uuid)</li><li>active: <code>yes</code> puts the table in <code>--tables all</code>; a named table runs whatever it says</li><li>An old header (Historical Filter to apply, Incremental filters to apply, incremental_column, key_columns, exclude_columns) is refused with a ValueError</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Read by filter_files.read()</dd><dt>If someone asks</dt><dd><i>Add a table?</i> Add a row. <i>Add an application on a known engine?</i> Its rows in that layer's workbook, if the connection can reach it. The step-by-step tab checks that.</dd></dl></div><div class="fcard"><h3>config/&lt;run_type&gt;/&lt;layer&gt;/</h3><div class="role">The YAML the generator writes and the validators read</div><dl><dt>Why this file exists</dt><dd>The hand-off between the two halves of a run: yaml_builder.py writes here, the validators read from here.</dd><dt>Main pieces</dt><dd><ul><li><code>data_validation/&lt;table&gt;.yaml</code>: one file per table, the two normalised SELECTs</li><li><code>count_validation/&lt;layer&gt;.yaml</code>: one file per layer, one entry per table</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Written by yaml_builder (<code>write_data_file()</code>, <code>upsert_count_file()</code>); found by <code>utility.get_config_output_paths()</code>.</dd><dt>If someone asks</dt><dd><i>Is old YAML deleted?</i> Never. A table no longer in the workbook is logged and left as it is.</dd></dl></div><div class="fcard"><h3>tests/</h3><div class="role">Unit tests and scenario cases (pytest)</div><dl><dt>Why this file exists</dt><dd>Each module has its own test file, so a change can be checked without a database.</dd><dt>Main pieces</dt><dd><ul><li>test_filter_files, test_generate_yaml, test_yaml_builder, test_db_rules, test_json_normalize, test_schema_validator, test_fivetran_source</li><li>test_connections, test_live_postgres: need real database access</li><li>cases/ + CASES.md: end-to-end scenarios (what if the Excel says ...)</li></ul></dd><dt>Who calls it / what it calls</dt><dd>Run with <code>pytest yaml_generation/tests</code></dd><dt>If someone asks</dt><dd><i>How do we know it works?</i> Unit tests + scenario cases + the integration runs in YAML_GENERATION_TEST_ISSUES.md.</dd></dl></div></div>
 </section>
 <!-- ============================== TREE ============================== -->
 <section id="tree" class="view">
@@ -318,7 +319,7 @@
   </div>
 </section>
 
-<footer>Written from the code on branch <code>dev-ganesh-mane</code>, 5 November 2026; the <b>Add a new source</b> guide was rewritten on 11 November 2026 (templates, copy buttons, type mapping, incremental) and updated on 12 November 2026 (type mapping ignores case; clear "Fix this and run again" messages) and 13 November 2026 (a layer of its own asks whether a connector exists; the AI prompt; the standard two-sheet workbook). Every <span class="loc">file:line</span> points at the working copy of that date. The one-page summary is <code>docs/YAML_GENERATION_VISUAL_GUIDE.html</code>.</footer>
+<footer>Written from the code on branch <code>dev-ganesh-mane</code>, 5 November 2026; the <b>Add a new source</b> guide was rewritten on 11 November 2026 (templates, copy buttons, type mapping, incremental) and updated on 12 November 2026 (type mapping ignores case; clear "Fix this and run again" messages) and 13 November 2026 (a layer of its own asks whether a connector exists; the AI prompt; the standard two-sheet workbook). Updated 25 November 2026: the settings folder is gone (everything per table is in the master workbook row), per-side workbook columns, <code>--tables all</code> is the active rows; every <span class="loc">file:line</span> points at the working copy of that date. The one-page summary is <code>docs/YAML_GENERATION_VISUAL_GUIDE.html</code>.</footer>
 </main>
 
 <script>
@@ -337,7 +338,6 @@ var FILES = [
   { k: "utility.py", c: "#0e7490", m: /^utils\/utility\.py/ },
   { k: "generate_yaml.py", c: "#2563eb", m: /generate_yaml\.py/ },
   { k: "filter_files.py", c: "#7c3aed", m: /filter_files\.py/ },
-  { k: "settings.py", c: "#db2777", m: /settings\.py/ },
   { k: "db_rules.py", c: "#c2410c", m: /db_rules\.py/ },
   { k: "yaml_builder.py", c: "#15803d", m: /yaml_builder\.py/ },
   { k: "validators/", c: "#dc2626", m: /^validators\// },
@@ -356,82 +356,80 @@ function fmt(s) { return esc(s).replace(/\[([^\]]+)\]/g, function (_, p) { retur
 var Q = {
   app: { q: "Which application are you running?", opts: [
     { label: "Edge", small: "PostgreSQL", set: { layer: "bronze_postgres_edge", app: "Edge" },
-      steps: ["parse_arguments(): --layer_type bronze_postgres_edge picks the PostgreSQL engine [utils/utility.py:447]"], next: "yaml" },
+      steps: ["parse_arguments(): --layer_type bronze_postgres_edge picks the PostgreSQL engine [utils/utility.py:461]"], next: "yaml" },
     { label: "SiteLink", small: "SQL Server", set: { layer: "bronze_mssql_sitelink", app: "SiteLink" },
-      steps: ["parse_arguments(): --layer_type bronze_mssql_sitelink picks the SQL Server engine [utils/utility.py:447]"], next: "yaml" },
+      steps: ["parse_arguments(): --layer_type bronze_mssql_sitelink picks the SQL Server engine [utils/utility.py:461]"], next: "yaml" },
     { label: "Payments", small: "PostgreSQL, future", set: { layer: "bronze_postgres_edge", app: "Payments" },
       steps: ["Same engine as Edge: its rows go in bronze_postgres_edge_master.xlsx, with their own source_database and schemas (one workbook per layer)",
-              "One run can hold Edge and Payments tables: they are grouped by location [yaml_generation/generate_yaml.py:290]"], next: "yaml" },
+              "One run can hold Edge and Payments tables: they are grouped by location [yaml_generation/generate_yaml.py:420]"], next: "yaml" },
     { label: "CRM", small: "MySQL", set: { layer: "bronze_mysql_crm", app: "CRM" },
-      steps: ["parse_arguments(): --layer_type bronze_mysql_crm picks the MySQL CRM layer (ESS is bronze_mysql_ess, the same way) [utils/utility.py:15]",
+      steps: ["parse_arguments(): --layer_type bronze_mysql_crm picks the MySQL CRM layer (ESS is bronze_mysql_ess, the same way) [utils/utility.py:461]",
               "Its rows go in bronze_mysql_crm_master.xlsx; source_schema may be blank (a MySQL database is its own schema)",
-              "Its rows say target_application MySQL CRM, so it is compared against itself until it has a Snowflake target (see the Source and target tab) [yaml_generation/filter_files.py:380]",
+              "Its rows say target_application MySQL CRM, so it is compared against itself until it has a Snowflake target (see the Source and target tab) [yaml_generation/filter_files.py:449]",
               "Historical runs work; incremental runs for MySQL are not built yet (see the Add a new source tab)"], next: "yaml" },
     { label: "Newbook", small: "Snowflake source", set: { layer: "bronze_newbook_login", app: "Newbook" },
-      steps: ["parse_arguments(): --layer_type bronze_newbook_login (or _common, _corporation, _instances): one layer per Newbook schema [utils/utility.py:15]",
+      steps: ["parse_arguments(): --layer_type bronze_newbook_login (or _common, _corporation, _instances): one layer per Newbook schema [utils/utility.py:461]",
               "The source is Snowflake too: source_database {env}_NEWBOOK_AU_BRONZE, read through the cached snowflake connection [db/factory.py:53]",
-              "The key comes from SHOW PRIMARY KEYS, and both sides keep only _FIVETRAN_ACTIVE = TRUE rows [yaml_generation/db_rules.py:400]"], next: "yaml" }
+              "The key comes from SHOW PRIMARY KEYS, and both sides keep only _FIVETRAN_ACTIVE = TRUE rows [yaml_generation/db_rules.py:402]"], next: "yaml" }
   ]},
   yaml: { q: "Did you pass --yaml_generation?", opts: [
     { label: "Not given", small: "default: yes", set: { yaml: "yes" },
-      steps: ["parse_arguments() fills in yes on a bronze layer [utils/utility.py:572]",
-              "main.py calls run_for_validation() before any validator [main.py:96]"], next: "filters" },
+      steps: ["parse_arguments() fills in yes on a bronze layer [utils/utility.py:588]",
+              "main.py calls run_for_validation() before any validator [main.py:122]"], next: "filters" },
     { label: "--yaml_generation no", small: "use the YAML on disk", set: { yaml: "no" },
-      steps: ["main.py calls tables_missing_yaml(): it checks files only, no database [main.py:139]"], next: "filters" }
+      steps: ["main.py calls tables_missing_yaml(): it checks files only, no database [main.py:189]"], next: "filters" }
   ]},
   filters: { q: "Did you pass --filter_files?", opts: [
     { label: "Not given", small: "default: yes", set: { filters: "yes" },
-      steps: ["filter_files.filters() turns each row's filter cell into a WHERE for both sides [yaml_generation/filter_files.py:372]"], next: "tables" },
+      steps: ["filter_files.filters(): each row's source filter cell becomes the source WHERE, its target cell the target WHERE [yaml_generation/filter_files.py:579]"], next: "tables" },
     { label: "--filter_files no", small: "compare whole tables", set: { filters: "no" },
       steps: ["The workbook is still read for each table's location. The filter cells are ignored."], next: "tables" }
   ]},
   tables: { q: "Which tables?", opts: [
-    { label: "--tables all", small: "every workbook row", set: { all: true },
-      steps: ["filter_files.read(): every row of the layer's master workbook. Never the whole source schema. [yaml_generation/filter_files.py:333]"],
-      next: function (s) { return s.yaml === "no" ? "end:allno" : "change"; } },
+    { label: "--tables all", small: "the rows with active = yes", set: { all: true },
+      steps: ["main.py turns 'all' into the rows whose active cell is yes, before anything runs; none active: exit 1 [main.py:37]",
+              "workbook_spelling() reads them with filter_files.read(). Never the whole source schema. [yaml_generation/generate_yaml.py:363]"],
+      next: function (s) { return s.yaml === "no" ? "ondisk" : "change"; } },
     { label: "--tables units events", small: "named tables", set: { all: false },
-      steps: ["The named tables are checked against the workbook rows [yaml_generation/generate_yaml.py:284]"], next: "inbook" }
+      steps: ["The named tables are checked against the workbook rows; a named table runs whatever its active cell says [yaml_generation/generate_yaml.py:416]"], next: "inbook" }
   ]},
   inbook: { q: "Is the table listed in the master workbook?", opts: [
-    { label: "Yes", steps: ["Its row gives source_database, source_schema, the target engine (target_application), target_database and target_schema (Location) [yaml_generation/filter_files.py:112]"],
+    { label: "Yes", steps: ["Its row gives source_database, source_schema, the target engine (target_application), target_database and target_schema (Location) [yaml_generation/filter_files.py:151]"],
       next: function (s) { return s.yaml === "no" ? "ondisk" : "change"; } },
     { label: "No", next: "end:nobook",
-      steps: ["FAILED: no row in the master workbook, so its schema is not known [yaml_generation/generate_yaml.py:285]"] }
+      steps: ["FAILED: no row in the master workbook, so its schema is not known [yaml_generation/generate_yaml.py:417]"] }
   ]},
   ondisk: { q: "Is its YAML already in config/?", opts: [
     { label: "Yes", next: "end:present",
       steps: ["Used as it is. No schema check, so a new source column is not compared until a run with yes."] },
     { label: "No", set: { status: "NEW" },
-      steps: ["run_for_validation(create_only=True) creates only the missing YAML [main.py:144]"], next: "exists" }
+      steps: ["run_for_validation(create_only=True) creates only the missing YAML [main.py:195]"], next: "exists" }
   ]},
   change: { q: "Has the source or Snowflake structure changed since the YAML was written?", opts: [
     { label: "No change", set: { status: "UNCHANGED" }, steps: ["The rebuilt YAML text equals the file: it is not touched"], next: "exists" },
     { label: "A column was added, renamed or dropped", set: { status: "UPDATED" },
-      steps: ["reconcile() matches the columns by name. A column on one side only is kept and compared as missing [yaml_generation/yaml_builder.py:179]"], next: "exists" },
+      steps: ["reconcile() matches the columns by name. A column on one side only is kept and compared as missing [yaml_generation/yaml_builder.py:216]"], next: "exists" },
     { label: "There is no YAML yet", set: { status: "NEW" }, steps: ["A new file will be written"], next: "exists" }
   ]},
   exists: { q: "Is the table in the source and in Snowflake, and can your role read it?", opts: [
-    { label: "Yes", steps: ["db_rules.list_columns() reads both catalogues [yaml_generation/db_rules.py:360]"], next: "pk" },
+    { label: "Yes", steps: ["db_rules.list_columns() reads both catalogues [yaml_generation/db_rules.py:362]"], next: "pk" },
     { label: "No", next: "end:missing",
-      steps: ["FAILED: not in the source or not in Snowflake. Its old YAML is kept, and nothing is deleted. [yaml_generation/generate_yaml.py:151]"] }
+      steps: ["FAILED: not in the source or not in Snowflake. Its old YAML is kept, and nothing is deleted. [yaml_generation/generate_yaml.py:200]"] }
   ]},
-  pk: { q: "Does it have a primary key, or key_columns in the rules workbook?", opts: [
-    { label: "Yes", steps: ["primary_key_columns() reads the key [yaml_generation/db_rules.py:400]"], next: "run" },
+  pk: { q: "Does it have a primary key, or source_key_columns / target_key_columns in its master row?", opts: [
+    { label: "Yes", steps: ["The row's key cells win; otherwise primary_key_columns() reads the key [yaml_generation/db_rules.py:402]"], next: "run" },
     { label: "No", next: "end:nokey",
-      steps: ["The data YAML FAILS with the reason in the log. The count YAML is still written. [yaml_generation/generate_yaml.py:191]"] }
+      steps: ["The data YAML FAILS with the reason in the log. The count YAML is still written. [yaml_generation/generate_yaml.py:283]"] }
   ]},
   run: { q: "Which --run_type?", opts: [
     { label: "historical", small: "default", steps: ["No time window: the whole (filtered) table is compared"], next: "end:write" },
     { label: "incremental", next: "end:write",
-      steps: ["incremental_window() adds <incremental_column> >= :start_time AND <= :end_time, the column from the table's workbook row (updated_at, dupdated ...). A blank cell FAILS its incremental data and count [yaml_generation/generate_yaml.py:245]",
-              "At validation time: freshness check, then the window from the master workbook's last-run date and max(_fivetran_synced) in Snowflake [utils/utility.py:843]"] }
+      steps: ["incremental_window() adds <column> >= :start_time AND <= :end_time: source_incremental_column on the source, target_incremental_column on the target (updated_at, dupdated ...). Either blank FAILS its incremental data and count [yaml_generation/generate_yaml.py:244]",
+              "At validation time: freshness check, then the window from the master workbook's last-run date and max(_fivetran_synced) in Snowflake [utils/utility.py:812]"] }
   ]}
 };
 
 var END = {
-  allno: { color: "#475569", title: "The YAML on disk is validated",
-    lines: ["With --yaml_generation no and --tables all, nothing is created or checked. main.py skips creation for 'all'.",
-            "Run without the flag (the default is yes) to refresh the YAML."] },
   nobook: { color: "#dc2626", title: "FAILED: exit code 1",
     lines: ["Add a row for the table to its application's workbook. The other tables of the run are still validated."], chip: "FAILED" },
   present: { color: "#475569", title: "PRESENT: validated as it is",
@@ -439,13 +437,13 @@ var END = {
   missing: { color: "#dc2626", title: "FAILED: exit code 1",
     lines: ["Check the table name, source_schema, target_database and target_schema in the workbook, and the role's read access."], chip: "FAILED" },
   nokey: { color: "#dc2626", title: "Data FAILED, count written: exit code 1",
-    lines: ["Add key_columns for the table in yaml_generation/settings/ (rules workbook), or a primary key in the source."], chip: "FAILED" },
+    lines: ["Fill source_key_columns (or target_key_columns) in the table's master workbook row, or add a primary key in the source."], chip: "FAILED" },
   write: { color: "#166534", title: "Written, then validated", dynamic: true }
 };
 
 var ICON = { app: "&#127970;", yaml: "&#9881;&#65039;", filters: "&#128269;", tables: "&#128203;", inbook: "&#128215;", ondisk: "&#128190;",
              change: "&#128260;", exists: "&#128272;", pk: "&#128273;", run: "&#9201;&#65039;" };
-var STRIP = ["main.py", "utility.py", "generate_yaml.py", "filter_files.py", "settings.py", "db_rules.py", "yaml_builder.py", "validators/"];
+var STRIP = ["main.py", "utility.py", "generate_yaml.py", "filter_files.py", "db_rules.py", "yaml_builder.py", "validators/"];
 var state, step, touched;
 function light(f) {
   if (touched.indexOf(f.k) < 0) touched.push(f.k);
@@ -497,13 +495,13 @@ function finish(id) {
   var e = END[id], lines = e.lines || [], chip = e.chip;
   if (e.dynamic) {
     chip = state.status;
-    addTrace(["write_data_file() writes only when the text changed: " + state.status + " [yaml_generation/yaml_builder.py:466]",
-              "upsert_count_file() adds or replaces the table in the layer's count file [yaml_generation/yaml_builder.py:526]",
-              "validate_count(): the two counts must be equal [validators/count_validation.py:40]",
+    addTrace(["write_data_file() writes only when the text changed: " + state.status + " [yaml_generation/yaml_builder.py:528]",
+              "upsert_count_file() adds or replaces the table in the layer's count file [yaml_generation/yaml_builder.py:590]",
+              "validate_count(): the two counts must be equal [validators/count_validation.py:41]",
               "validate_data(): rows sorted by the key, then DataFrame.equals() [validators/data_validation.py:156]"]);
     lines = ["Status " + state.status + " for " + (state.app || "the table") + ". The validators run next.",
              "Exit code 0 when every check matches, 2 when a check finds differences, 1 on a system error or a FAILED table."];
-    if (state.filters === "yes") lines.push("The workbook's row filter is in both queries, so only part of a big table is loaded.");
+    if (state.filters === "yes") lines.push("The row's source and target filters are in the two queries, so only part of a big table is loaded.");
   }
   var box = document.createElement("div");
   box.className = "outcome";
@@ -523,205 +521,202 @@ startGame();
 // n: name, at: file:line, w: one line, d: details, r: returns, f: fails when, when: true for a condition box, k: children
 var TREE = { n: "main.main()", at: "main.py:14", w: "one run, start to end",
   d: "The whole orchestration in one function: set up the run, make the YAML ready (generation), build the context, run the validators, write the summary, exit with 0, 1 or 2.",
-  r: "Exit code: 0 all matched, 2 differences found, 1 system error or a FAILED table [main.py:236]", k: [
+  r: "Exit code: 0 all matched, 2 differences found, 1 system error or a FAILED table [main.py:304]", k: [
 
   { n: "1. Set up the run", at: "main.py:15", w: "run id, logger, arguments", k: [
-    { n: "generate_runid()", at: "utils/utility.py:19", w: "run_id and run_at", d: "A unique id for this run. It names the log file and the output folder." },
-    { n: "get_logger()", at: "utils/utility.py:388", w: "console logger", d: "The logger every file writes to. A file handler is added once the log path is known." },
-    { n: "parse_arguments()", at: "utils/utility.py:447", w: "the command line",
+    { n: "generate_runid()", at: "utils/utility.py:24", w: "run_id and run_at", d: "A unique id for this run. It names the log file and the output folder." },
+    { n: "get_logger()", at: "utils/utility.py:398", w: "console logger", d: "The logger every file writes to. A file handler is added once the log path is known." },
+    { n: "parse_arguments()", at: "utils/utility.py:461", w: "the command line",
       d: "Reads --layer_type, --tables, --environment, --run_type, the four validation flags, --yaml_generation and --filter_files. --source_schema, --target_database and --target_schema are gone: the workbook gives them.",
       r: "args", f: "An unknown or missing argument: argparse exits with 2", k: [
-      { n: "default flags", at: "utils/utility.py:572", w: "yes on bronze, no on other layers", when: true,
-        d: "When --yaml_generation or --filter_files is not given, it is 'yes' for bronze_postgres_edge and bronze_mssql_sitelink and 'no' for silver, reports and sanity. An explicit 'yes' on another layer is refused (parser.error)." }
+      { n: "default flags", at: "utils/utility.py:588", w: "yes on bronze, no on other layers", when: true,
+        d: "When --yaml_generation or --filter_files is not given, it is 'yes' for every bronze layer (BRONZE_LAYERS) and 'no' for silver, reports and sanity. An explicit 'yes' on another layer is refused (parser.error)." }
     ]},
-    { n: "workbook_spelling()", at: "yaml_generation/generate_yaml.py:249", w: "addresses becomes Addresses",
-      d: "Bronze layers with named tables only. Table names ignore case: the name is rewritten the way the filter workbook writes it, so the YAML file names match. A name not in the workbook is kept as typed (run_for_validation reports it).", k: [
-      { n: "filter_files.read()", at: "yaml_generation/filter_files.py:324", w: "the layer's workbook rows" },
-      { n: "filter_files.spelled()", at: "yaml_generation/filter_files.py:383", w: "match names without case" }
+    { n: "workbook_spelling()", at: "yaml_generation/generate_yaml.py:363", w: "'all' to the active rows; addresses becomes Addresses",
+      d: "Bronze layers [main.py:37]. 'all' becomes the rows whose active cell is yes; none active: exit 1 [main.py:40]. Named tables ignore case: the name is rewritten the way the workbook writes it, so the YAML file names match. A name not in the workbook is kept as typed (run_for_validation reports it).", k: [
+      { n: "filter_files.read()", at: "yaml_generation/filter_files.py:405", w: "the layer's workbook rows" },
+      { n: "filter_files.spelled()", at: "yaml_generation/filter_files.py:557", w: "match names without case" }
     ]},
-    { n: "config_path and validation_dirs", at: "main.py:40", w: "historical or incremental; which validators",
+    { n: "config_path and validation_dirs", at: "main.py:54", w: "historical or incremental; which validators",
       d: "config/historical or config/incremental, and the list of validations asked for (schema, count, data, integrity)." }
   ]},
 
-  { n: "2. Output paths and the log file", at: "main.py:59", w: "where YAML is read and results go", k: [
-    { n: "get_config_output_paths()", at: "utils/utility.py:23", w: "configpaths, outputpaths, logpath",
-      d: "Finds the YAML files for each validation and the output folders. With --yaml_generation yes it is called with no tables first (the YAML may not exist yet) and again after generation with the ready tables [main.py:132].",
+  { n: "2. Output paths and the log file", at: "main.py:73", w: "where YAML is read and results go", k: [
+    { n: "get_config_output_paths()", at: "utils/utility.py:28", w: "configpaths, outputpaths, logpath",
+      d: "Finds the YAML files for each validation and the output folders. With --yaml_generation yes it is called with no tables first (the YAML may not exist yet) and again after generation with the ready tables [main.py:169].",
       f: "An unsupported layer_type: no log path, ValueError" },
-    { n: "add_file_handler()", at: "utils/utility.py:409", w: "validation_<run_id>.log", d: "From here every log line also goes to the run's log file, including every YAML generation line." }
+    { n: "add_file_handler()", at: "utils/utility.py:419", w: "validation_<run_id>.log", d: "From here every log line also goes to the run's log file, including every YAML generation line." }
   ]},
 
-  { n: "3a. if --yaml_generation yes", at: "main.py:96", w: "the default on bronze", when: true,
+  { n: "3a. if --yaml_generation yes", at: "main.py:112", w: "the default on bronze", when: true,
     d: "The YAML of every requested table is checked against the live source and Snowflake structure, rewritten where it differs, before any validator runs. Only the tables that are ready are validated. With data and count both 'no', the YAML is still written for both kinds (generate only).", k: [
-    { n: "run_for_validation()", at: "yaml_generation/generate_yaml.py:261", w: "the orchestrator of YAML generation",
-      d: "Reads the workbook, groups the tables by location, loads settings, opens the connections, reads the filters, and calls generate() once per location.",
+    { n: "run_for_validation()", at: "yaml_generation/generate_yaml.py:375", w: "the orchestrator of YAML generation",
+      d: "Reads the workbook, groups the tables by location, takes each row's rules, opens the connections, reads the filters, and calls generate() once per location.",
       r: "(results, ready_tables). results are (table, kind, status, detail) rows.",
-      f: "Raises ValueError, with nothing written, for a bad argument, a bad workbook row, a settings problem or a connection that cannot open. main.py logs only its message (no traceback), starting 'Fix this and run again:', and exits 1 [main.py:122]. Any other error is logged with its traceback [main.py:128].", k: [
+      f: "Raises ValueError, with nothing written, for a bad argument, a bad workbook row or header, or a connection that cannot open. main.py logs only its message (no traceback), starting 'Fix this and run again:', and exits 1 [main.py:137]. Any other error is logged with its traceback [main.py:145].", k: [
 
-      { n: "check the layer", at: "yaml_generation/generate_yaml.py:278", w: "bronze_postgres_edge to postgres", when: true,
+      { n: "check the layer", at: "yaml_generation/generate_yaml.py:395", w: "bronze_postgres_edge to postgres", when: true,
         d: "The engine must be in db_rules.SOURCE_TYPES (postgres, mssql, athena, redshift, mysql_crm, mysql_ess, newbook_common, newbook_corporation, newbook_instances, newbook_login). The newbook_* keys are Snowflake sources." },
-      { n: "resolve_args()  (flags only)", at: "yaml_generation/generate_yaml.py:77", w: "check the flags",
+      { n: "resolve_args()  (flags only)", at: "yaml_generation/generate_yaml.py:92", w: "check the flags",
         d: "Refuses data and count both 'no', and 'all' mixed with names. Checks --environment against ENV_TOKENS (dev DEV, stg STG, qat QAT, prod PRD, local DEV).",
         f: "An unknown --environment" },
-      { n: "config_dir_for()", at: "yaml_generation/generate_yaml.py:232", w: "config/<run_type>/<layer>", d: "Where the YAML is written, and where main.py reads it." },
+      { n: "config_dir_for()", at: "yaml_generation/generate_yaml.py:343", w: "config/<run_type>/<layer>", d: "Where the YAML is written, and where main.py reads it." },
 
-      { n: "filter_files.read()", at: "yaml_generation/filter_files.py:324", w: "the source of truth",
-        d: "Reads the layer's workbook from master_files/ (&lt;layer&gt;_master.xlsx, e.g. bronze_postgres_edge_master.xlsx, bronze_newbook_login_master.xlsx). One Row per table, with its Location and the filter cell for this run type.",
-        r: "{table: Row}", f: "No workbook for the layer, the file or sheet missing, a blank location cell, a source_database that is not the layer's engine, a target_application that is not an engine, a Snowflake target_database without {env}. The error names the file and row.", k: [
-        { n: "_sheet_rows()", at: "yaml_generation/filter_files.py:295", w: "find the sheet with the columns",
+      { n: "filter_files.read()", at: "yaml_generation/filter_files.py:405", w: "the source of truth",
+        d: "Reads the layer's workbook from master_files/ (&lt;layer&gt;_master.xlsx, e.g. bronze_postgres_edge_master.xlsx, bronze_newbook_login_master.xlsx). One Row per table: its Location, the source and target filter cells for this run type, the two incremental columns, a TableRule (key, source and target exclusions, case_insensitive_columns) and active.",
+        r: "{table: Row}", f: "No workbook for the layer, the file or sheet missing, an old header, a blank location cell, a source_database that is an engine name, a target_application that is not an engine, a Snowflake target_database without {env}, source and target key columns that differ. The error names the file and row.", k: [
+        { n: "_sheet_rows()", at: "yaml_generation/filter_files.py:376", w: "find the sheet with the columns",
           d: "The first sheet that has 'Target Table Name' and the six location columns. Other sheets (Count, Testing) are ignored.", k: [
-          { n: "_header()", at: "yaml_generation/filter_files.py:284", w: "match headers loosely",
-            d: "Trims, lower-cases and drops a trailing dot, so 'Historical Filter to apply.' matches." }
+          { n: "_header()", at: "yaml_generation/filter_files.py:365", w: "match headers loosely",
+            d: "Trims, lower-cases and drops a trailing dot, so 'Historical Source Filter.' matches." }
         ]},
-        { n: "FILTER_HEADERS[run_type]", at: "yaml_generation/filter_files.py:92", w: "which filter column", when: true,
-          d: "historical reads 'Historical Filter to apply', incremental reads 'Incremental filters to apply'. A missing column is a warning: no filter." },
-        { n: "engine_of()", at: "yaml_generation/filter_files.py:308", w: "PostgreSQL to postgres, MySQL CRM to mysql_crm",
+        { n: "OLD_HEADERS", at: "yaml_generation/filter_files.py:426", w: "an old header is refused", when: true,
+          d: "Historical Filter to apply, Incremental filters to apply, incremental_column, key_columns, exclude_columns: ValueError naming the new per-side columns, so a filter is never dropped without a word." },
+        { n: "FILTER_HEADERS[run_type]", at: "yaml_generation/filter_files.py:131", w: "which filter columns", when: true,
+          d: "historical reads 'Historical Source Filter' and 'Historical Target Filter', incremental the two Incremental ones. A missing column is a warning: that side gets no filter." },
+        { n: "engine_of()", at: "yaml_generation/filter_files.py:370", w: "PostgreSQL to postgres, MySQL CRM to mysql_crm",
           d: "Maps the workbook's engine name to a db_rules.RULES key, by label or key, in any case. Used on target_application: the result is the target engine (Location.target_type).", r: "postgres, mssql, snowflake, mysql_crm ... or None" },
-        { n: "{env} check", at: "yaml_generation/filter_files.py:368", w: "a Snowflake target_database must hold {env}", when: true,
+        { n: "{env} check", at: "yaml_generation/filter_files.py:468", w: "a Snowflake target_database must hold {env}", when: true,
           d: "Without {env}, every environment would be compared against one database, so the row is refused. Another target (e.g. MySQL CRM) needs none." },
-        { n: "duplicate table", at: "yaml_generation/filter_files.py:371", w: "first row wins", when: true, d: "A table listed twice (any case) keeps its first row; the second is logged and ignored." },
-        { n: "Location / Row", at: "yaml_generation/filter_files.py:96", w: "where a table lives",
-          d: "Location = application, engine, source database and schema, target database ({env} kept) and schema, and the target engine (target_type, from target_application). Row = table, Location, filter cell, label (file and row number for messages)." }
+        { n: "duplicate table", at: "yaml_generation/filter_files.py:471", w: "first row wins", when: true, d: "A table listed twice (any case) keeps its first row; the second is logged and ignored." },
+        { n: "Location / TableRule / Row", at: "yaml_generation/filter_files.py:151", w: "where a table lives, and its rules",
+          d: "Location = application, engine, source database and schema, target database ({env} kept) and schema, and the target engine (target_type, from target_application). TableRule = key_columns, source_exclude, target_exclude, case_insensitive. Row = table, Location, source and target filter cells, label (file and row number for messages), the two incremental columns, target table, rule, active." }
       ]},
-      { n: "requested tables", at: "yaml_generation/generate_yaml.py:297", w: "'all' or the named ones", when: true,
-        d: "'all' is every workbook row. Named tables are matched without case (spelled). A named table with no row is FAILED here: without a row its schema is not known." },
-      { n: "group by location", at: "yaml_generation/generate_yaml.py:300", w: "one group per application and schema",
+      { n: "requested tables", at: "yaml_generation/generate_yaml.py:416", w: "'all' or the named ones", when: true,
+        d: "'all' is the rows whose active cell is yes (main.py has already passed them by name). Named tables are matched without case (spelled). A named table with no row is FAILED here: without a row its schema is not known." },
+      { n: "group by location", at: "yaml_generation/generate_yaml.py:419", w: "one group per application and schema",
         d: "Tables with the same Location are generated together, so one run can hold tables of several applications or schemas on the same engine." },
 
-      { n: "settings.pick_rules_file()", at: "yaml_generation/settings.py:138", w: "the rules workbook",
-        d: "The one .xlsx in yaml_generation/settings/ (dev_rules.xlsx). None is fine: no overrides.", f: "More than one file, or a bad file: 'Settings problem', exit 1" },
-      { n: "settings.load_table_rules()", at: "yaml_generation/settings.py:79", w: "per location: key, exclusions, filters, window column",
-        d: "Rows for this engine and source schema. Each becomes a TableRule: key_columns, exclude_columns, source_where, target_where, incremental_column.",
-        f: "Bad headers, or a row with no source_type or table_name" },
-      { n: "settings.load_exclusions()", at: "yaml_generation/settings.py:60", w: "columns left out on both sides",
-        d: "settings/exclusions.yaml: this engine's section plus the snowflake section (the Fivetran columns)." },
-      { n: "get_database()  x2", at: "db/factory.py:14", w: "source and Snowflake connections",
+      { n: "table rules", at: "yaml_generation/generate_yaml.py:425", w: "per location: each row's TableRule",
+        d: "Key, source and target exclusions and case_insensitive_columns, straight from the master rows. Nothing else is read: no settings folder, no exclusions in db_rules." },
+      { n: "get_database()  x2", at: "db/factory.py:15", w: "source and Snowflake connections",
         d: "The same cached connections the validators use later, from creds/<env>.yaml. Snowflake opens a browser for SSO once.", f: "A missing creds file or block: ValueError, exit 1" },
 
-      { n: "if --filter_files yes", at: "yaml_generation/generate_yaml.py:324", w: "read the filter cells", when: true,
+      { n: "if --filter_files yes", at: "yaml_generation/generate_yaml.py:438", w: "read the filter cells", when: true,
         d: "With --filter_files no, the locations are still read from the workbook, but every table is compared in full.", k: [
-        { n: "filter_files.filters()", at: "yaml_generation/filter_files.py:389", w: "filter cell to two WHEREs",
-          d: "For each requested row: an empty cell or 'compare full' means no filter. Otherwise the cell becomes a source WHERE and a Snowflake WHERE, written for that row's own schema.",
+        { n: "filter_files.filters()", at: "yaml_generation/filter_files.py:579", w: "two filter cells to two WHEREs",
+          d: "For each requested row: an empty cell or 'compare full' means no filter on that side. Otherwise the source cell becomes the source WHERE and the target cell the target WHERE, each written for that row's own location. A filter on one side only is a warning.",
           r: "{table: (source_where, target_where)}", f: "A cell it cannot read is logged with file and row, and that table is loaded in full", k: [
-          { n: "_count_statement()", at: "yaml_generation/filter_files.py:309", w: "add 'select count(*) from'", d: "A cell holds 'units j join ... where ...'. The prefix is added so it reads as one statement." },
-          { n: "BASE_TABLE check", at: "yaml_generation/filter_files.py:122", w: "the cell is about this table", when: true, d: "A cell whose FROM names another table is refused." },
-          { n: "convert()", at: "yaml_generation/filter_files.py:264", w: "joins to sub-selects",
+          { n: "_count_statement()", at: "yaml_generation/filter_files.py:390", w: "add 'select count(*) from'", d: "A cell holds 'units j join ... where ...'. The prefix is added so it reads as one statement." },
+          { n: "BASE_TABLE check", at: "yaml_generation/filter_files.py:200", w: "the cell is about this table", when: true, d: "A cell whose FROM names another table is refused (the target cell may use the target name)." },
+          { n: "convert()", at: "yaml_generation/filter_files.py:342", w: "joins to sub-selects",
             d: "Each join becomes 'column IN (SELECT id FROM schema.table WHERE ...)'. The Snowflake side uses {env}_DB.SCHEMA and adds _FIVETRAN_ACTIVE = TRUE inside every sub-select.", k: [
-            { n: "_plan()", at: "yaml_generation/filter_files.py:176", w: "parse the statement", d: "Reads the table, its alias, its joins and its AND conditions (_split_and, _masked keep quoted text safe).", f: "Refused: OR, BETWEEN, outer joins, subqueries, quoted names, bind parameters" },
-            { n: "_where()", at: "yaml_generation/filter_files.py:250", w: "write one side", d: "Writes the conditions for one side, nesting a sub-select for each join." }
+            { n: "_plan()", at: "yaml_generation/filter_files.py:254", w: "parse the statement", d: "Reads the table, its alias, its joins and its AND conditions (_split_and, _masked keep quoted text safe).", f: "Refused: OR, BETWEEN, outer joins, subqueries, quoted names, bind parameters" },
+            { n: "_where()", at: "yaml_generation/filter_files.py:328", w: "write one side", d: "Writes the conditions for one side, nesting a sub-select for each join." }
           ]},
-          { n: "check_filter()  x2", at: "yaml_generation/yaml_builder.py:83", w: "refuse unsafe text", d: "Refuses ; { } -- /* */ and line breaks. The Snowflake side may hold {env}." }
+          { n: "check_filter()  x2", at: "yaml_generation/yaml_builder.py:88", w: "refuse unsafe text", d: "Refuses ; { } -- /* */ and line breaks. The Snowflake side may hold {env}." }
         ]}
       ]},
 
-      { n: "for each location", at: "yaml_generation/generate_yaml.py:329", w: "one group at a time", when: true,
+      { n: "for each location", at: "yaml_generation/generate_yaml.py:446", w: "one group at a time", when: true,
         d: "resolve_args() again with the group's schemas and Snowflake database: {env}_EDGE_BRONZE becomes DEV_EDGE_BRONZE to read the catalogue, and {env} is kept for the YAML. A ValueError FAILS that group's tables; the next group still runs.", k: [
-        { n: "resolve_args()  (with location)", at: "yaml_generation/generate_yaml.py:94", w: "fill {env}" },
-        { n: "generate()", at: "yaml_generation/generate_yaml.py:98", w: "write the YAML for one group",
+        { n: "resolve_args()  (with location)", at: "yaml_generation/generate_yaml.py:453", w: "fill {env}" },
+        { n: "generate()", at: "yaml_generation/generate_yaml.py:117", w: "write the YAML for one group",
           d: "For each table: read both column lists, match them, add filters and the window, find the key, write the data YAML and collect the count entry. One table failing does not stop the others. Nothing is deleted.",
           r: "results rows: NEW, UPDATED, UNCHANGED, PRESENT or FAILED", k: [
-          { n: "db_rules.list_tables()  x2", at: "yaml_generation/db_rules.py:344", w: "are both schemas visible?",
+          { n: "db_rules.list_tables()  x2", at: "yaml_generation/db_rules.py:346", w: "are both schemas visible?",
             d: "Lists the source schema and the Snowflake schema. An empty listing means a wrong schema or no access: refused before anything is written.", f: "Empty listing: ValueError for the group" },
-          { n: "for each table", at: "yaml_generation/generate_yaml.py:131", w: "the per-table steps", when: true, k: [
-            { n: "rule + filters", at: "yaml_generation/generate_yaml.py:132", w: "which filter wins", when: true,
-              d: "The rules workbook filter wins for a side it sets; otherwise the filter workbook's. A table with no filter is compared in full (logged)." },
-            { n: "if create_only and the YAML exists", at: "yaml_generation/generate_yaml.py:138", w: "--yaml_generation no", when: true,
+          { n: "for each table", at: "yaml_generation/generate_yaml.py:173", w: "the per-table steps", when: true, k: [
+            { n: "rule + filters", at: "yaml_generation/generate_yaml.py:175", w: "the row's rule and filters", when: true,
+              d: "The row's TableRule (matched without case) and its source and target filters. A table with no filter is compared in full (logged)." },
+            { n: "if create_only and the YAML exists", at: "yaml_generation/generate_yaml.py:184", w: "--yaml_generation no", when: true,
               d: "The table is PRESENT and is not read or rewritten (data_file_path, count_table_names)." },
-            { n: "TableSpec", at: "yaml_generation/yaml_builder.py:103", w: "the table pair", d: "Source type, schema, table, Snowflake database ({env}), schema. Snowflake holds the name in upper case." },
-            { n: "db_rules.list_columns()  x2", at: "yaml_generation/db_rules.py:360", w: "both catalogues",
+            { n: "TableSpec", at: "yaml_generation/yaml_builder.py:108", w: "the table pair", d: "Source type, schema, table, Snowflake database ({env}), schema. Snowflake holds the name in upper case." },
+            { n: "db_rules.list_columns()  x2", at: "yaml_generation/db_rules.py:362", w: "both catalogues",
               d: "PostgreSQL from pg_catalog; SQL Server, MySQL and Snowflake from INFORMATION_SCHEMA (a Snowflake source through its own database). Names and data types.", f: "No columns on a side: the table is FAILED (not there, or no read access); its YAML is left as it is" },
-            { n: "reconcile()", at: "yaml_generation/yaml_builder.py:179", w: "match the columns",
-              d: "Normalises the names and matches them exactly. Applies the exclusions (exclusions.yaml + the table rule). A column on one side only is kept and compared with a MISSING token, so its rows differ (fail, don't skip).", k: [
-              { n: "normalize_name()", at: "yaml_generation/yaml_builder.py:70", w: "Unit Name to unit_name" },
-              { n: "db_rules.kind_of()", at: "yaml_generation/db_rules.py:294", w: "type to kind", d: "text, number, boolean, timestamp, json ..." },
-              { n: "comparability_problems()", at: "yaml_generation/yaml_builder.py:226", w: "types that cannot be text", d: "For example the SQL Server rowversion. The table is FAILED unless the column is excluded." }
+            { n: "reconcile()", at: "yaml_generation/yaml_builder.py:216", w: "match the columns",
+              d: "Normalises the names and matches them exactly. Applies each side's exclusions (the row's source_exclude_columns and target_exclude_columns): status EXCLUDED. A column on one side only is kept and compared with a MISSING token, so its rows differ (fail, don't skip).", k: [
+              { n: "normalize_name()", at: "yaml_generation/yaml_builder.py:71", w: "Unit Name to unit_name" },
+              { n: "db_rules.kind_of()", at: "yaml_generation/db_rules.py:296", w: "type to kind", d: "text, number, boolean, timestamp, json ..." },
+              { n: "comparability_problems()", at: "yaml_generation/yaml_builder.py:261", w: "types that cannot be text", d: "For example the SQL Server rowversion. The table is FAILED unless the column is excluded." }
             ]},
-            { n: "plain_text_columns()", at: "yaml_generation/yaml_builder.py:383", w: "warn: compared as plain text", d: "Columns with no special rule; logged because they may FAIL on format." },
-            { n: "if --run_type incremental", at: "yaml_generation/generate_yaml.py:175", w: "add the window", when: true,
-              d: "Window column: incremental_column from the rules workbook, else the incremental_column cell of the table's master workbook row. Neither: the table's incremental data and count FAIL, with the reason in the log.", k: [
-              { n: "incremental_window()", at: "yaml_generation/yaml_builder.py:171", w: ">= :start_time AND <= :end_time",
-                d: "The same window on both sides. If the column is missing on a side it is still written by name, so the query fails there (logged).", k: [
-                { n: "window_condition()", at: "yaml_generation/yaml_builder.py:160", w: "the SQL text of the window" }
+            { n: "plain_text_columns()", at: "yaml_generation/yaml_builder.py:441", w: "warn: compared as plain text", d: "Columns with no special rule; logged because they may FAIL on format." },
+            { n: "if --run_type incremental", at: "yaml_generation/generate_yaml.py:244", w: "add the window", when: true,
+              d: "Window columns: the row's source_incremental_column on the source and target_incremental_column on the target. Either blank: the table's incremental data and count FAIL, with the reason in the log.", k: [
+              { n: "incremental_window()", at: "yaml_generation/yaml_builder.py:181", w: ">= :start_time AND <= :end_time",
+                d: "The same window on both sides, each on its own column. If the column is missing on a side it is still written by name, so the query fails there (logged).", k: [
+                { n: "window_condition()", at: "yaml_generation/yaml_builder.py:170", w: "the SQL text of the window" }
               ]}
             ]},
-            { n: "if data validation", at: "yaml_generation/generate_yaml.py:186", w: "the data YAML", when: true, k: [
-              { n: "db_rules.primary_key_columns()", at: "yaml_generation/db_rules.py:400", w: "the row key",
-                d: "key_columns from the rules workbook wins. Otherwise the source primary key (SHOW PRIMARY KEYS for a Snowflake source)." },
-              { n: "missing_key_columns()", at: "yaml_generation/yaml_builder.py:247", w: "key on both sides?", f: "No key, or a key column not on both sides: the data YAML FAILS with a log line; the count is still written" },
-              { n: "build_data_entry()", at: "yaml_generation/yaml_builder.py:334", w: "the two SELECTs",
-                d: "One normalised SELECT per side: each value becomes text the same way on both sides (booleans, timestamps, NULL token). json, jsonb, hstore are listed in json_columns.", k: [
-                { n: "key_expression()", at: "yaml_generation/yaml_builder.py:253", w: "sourcecolumn / targetcolumn" },
-                { n: "side_item() / value_expression()", at: "yaml_generation/yaml_builder.py:319", w: "one column as text", d: "Uses the engine's casting rules from db_rules.RULES and quote()." },
-                { n: "source_ref() / target_ref()", at: "yaml_generation/yaml_builder.py:308", w: "schema.table and {env}_DB.SCHEMA.TABLE" },
-                { n: "_select() / _checked()", at: "yaml_generation/yaml_builder.py:300", w: "assemble and check the SQL", d: "Adds the filters and the window (Filters.source_parts / target_parts) and the Fivetran filter on Snowflake." },
-                { n: "flattened_columns()", at: "yaml_generation/yaml_builder.py:326", w: "json_columns" }
+            { n: "if data validation", at: "yaml_generation/generate_yaml.py:267", w: "the data YAML", when: true, k: [
+              { n: "db_rules.primary_key_columns()", at: "yaml_generation/db_rules.py:402", w: "the row key",
+                d: "The row's source_key_columns / target_key_columns win. Otherwise the source primary key (SHOW PRIMARY KEYS for a Snowflake source), less any excluded column." },
+              { n: "missing_key_columns()", at: "yaml_generation/yaml_builder.py:282", w: "key on both sides?", f: "No key, or a key column not on both sides: the data YAML FAILS with a log line; the count is still written" },
+              { n: "build_data_entry()", at: "yaml_generation/yaml_builder.py:387", w: "the two SELECTs",
+                d: "One normalised SELECT per side: each value becomes text the same way on both sides (booleans, timestamps, NULL token). case_insensitive_columns are wrapped in LOWER(...) on both sides (a name not compared is a warning). json, jsonb, hstore are listed in json_columns.", k: [
+                { n: "key_expression()", at: "yaml_generation/yaml_builder.py:288", w: "sourcecolumn / targetcolumn" },
+                { n: "side_item() / value_expression()", at: "yaml_generation/yaml_builder.py:372", w: "one column as text", d: "Uses the engine's casting rules from db_rules.RULES and quote()." },
+                { n: "source_ref() / target_ref()", at: "yaml_generation/yaml_builder.py:353", w: "schema.table and {env}_DB.SCHEMA.TABLE" },
+                { n: "_select() / _checked()", at: "yaml_generation/yaml_builder.py:335", w: "assemble and check the SQL", d: "Adds the filters and the window (Filters.source_parts / target_parts) and the Fivetran filter on Snowflake." },
+                { n: "flattened_columns()", at: "yaml_generation/yaml_builder.py:379", w: "json_columns" }
               ]},
-              { n: "data_header()", at: "yaml_generation/yaml_builder.py:393", w: "comment lines at the top", d: "Key, column matching summary, filters and the time stamp, as comments in the YAML." },
-              { n: "write_data_file()", at: "yaml_generation/yaml_builder.py:466", w: "NEW / UPDATED / UNCHANGED",
+              { n: "data_header()", at: "yaml_generation/yaml_builder.py:451", w: "comment lines at the top", d: "Key, column matching summary (excluded columns under 'Excluded (master file)'), filters and the time stamp, as comments in the YAML." },
+              { n: "write_data_file()", at: "yaml_generation/yaml_builder.py:528", w: "NEW / UPDATED / UNCHANGED",
                 d: "config/<run_type>/<layer>/data_validation/<table>.yaml. Compares with the file ignoring the stamp line; writes only when the text differs." }
             ]},
-            { n: "if count validation", at: "yaml_generation/generate_yaml.py:210", w: "collect the count entry", when: true, k: [
-              { n: "build_count_entry()", at: "yaml_generation/yaml_builder.py:363", w: "two count(*) queries", d: "Same filters and window as the data query." }
+            { n: "if count validation", at: "yaml_generation/generate_yaml.py:305", w: "collect the count entry", when: true, k: [
+              { n: "build_count_entry()", at: "yaml_generation/yaml_builder.py:420", w: "two count(*) queries", d: "Same filters and window as the data query." }
             ]},
-            { n: "except: one table failed", at: "yaml_generation/generate_yaml.py:212", w: "the batch goes on", when: true, d: "Unexpected error: the table is FAILED, logged with the traceback." }
+            { n: "except: one table failed", at: "yaml_generation/generate_yaml.py:307", w: "the batch goes on", when: true, d: "Unexpected error: the table is FAILED, logged with the traceback." }
           ]},
-          { n: "other_environment_tables()", at: "yaml_generation/yaml_builder.py:549", w: "warn: other env in count file" },
-          { n: "upsert_count_file()", at: "yaml_generation/yaml_builder.py:526", w: "the layer's count file",
+          { n: "other_environment_tables()", at: "yaml_generation/yaml_builder.py:675", w: "warn: other env in count file" },
+          { n: "upsert_count_file()", at: "yaml_generation/yaml_builder.py:590", w: "the layer's count file",
             d: "Adds or replaces the tables in count_validation/&lt;layer&gt;.yaml and keeps every other table. Writes only when something changed.", r: "NEW / UPDATED / UNCHANGED per table" }
         ]},
-        { n: "if --tables all", at: "yaml_generation/generate_yaml.py:341", w: "YAML not in the workbook", when: true,
-          d: "generated_tables(): a generated YAML whose table is no longer in the workbook is logged, left unchanged (never deleted) and not validated." }
+        { n: "if --tables all", at: "yaml_generation/generate_yaml.py:471", w: "YAML not in the workbook", when: true,
+          d: "generated_tables(): a generated YAML whose table is no longer in the workbook is logged, left unchanged (never deleted) and not validated. Only when 'all' reaches run_for_validation() itself: main.py now passes the active rows by name." }
       ]},
-      { n: "log every result", at: "yaml_generation/generate_yaml.py:347", w: "YAML <status> <table> <kind>" },
-      { n: "ready_tables", at: "yaml_generation/generate_yaml.py:352", w: "what the validators get", when: true,
+      { n: "log every result", at: "yaml_generation/generate_yaml.py:484", w: "YAML <status> <table> <kind>" },
+      { n: "ready_tables", at: "yaml_generation/generate_yaml.py:490", w: "what the validators get", when: true,
         d: "A table is ready when it has no table-level FAILED, at least one NEW, UPDATED, UNCHANGED or PRESENT, and its count (if asked) is ready. A FAILED data YAML does not block the count." }
     ]},
-    { n: "back in main.py", at: "main.py:120", w: "use the results", when: true,
+    { n: "back in main.py", at: "main.py:157", w: "use the results", when: true,
       d: "Not-ready tables are logged as 'Not validated'. Any FAILED sets system_error (exit 1 at the end). No ready table: exit 1 now. Then get_config_output_paths() again with the ready tables, and the data YAML list keeps only the tables whose data YAML is ready." }
   ]},
 
-  { n: "3b. if --yaml_generation no", at: "main.py:143", w: "use the YAML on disk", when: true,
-    d: "Bronze, named tables only. A YAML that is missing is created; one that exists is used as it is.", k: [
-    { n: "tables_missing_yaml()", at: "yaml_generation/generate_yaml.py:237", w: "files only, no database", d: "The named tables whose data file or count entry is missing." },
-    { n: "run_for_validation(create_only=True)", at: "main.py:150", w: "create only the missing ones", d: "Same path as 3a. Existing YAML is PRESENT and left alone." },
-    { n: "drop FAILED, re-read paths", at: "main.py:166", w: "validate what has YAML", d: "FAILED tables are removed and set system_error. A data YAML that is still not there is logged and left out." }
+  { n: "3b. if --yaml_generation no", at: "main.py:186", w: "use the YAML on disk", when: true,
+    d: "Bronze. The tables are names here, also for 'all' (main.py turned it into the active rows), so a missing YAML is created; one that exists is used as it is.", k: [
+    { n: "tables_missing_yaml()", at: "yaml_generation/generate_yaml.py:348", w: "files only, no database", d: "The named tables whose data file or count entry is missing." },
+    { n: "run_for_validation(create_only=True)", at: "main.py:195", w: "create only the missing ones", d: "Same path as 3a. Existing YAML is PRESENT and left alone." },
+    { n: "drop FAILED, re-read paths", at: "main.py:218", w: "validate what has YAML", d: "FAILED tables are removed and set system_error. A data YAML that is still not there is logged and left out." }
   ]},
 
-  { n: "4. Build the context", at: "main.py:184", w: "what every validator reads", k: [
-    { n: "data_context()", at: "utils/utility.py:591", w: "DataContext dataclass",
+  { n: "4. Build the context", at: "main.py:246", w: "what every validator reads", k: [
+    { n: "data_context()", at: "utils/utility.py:605", w: "DataContext dataclass",
       d: "run_id, run_at, validation_dirs, layer_type, outputpaths, configpaths, BASE_DIR, environment, tables (the ready list), run_type, report_pack." },
-    { n: "schema_ctx", at: "main.py:202", w: "the tables as requested", d: "Schema validation gets the requested tables (so a FAILED table is still reported); count and data get the ready list." }
+    { n: "schema_ctx", at: "main.py:265", w: "the tables as requested", d: "Schema validation gets the requested tables (so a FAILED table is still reported); count and data get the ready list." }
   ]},
 
-  { n: "5. Run the validators", at: "main.py:204", w: "in the order asked", d: "Each returns (failures, system_error). A crash is logged and counts as a system error; the next validator still runs.", k: [
+  { n: "5. Run the validators", at: "main.py:284", w: "in the order asked", d: "Each returns (failures, system_error). A crash is logged and counts as a system error; the next validator still runs.", k: [
     { n: "validate_integrity()", at: "validators/integrity_check.py:40", w: "sanity layer only", when: true },
-    { n: "validate_schema()", at: "validators/schema_validation.py:17", w: "column structure", d: "Reads the schema YAML, queries both catalogues, writes create_summary_schema()." },
-    { n: "validate_count()", at: "validators/count_validation.py:40", w: "two numbers", d: "Reads count_validation/<layer>.yaml. Runs both count queries; PASS when they are equal.", k: [
-      { n: "get_database()", at: "db/factory.py:14", w: "same cached connections" },
-      { n: "if incremental: get_incremental_dates()", at: "utils/utility.py:843", w: "fill :start_time and :end_time", when: true, k: [
-        { n: "check_freshness()", at: "utils/utility.py:625", w: "is Snowflake recent enough?", d: "max(<incremental_column>) on both sides, from the table's workbook row: source_database.source_schema.table and target_database.target_schema.TABLE. More than 50 hours apart fails. No branch per layer.", f: "RuntimeError: freshness check failed. A blank incremental_column or source_schema (MySQL) makes the query fail" },
-        { n: "get_dates()", at: "utils/utility.py:662", w: "master workbook + Snowflake",
-          d: "Previous sync date: the table's count/data_validation_last_run_date in the master workbook (row matched on the lower-case Target Table Name and layer). Then max(_fivetran_synced) in Snowflake, and the min/max of the row's incremental_column over the rows synced in between. The target comes from the row's target_database and target_schema: no branch per layer.", f: "No last-run date for the table: seed a value first. No new sync or no new rows: the table is skipped." }
+    { n: "validate_schema()", at: "validators/schema_validation.py:20", w: "column structure", d: "Reads the schema YAML, queries both catalogues, drops each side's master-row exclude columns, writes create_summary_schema()." },
+    { n: "validate_count()", at: "validators/count_validation.py:41", w: "two numbers", d: "Reads count_validation/<layer>.yaml. Runs both count queries; PASS when they are equal.", k: [
+      { n: "get_database()", at: "db/factory.py:15", w: "same cached connections" },
+      { n: "if incremental: get_incremental_dates()", at: "utils/utility.py:812", w: "fill :start_time and :end_time", when: true, k: [
+        { n: "check_freshness()", at: "utils/utility.py:625", w: "is Snowflake recent enough?", d: "max(source_incremental_column) on the source and max(target_incremental_column) on the target, from the table's workbook row: source_database.source_schema.table and target_database.target_schema.TABLE. More than 50 hours apart fails. No branch per layer.", f: "RuntimeError: freshness check failed. A blank incremental column or source_schema (MySQL) makes the query fail" },
+        { n: "get_dates()", at: "utils/utility.py:665", w: "master workbook + Snowflake",
+          d: "Previous sync date: the table's count/data_validation_last_run_date in the master workbook (row matched on the lower-case Target Table Name and layer). Then max(_fivetran_synced) in Snowflake, and the min/max of the row's target_incremental_column over the rows synced in between. The target comes from the row's target_database and target_schema: no branch per layer.", f: "No last-run date for the table: seed a value first. No new sync or no new rows: the table is skipped." }
       ]},
-      { n: "DataFrame.equals()", at: "validators/count_validation.py:154", w: "PASS or FAIL" },
-      { n: "create_summary_count()", at: "validators/count_validation.py:14", w: "the summary row" },
-      { n: "update_control_table()", at: "utils/utility.py:816", w: "move the window forward", d: "Incremental only: writes the new sync date into the master workbook (ctx.masterfilepath, &lt;layer&gt;_master.xlsx), on PASS and on FAIL." }
+      { n: "DataFrame.equals()", at: "validators/count_validation.py:159", w: "PASS or FAIL" },
+      { n: "create_summary_count()", at: "validators/count_validation.py:15", w: "the summary row" },
+      { n: "update_control_table()", at: "utils/utility.py:783", w: "move the window forward", d: "Incremental only: writes the new sync date into the master workbook (ctx.masterfilepath, &lt;layer&gt;_master.xlsx), on PASS and on FAIL." }
     ]},
-    { n: "validate_data()", at: "validators/data_validation.py:21", w: "row by row", d: "Reads each data YAML, runs both SELECTs, compares the rows.", r: "PASS, or FAIL with missing rows and per-column differences in the output Excel", k: [
-      { n: "if incremental: get_incremental_dates()", at: "utils/utility.py:843", w: "same window as count", when: true },
+    { n: "validate_data()", at: "validators/data_validation.py:17", w: "row by row", d: "Reads each data YAML, runs both SELECTs, compares the rows.", r: "PASS, or FAIL with missing rows and per-column differences in the output Excel", k: [
+      { n: "if incremental: get_incremental_dates()", at: "utils/utility.py:812", w: "same window as count", when: true },
       { n: "astype(str) + lower-case columns", at: "validators/data_validation.py:139", w: "both sides as text" },
       { n: "flatten_columns()", at: "utils/json_normalize.py:88", w: "json, jsonb, hstore", d: "Only for json_columns in a generated YAML: compared as flattened text, so key order and spacing do not matter." },
-      { n: "set_index(key) + sort", at: "validators/data_validation.py:147", w: "line rows up by key" },
+      { n: "set_index(key) + sort", at: "validators/data_validation.py:148", w: "line rows up by key" },
       { n: "DataFrame.equals()", at: "validators/data_validation.py:156", w: "PASS or FAIL", k: [
         { n: "on FAIL: index.difference() / compare()", at: "validators/data_validation.py:189", w: "missing in source / target, mismatches", d: "Written to the output Excel per table." }
       ]},
-      { n: "create_summary()", at: "utils/utility.py:322", w: "the summary row and Excel" },
-      { n: "update_control_table()", at: "utils/utility.py:816", w: "incremental only", when: true }
+      { n: "create_summary()", at: "utils/utility.py:339", w: "the summary row and Excel" },
+      { n: "update_control_table()", at: "utils/utility.py:783", w: "incremental only", when: true }
     ]}
   ]},
 
-  { n: "6. Finish", at: "main.py:226", w: "duration, failure counts, exit", k: [
-    { n: "close_all_databases()", at: "db/factory.py:74", w: "close the cached connections" },
-    { n: "sys.exit()", at: "main.py:245", w: "0 / 2 / 1", d: "1 when any system error or FAILED table, else 2 when any validation failed, else 0." }
+  { n: "6. Finish", at: "main.py:294", w: "duration, failure counts, exit", k: [
+    { n: "close_all_databases()", at: "db/factory.py:89", w: "close the cached connections" },
+    { n: "sys.exit()", at: "main.py:313", w: "0 / 2 / 1", d: "1 when any system error or FAILED table, else 2 when any validation failed, else 0." }
   ]}
 ]};
 
@@ -796,12 +791,10 @@ var NODES = [
   { id: "utility", x: 30, y: 440, k: "utility.py", t: "utils/utility.py", s: "flags, paths, window", card: "utils/utility.py" },
   { id: "generate", x: 300, y: 210, k: "generate_yaml.py", t: "generate_yaml.py", s: "the orchestrator", card: "yaml_generation/generate_yaml.py" },
   { id: "validators", x: 300, y: 440, k: "validators/", t: "validators/", s: "schema, count, data", card: "validators/" },
-  { id: "filter", x: 600, y: 20, k: "filter_files.py", t: "filter_files.py", s: "where tables live", card: "yaml_generation/filter_files.py" },
-  { id: "settings", x: 600, y: 130, k: "settings.py", t: "settings.py", s: "exclusions, rules", card: "yaml_generation/settings.py" },
+  { id: "filter", x: 600, y: 20, k: "filter_files.py", t: "filter_files.py", s: "where tables live, their rules", card: "yaml_generation/filter_files.py" },
   { id: "dbrules", x: 600, y: 240, k: "db_rules.py", t: "db_rules.py", s: "read the catalogues", card: "yaml_generation/db_rules.py" },
   { id: "builder", x: 600, y: 350, k: "yaml_builder.py", t: "yaml_builder.py", s: "build the YAML", card: "yaml_generation/yaml_builder.py" },
   { id: "master", x: 880, y: 20, k: "filter_files.py", t: "master_files/", s: "<layer>_master.xlsx", card: "master_files/*.xlsx", data: true },
-  { id: "settingsdir", x: 880, y: 130, k: "settings.py", t: "settings/", s: "exclusions.yaml, dev_rules.xlsx", card: "settings/", data: true },
   { id: "dbs", x: 880, y: 240, k: "db_rules.py", t: "Source + Snowflake", s: "catalogues: columns, keys", card: "yaml_generation/db_rules.py", data: true },
   { id: "config", x: 880, y: 350, k: "yaml_builder.py", t: "config/", s: "data + count YAML", card: "config/", data: true }
 ];
@@ -809,28 +802,25 @@ var EDGES = [
   { id: "e1", d: "M120,272 L120,436", l: "1 flags", x: 128, y: 360, a: "start" },
   { id: "e2", d: "M210,241 L296,241", l: "2 make YAML", x: 253, y: 232 },
   { id: "e3", d: "M480,241 C545,241 540,51 596,51", l: "3 workbook", x: 592, y: 42, a: "end" },
-  { id: "e4", d: "M480,241 C545,241 540,161 596,161", l: "4 settings", x: 592, y: 152, a: "end" },
-  { id: "e5", d: "M480,241 C545,241 540,271 596,271", l: "5 columns", x: 592, y: 292, a: "end" },
-  { id: "e6", d: "M480,241 C545,241 540,381 596,381", l: "6 write", x: 592, y: 372, a: "end" },
+  { id: "e4", d: "M480,241 C545,241 540,271 596,271", l: "4 columns", x: 592, y: 292, a: "end" },
+  { id: "e5", d: "M480,241 C545,241 540,381 596,381", l: "5 write", x: 592, y: 372, a: "end" },
   { id: "d1", d: "M780,51 L876,51", l: "reads", x: 828, y: 43 },
-  { id: "d2", d: "M780,161 L876,161", l: "reads", x: 828, y: 153 },
-  { id: "d3", d: "M780,271 L876,271", l: "queries", x: 828, y: 263 },
-  { id: "d4", d: "M780,381 L876,381", l: "writes", x: 828, y: 373 },
-  { id: "e7", d: "M170,272 C170,370 390,360 390,436", l: "7 validate", x: 262, y: 352 },
-  { id: "e8", d: "M970,412 C970,480 700,471 484,471", l: "8 read the YAML", x: 760, y: 463 },
-  { id: "e9", d: "M300,471 L214,471", l: "9 window", x: 257, y: 462 }
+  { id: "d2", d: "M780,271 L876,271", l: "queries", x: 828, y: 263 },
+  { id: "d3", d: "M780,381 L876,381", l: "writes", x: 828, y: 373 },
+  { id: "e6", d: "M170,272 C170,370 390,360 390,436", l: "6 validate", x: 262, y: 352 },
+  { id: "e7", d: "M970,412 C970,480 700,471 484,471", l: "7 read the YAML", x: 760, y: 463 },
+  { id: "e8", d: "M300,471 L214,471", l: "8 window", x: 257, y: 462 }
 ];
 // One hop of "Play the flow": the boxes and arrows it lights, and what happens.
 var TOUR = [
   { n: ["main"], e: [], t: "You run one command, `python main.py --layer_type bronze_postgres_edge --tables units ...`. **main.py** runs the whole thing, start to end." },
   { n: ["main", "utility"], e: ["e1"], t: "**1.** main.py asks `utility.parse_arguments()` for the flags. On a layer in `BRONZE_LAYERS`, `--yaml_generation` and `--filter_files` default to yes." },
   { n: ["main", "generate"], e: ["e2"], t: "**2.** main.py calls `generate_yaml.run_for_validation()` before any validator. **generate_yaml.py** is the only YAML generation file main.py talks to." },
-  { n: ["generate", "filter", "master"], e: ["e3", "d1"], t: "**3.** `filter_files.read()` opens the layer's master workbook. A table's row says where it lives (database, schema, Snowflake name) and holds its row filter." },
-  { n: ["generate", "settings", "settingsdir"], e: ["e4", "d2"], t: "**4.** **settings.py** loads `exclusions.yaml` and the rules workbook: columns to leave out, and a key, filter or window column per table." },
-  { n: ["generate", "dbrules", "dbs"], e: ["e5", "d3"], t: "**5.** **db_rules.py** reads the columns and the primary key from the source catalogue and from Snowflake." },
-  { n: ["generate", "builder", "config"], e: ["e6", "d4"], t: "**6.** **yaml_builder.py** matches the columns, writes the two SELECTs and the count queries, and saves them in `config/`: NEW, UPDATED or UNCHANGED." },
-  { n: ["main", "validators", "config"], e: ["e7", "e8"], t: "**7, 8.** Back in main.py, the **validators** read that YAML, run both sides and compare the count and the rows." },
-  { n: ["validators", "utility"], e: ["e9"], t: "**9.** For `--run_type incremental`, **utility.py** gives the window (`:start_time`, `:end_time`) from the master workbook's last-run date and the Fivetran sync columns in Snowflake." },
+  { n: ["generate", "filter", "master"], e: ["e3", "d1"], t: "**3.** `filter_files.read()` opens the layer's master workbook. A table's row says where it lives (database, schema, Snowflake name) and holds everything else for it: the source and target filters, window columns, key, excluded columns and `active`." },
+  { n: ["generate", "dbrules", "dbs"], e: ["e4", "d2"], t: "**4.** **db_rules.py** reads the columns and the primary key from the source catalogue and from Snowflake." },
+  { n: ["generate", "builder", "config"], e: ["e5", "d3"], t: "**5.** **yaml_builder.py** matches the columns, writes the two SELECTs and the count queries, and saves them in `config/`: NEW, UPDATED or UNCHANGED." },
+  { n: ["main", "validators", "config"], e: ["e6", "e7"], t: "**6, 7.** Back in main.py, the **validators** read that YAML, run both sides and compare the count and the rows." },
+  { n: ["validators", "utility"], e: ["e8"], t: "**8.** For `--run_type incremental`, **utility.py** gives the window (`:start_time`, `:end_time`) from the master workbook's last-run date and the Fivetran sync columns in Snowflake." },
   { n: ["main"], e: [], t: "main.py writes the summary and exits: **0** all matched, **2** differences, **1** a FAILED table or a system error. Click any box to read about its file." }
 ];
 (function drawMap() {
@@ -908,7 +898,7 @@ document.getElementById("showAll").onclick = function () {
 // A step is { t: title, min: minutes, files: [...], body: [...], blocks: [{label, text}], code, sheet: {name, head, rows},
 //             download: true, warn: [...], check, optional, ask: [{label, stop}] }.
 // Every block and sheet gets a Copy button; sheet rows are copied tab-separated, so they paste into Excel cells.
-// Text: `code` and [file:line] are formatted; **bold** is bold. Every file:line was read from the working copy on 2026-11-11.
+// Text: `code` and [file:line] are formatted; **bold** is bold. Every file:line was read from the working copy on 2026-11-25.
 var PRESETS = {
   Edge: { app: "Edge", engine: "postgres", label: "PostgreSQL", layer: "bronze_postgres_edge", workbook: "bronze_postgres_edge_master.xlsx",
           db: "fms", schema: "public", tdb: "{env}_EDGE_BRONZE", tschema: "STOREDGE_FMS_PUBLIC", incol: "updated_at", table: "units" },
@@ -916,7 +906,7 @@ var PRESETS = {
               db: "DevT5000", schema: "dbo", tdb: "{env}_SITELINK_BRONZE", tschema: "AWSDEV_DEVT5000_DBO", incol: "dupdated", table: "Units" }
 };
 // new_application_onboarding/templates/TEMPLATE_layer_master.xlsx, embedded so the guide can hand it out offline.
-var TEMPLATE_XLSX = "UEsDBBQAAAAIAFx9c11Gx01IlwAAAM0AAAAQAAAAZG9jUHJvcHMvYXBwLnhtbE2PTQvCMBBE/0ro3aS16EFiQdSj6Ml7TDc2kGSXZIX476WCH7cZhvdg9CUjQWYPRdQYUtk2EzNtlCp2gmiKRIJUY3CYo+EiMd8VOuctHNA+IiRWy7ZdK6gMaYRxQV9hM+gdUfDWsMc0nLzNWNCxOFYLQewxkmF/CyCUOBMketYgetnJlVb/4Gy5Qi5z7mX3Hj9dq9+B4QVQSwMEFAAAAAgAXH1zXVdYnaD5AAAAKwIAABEAAABkb2NQcm9wcy9jb3JlLnhtbM2SwUrEMBCGX2XJvZ2k1eqGbi+KJwXBguItJLO7waYJyUi7by+tu11FH2CvMz/f/w1MrYPUPuJz9AEjWUyr0XV9kjps2J4oSICk9+hUyn3AfnTd1kenKOU+7iAo/aF2CAXnFTgkZRQpmIBZWIisqY2WOqIiH494oxd8+IzdDDMasEOHPSUQuQDWTI3hMHY1nAETjDC69D1AsxDn6b/YeQPsmByTXVLDMORDOecKzgW8PT2+zOdmtk+keo1sNSYr6RBww07Nr+XdffvAmoIXVSZEJsqWV5Lfyqv1++T6y+8s7LyxW3sZxutWcCkKeX3zw/gk2NTw5y+aL1BLAwQUAAAACABcfXNdmVycIwkGAACcJwAAEwAAAHhsL3RoZW1lL3RoZW1lMS54bWztWt9T2zgQfuev0Ohm7u0aO45DQjEdnB/lrtAykOtNHzeOYqvIkkdSgPz3N7JJsBzHoZ1Q2jvygGNZ37f7rVe7lsPxu/uUoVsiFRU8wO4bB787OTiGI52QlKD7lHF1BAFOtM6OWi0VJSQF9UZkhN+nbC5kClq9ETJuzSTcUR6nrNV2nG4rBcox4pCSAH+az2lE0MRQ4pMDhFb8I0ZSwrUyY/loxOS1MUEsZI55mDG7cVdn+blaqgGT6BZYgO8on4m7CbnXGDFQesBkgJ38g1trjpZFcgxHTO+iLNGN849NVyLIPWzbdDKervnccad/OKx607a8aYCPRqPByK1aL8MhigivCipTdMY9N6x4UAGtaRo8GTi+06ml2fTG207TD8PQ79fReBs0ne00PafbOW3X0XQ2aPyG2ISng0G3jsbfoOlupxkf9rudWpo16BiOEkb5zXYSk7XVRLMgx3A0F+ysmaXnOE6vkv02yoysl916Ic4F1ztWYgpfhRwLri3rDDTlSC8zMoeIBHgA6VRSePQgn0WgNKVyLVLbrxm3kIokzXSA/8qA49Lc33+7H4/bw7f50fPeouKLYwY8J+w8HA+L48Arjqfjt01GzoDHFSNhf+ga7OCw4+RGTgej3Ejou/4uMlUh88NeaLCdse/twuoKtuuHud3DYSGy23VG5tg/HXYauU4lTMtcE5oShT6SO3QlUuCNbpCp/E7oJAFqQSERKTQhRjqxEB+XwBoBIbHv1mdJ+awR8X7x1dJznciFpk2ID0lqIS6EYKGQzdo/GDfK2hc83uGXXJQBVwC3jW4NKrk1WmQJSTdWno1JiCXlkgHXEBNONDLXxA0hTfgvlFr354JGUigx1+gLRSHQ5kBO6FTXo89oCgyWjb5PErAievEZhYI1GhySWxsCPAbWaIQw6y68h4WGtFkVpKwMOQedNAq5XsrIunFKS+AxYQKNZkSpRvAnubQkfQBGd2TWBVumNkRqetMIOQchypChuBkkkGbNuihPyqA/1Y0QDNCl0M3+CXsNm3PBKPDdGfWZEv2dxelvGif1yWiuLKTdQjd6n+mHlD+pHzI6lVUVr/3wp+qHp5I214VqF9wJ+I/2viEs+CXhyWvre219r63vZ2p9OyvSNzY8u7kV28jVFvFx15ju2jTOKWPXesnIubL7pBKMzsaUscfRYjznW+9ns2TASq4VntRgj+EolpAPIin0P1Qn1wlkJMDu2p3VPGX5sh5FmVABdqzpTU5V5xWvuSjXxSTffg1l84G+ELNinld5X2UJXdmtuNsy/m6V4BnT+5LhHb6UDLdg3JMO13+iDn8POoqRSpqZh0PKEfA4wG63XahDKgJGZiZNK0m+SuefL8dVAjPykOTu06LqevvODvOia386+t5L6dhHlpeFdJ4qxH+RNHd2pXneaWqahqHltZ2EcXQX4L7f9jGKIAvwnIHGKEqzWYCVabDAYh7gSNvh29aEnh78Sui3RLQSeKdu2tawb2l3OW0mlR6CSgrifFY1uozXhKrtd8wted5YtZ5bhddzf1UVxVlNhpP5nES6NstLlyqmiyt19V4sNJHXyewOTdlCXsEswKY8OBjNqNIBbq9OZIBNTuRndmepr0zV3y1qCljxywnLEnjoq73t9aag21wRa/+rd6FG8uNwJUbPFTvvB8auoVa/xu5lY/dQOwgn3mwjEBGkRAIyxSHAQupExBKyhEZjKbiukyiFRgy0CQBi5hd6ExlyW2mcK38K/g2zjMaJvqIxkjQOsE4kIZf6Id7fZtV96N81tldGNirkZixMhLKa8EzJLWETU8y75jZhlKya02bdtfBbErYybNfWaTz+3+5Fi9X3gzY/loTC8r5kNO3hSg9i/ZdSu+eH+aI/7xbS9p/xYT4DnSDzJ8ARlRF7fL2znmKe1yfiikQarV98IB3gP4pNGjJlvvg2DbBbDG6scGPiV9kBP6Zkz/mVX4+Ucs17aq7tQ8gz5Jpfk2o16/tpmWbG6vpFvjldvfM0Q2Zg4z/bzBPQ9CuJ9JDMYcG0yj0wT0z3WsJg9b8350q3Tg7WDCcH/wJQSwMEFAAAAAgAXH1zXQYVhnQ2AwAATQsAABgAAAB4bC93b3Jrc2hlZXRzL3NoZWV0MS54bWytlmtv2zYUhv8Kwa9Do0ti5wJJgHOrs8WZEXcr0C8CLR3ZRChSI4+iuMX++0BJdgNPUlWgX2yS4vOSh4cvyaBS+sVsAZC85UKakG4RiyvHMckWcmZOVAHyLReZ0jlDc6L0xjGFBpbWUC4c33WnTs64pFFQty11FKgSBZew1MSUec707hqEqkLq0X3DM99s0TY4UVCwDawA/yqW2okC56CS8hyk4UoSDVlIZ97Vwrf96w5/c6jMuzKxkayVerGVhzSkLrXKEshuVQhej0VQFY+Q4Q0IEdKZTwlLkL/CkkkI6Vohqtx+p8QgQwhpptVXkPWYICBBO5fif50bkVbUhvhPO196CMdO6n15P/P7el2XmqyZgRslPvMUtyG9oCSFjJUCn1U1h3atJlYvUcLUv6Rq+p6eUZKUBlXewh4lOZfNP3tr1/gdMHV7AL8F/LHAaQucHgF+H3DWAmdjgUkLTMYC0xaYjgXOW+D8GOhb1osWuDgGpj3AZQtcHgGnfl/i3H3m3NHIIdneaGSfbs8fjewT7tUZd5q9WG/kW4YsCrSqiLb9oyCxhdoNjfNCyqU9E1aoaRRwEwUYfWJ6A0g+sbUA8sRyCByMAsd+dJJW4npYYs4NKs0TJsg9FwiaoCKsKMSuQ+tmWOtBJhpykMgEyWoxM6R2O6xmVKkTiC3NE2aPjg6Nu1EaKUNmD4gOgftRAs1p3oF/HMaxTtAPYpiP0hiI4WGUQG8Mvw/jiSolxq9M8LSOIBbMYKxLaafUNZ0/hvVsID8j9zgsJ9gOdAe2GMb4970aJ0qU+VFmHK2qgx/9gx/9WtTvEYU3lhcCYrSG7PLie9xe+N+d1fvldnjIJ6hmRdHljGFup0odj7DHsEpRrgVPunwxzK2kqjLBXrqGnA+j30C+/hs/3X2eLZfx9fOfT1/uuizxg1Vr8NXN/G4x67JEH+i7/vSD531wPeK6VxP3anJ5Mp2ck99c13W7vPCrhB77hNZaya8QF8rgRoOJJVSsc0Ms+hTKwjovjRl2WaB5czXXk31oLpjecGmIgAxD6p6cTyjRzQOrqaAqats1L7y6uAWWgrYdJpRkSuG+Yi/Bwws6+g9QSwMEFAAAAAgAXH1zXYHBiC8vAgAARgUAABgAAAB4bC93b3Jrc2hlZXRzL3NoZWV0Mi54bWyNVNtu2zAM/RVCT9vD4tRttqGwDbRphw1ogaDBLm+FItO2UN0m0XOzry8kO0G3pVlfbFLiOSIPKRWD9Q+hQyR41MqEknVE7jzLguhQ8zCzDs2jVo31mlOYWd9mwXnkdQJpleXz+ftMc2lYVaS1la8K25OSBlceQq8199tLVHYo2QnbLdzJtqO4kFWF4y2ukb66lc+qItuz1FKjCdIa8NiU7OLk/CqP8Sngm8QhPLMhVrKx9iE6X+qSzVlkNgjbtVMynQVk3Q02tESlSnaRM+CC5C9ccYMl21giq+M+g0CcsGSNt7/RpDNRoaCYi/sneCSZSGOJP6d82b6cmNRze5f5p6TrysOGB1xa9V3W1JXsI4MaG94rurPDZ5y0WkQ+YVVIXxjG2HzOQPSBrJ7AJwy0NOOfP04avwaQT4D8tYDTCXD6F2DxEuBsApwlZcZSkg5XnHhVeDuAj9FVIaKRxBwbVzJp4kitybOqkKEqqAq29wLva078nrYOi4yqIot7mZgYLo8zEPct0lGG5XEG51HIOKP3okPxcIDg6jiBsYThT1jm7bAXI9+LkSee/AUeaQhb9Ic0OA40vd4cxC3/i0MvxaGKjwOvf1zcrm6uIRb4Djw6xQWC9VCjQsIZrFNfITYEeADqEAQnrmzbIwSHSgWQBG+42YLgAd/ODuk3XrZxsOILc8t9K00AhQ2VbD77sGDgx5s1OmRdatN4tZPZIa/Rx4AFg8Za2jlxfPdPZ/UEUEsDBBQAAAAIAFx9c13/z4VZuAIAAHYLAAANAAAAeGwvc3R5bGVzLnhtbN1W247TMBD9lSgfsGkbCA1yLEFFJSRAK+0+8Oo2TmrJl2C7S8rXo4nTpN16VgviiVbb2HN8zoznoixx/iT5w4Fzn/RKalelB++791nm9geumLszHde9ko2xinl3Z2ybuc5yVjsgKZmtFosiU0zolBJ9VFvlXbI3R+2rdJFmlDRGz5ZVGgyUaKZ48sRklW6YFDsrhrNMCXkK5hUY9kYam/gDV7xKl2BxvwK8DDuIctRRQhsLxix4CL+78fisZttdlS4W2+FzcX54OEoaIeUUcA4BCykp6Zj33OqtkHLgDMYbKBnXj6eOV2lr2Wm5epu+muCMFDW4bDeXsS63bz69Ww8yF9RJdHg4SnbG1txOsS/Ts4kSyRufUWJFe4CnN10GoPdGZZTUgrVGs+FiZ8a4cJTsuZQP0CffmyvtvklCwT/XUOsE8ndeCinHZZAJG9C/VAvaF7L5X8kmnXgy/uPRe6OH/Y+j8fze8kb0w75vJv+Y+nJWX/179RdiZ10nTx+kaLXiIbOvdkgJO/OSJ2692EOre9OlyU/LukfeD3qQ9b4ZUz9lfajBVT0nawLDWaXfYObl7C7ZHYX0Qo+7g6hrrm/K6ijxbCf5tf4iTWresKP0jxNYpfP6K6/FUZXTqXtIwXhqXn+B9l0W0yw7SoSuec/rYVwcJbbdXU1O+ADhOTLP/y2CcQIWRwDD/GARYJzAwvz8T/dZo/cJGBbbOoqsUc4a5QRWDNkMX8xPnFOWZRm/aVnmeVFgGd1sohFssLwVBfzF1bDYgIH5AU9/lmu82niHvNwHWE1f6hDspngnYjfFcw1IPG/AKMt4tTE/wMCqgPUO+I/7gZ6Kc/IcqorFhk0wjpQlhkAvxnu0KJDsFPCN1webkjwvyzgCWDyCPMcQmEYcwSKAGDAkz4f34LP3UXZ+T2Xzf9r0N1BLAwQUAAAACABcfXNdl4q7HMAAAAATAgAACwAAAF9yZWxzLy5yZWxzndJLagMxDIDhqwzed5Sm0EXIZNVNdqXkAqqteTC2JWSVurcPySaZ0BfZi59PQts3imgT5zJOUpqaYi6dG81kA1D8SAlLy0K5ptizJrTSsg4g6GccCNar1TPodcPtttfN5vAl9J8i9/3k6YX9R6Js34RvJlxzQB3IOlcjfLLO78xzW1N0zT50Tvfh0cGdFvlxO0hkGNAQPCs9iLKQ2kTlwgnsX5WlnCcWoPXdoL+PQ9UoBwq/k1BkIXo6iWDxA7sjUEsDBBQAAAAIAFx9c13beKiAUgEAAMACAAAPAAAAeGwvd29ya2Jvb2sueG1stZLRauQwDEV/xfgD6nTYDnRI8tKy3YGlHbal74qjTERtK8iaTtuvX+Iw7MBC6UufZEnmcu9B9ZHlpWN+MW8xpNzYUXXaOJf9iBHyBU+Y3mIYWCJovmDZuzwJQp9HRI3Brapq7SJQsm190tqJO29Y0Stxcm09D54Jj/nffm7NK2XqKJC+N7a8A1oTKVGkD+wbW1mTRz7+YqEPTgrh0QuH0NjLZfGMouT/Gz/OJp+gy2Wi0P0BJW7suqqsGUiylh9FH7zSKz5Bt3QH5Z8UFOUWFO+EDxOl/Szj2tqdxSgcTnWBuJGvYORhII+37A8Rky4cBcNsMOWRpmxNgoiNLRZLIETd9ks4BcUzVLKhvrGy7Yu/7/Oy46x7wWwWMRNhmrmcmVt9Ym5V4J2I9ThQwv4eImbX1h6C34mZSwm5+nF1eW3NcAjhBoJ/SL8ZSvhZ43Q87V9QSwMEFAAAAAgAXH1zXY33LFq0AAAAiQIAABoAAAB4bC9fcmVscy93b3JrYm9vay54bWwucmVsc8WSMQ6DMAxFr4JyAAy06lBBpy6sFReIwBBEQqLYVeH2VWGASB26oE7W9/D+k+z8gVpyb0dSvaNoMnqkQihmdwWgWqGRFFuH42R0a72RTLH1HThZD7JDyJLkAn7PELd8z4yq2eEvRNu2fY13Wz8NjvwFDC/rB1KILKJK+g65EDDpbU2wjDSejBZR2RTCl00q4N9CWSCUHShEPGukzWbNQf3pwHpWaHBrX+K6DG9y/jhA8Hm3N1BLAwQUAAAACABcfXNdbqckvB0BAABXBAAAEwAAAFtDb250ZW50X1R5cGVzXS54bWzFlL9uAjEMxl/llLUiAYYOFcfSdm0Z+gJp4uMikjiyDT3evrrjz1DRUxFIXeIh9vf7rC/K4mNfgKsuxcy1akXKkzHsWkiWNRbIXYoNUrLCGmltinUbuwYzn04fjcMskGUivYZaLl6gsdso1WsnkDlgrhVBZFU9Hxp7Vq1sKTE4KwGz2WX/gzI5EjRBHHq4DYUfuhSVuUjob34HHOfed0AUPFQrS/JmE9TKdNGw7COwHpe44BGbJjjw6LYJsmguBNZzCyAp6oPowzhZWkhwOGc38weZMaBHtyIsbBwSXI87RdJPTwphAZIwvuKZaEu5eT/o0/bg/8juovlC2gx5sBnK7M4Zn/Wv9DH/Rx+fiJt7P/W+6mRDPvHN8J8svwFQSwECFAAUAAAACABcfXNdRsdNSJcAAADNAAAAEAAAAAAAAAAAAAAAgAEAAAAAZG9jUHJvcHMvYXBwLnhtbFBLAQIUABQAAAAIAFx9c11XWJ2g+QAAACsCAAARAAAAAAAAAAAAAACAAcUAAABkb2NQcm9wcy9jb3JlLnhtbFBLAQIUABQAAAAIAFx9c12ZXJwjCQYAAJwnAAATAAAAAAAAAAAAAACAAe0BAAB4bC90aGVtZS90aGVtZTEueG1sUEsBAhQAFAAAAAgAXH1zXQYVhnQ2AwAATQsAABgAAAAAAAAAAAAAALaBJwgAAHhsL3dvcmtzaGVldHMvc2hlZXQxLnhtbFBLAQIUABQAAAAIAFx9c12BwYgvLwIAAEYFAAAYAAAAAAAAAAAAAAC2gZMLAAB4bC93b3Jrc2hlZXRzL3NoZWV0Mi54bWxQSwECFAAUAAAACABcfXNd/8+FWbgCAAB2CwAADQAAAAAAAAAAAAAAgAH4DQAAeGwvc3R5bGVzLnhtbFBLAQIUABQAAAAIAFx9c12XirscwAAAABMCAAALAAAAAAAAAAAAAACAAdsQAABfcmVscy8ucmVsc1BLAQIUABQAAAAIAFx9c13beKiAUgEAAMACAAAPAAAAAAAAAAAAAACAAcQRAAB4bC93b3JrYm9vay54bWxQSwECFAAUAAAACABcfXNdjfcsWrQAAACJAgAAGgAAAAAAAAAAAAAAgAFDEwAAeGwvX3JlbHMvd29ya2Jvb2sueG1sLnJlbHNQSwECFAAUAAAACABcfXNdbqckvB0BAABXBAAAEwAAAAAAAAAAAAAAgAEvFAAAW0NvbnRlbnRfVHlwZXNdLnhtbFBLBQYAAAAACgAKAIQCAAB9FQAAAAA=";
+var TEMPLATE_XLSX = "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";
 var G = { c: {}, steps: [], state: [], i: 0 };
 
 function gfmt(s) {
@@ -1166,15 +1156,18 @@ function aiPrompt(c, steps) {
     "",
     "RULES",
     "  - The master workbook is the only source of truth for locations and filters. Keep its two sheets and their headers exactly:",
-    "    Sheet1: Target Table Name | Historical Filter to apply | Incremental filters to apply | source_application | source_database |",
-    "            source_schema | target_application | target_database | target_schema | count_validation_last_run_date |",
-    "            data_validation_last_run_date | layer | incremental_column",
+    "    Sheet1: Target Table Name | Source Table Name | Historical Source Filter | Historical Target Filter | Incremental Source Filter |",
+    "            Incremental Target Filter | source_application | source_database | source_schema | target_application | target_database |",
+    "            target_schema | count_validation_last_run_date | data_validation_last_run_date | layer | source_incremental_column |",
+    "            target_incremental_column | source_key_columns | target_key_columns | source_exclude_columns | target_exclude_columns |",
+    "            case_insensitive_columns | active",
     "    '" + ((c.engine === "postgres") ? "Postgres" : (c.engine === "mssql") ? "MSSQL" : c.label) + " schema mapping': source_data_type | target_data_type | precision_check | notes",
     "    No extra sheets or columns. target_application names the target engine (normally Snowflake). A Snowflake target_database must contain {env}",
-    "    (so must a Snowflake source_database). incremental_column is the window column of an incremental run: blank FAILS that table's incremental run.",
+    "    (so must a Snowflake source_database). source_/target_incremental_column are the window columns: either blank FAILS that table's incremental run.",
+    "    Keys, exclusions (the _fivetran_* columns in target_exclude_columns on a Snowflake target) and case_insensitive_columns live in the row too; active = yes puts it in --tables all.",
     "  - When you add to a list or dict (LAYERS, SCHEMA_SHEETS, SOURCE_TYPES, RULES), keep every existing entry.",
     "  - A Snowflake source gets its own key (a copy of the 'newbook' RULES block), never 'snowflake': that key is the target's.",
-    "  - Use the same key everywhere: '" + c.engine + "' in RULES, SOURCE_TYPES, LAYERS, SCHEMA_SHEETS, exclusions.yaml,",
+    "  - Use the same key everywhere: '" + c.engine + "' in RULES, SOURCE_TYPES, LAYERS, SCHEMA_SHEETS,",
     "    get_database() and the creds block; the layer is '" + c.layer + "'.",
     "  - Every edit to a shared file outside yaml_generation/ gets a comment starting '# CHANGE: YAML generation.' that says what and why.",
     "  - Make only the changes this plan needs: no new flags, helpers or refactors. Do not change other layers.",
@@ -1274,7 +1267,7 @@ function connectorSteps(c) {
   if (c.reuse) {
     return [{
       t: "Point the layer at the existing " + c.reuse.cls + " connector (developer)", min: 5,
-      files: ["db/factory.py:14"].concat(c.reuse.shared ? [] : creds),
+      files: ["db/factory.py:15"].concat(c.reuse.shared ? [] : creds),
       body: ["**Nothing new in `db/`**: `" + c.reuse.cls + "` (`" + c.reuse.file + "`) is already imported at the top of `db/factory.py`, and its package is already in `requirements.txt`. Don't add either again.",
              c.reuse.shared
                ? "In `get_database()`, add an `elif` branch for `\"" + K + "\"` before the final `else` that returns the cached `snowflake` connection, the way the `newbook_*` layers do [db/factory.py:53]. Same account as the target: **no creds block** of its own and one SSO login. " +
@@ -1365,23 +1358,30 @@ function plan(c) {
     check: "Every line of the facts has a real value."
   };
 
+  var FIV = "_fivetran_synced, _fivetran_deleted, _fivetran_id, _fivetran_index, _fivetran_active, _fivetran_start, _fivetran_end";
+  var snowSource = !!(c.reuse && c.reuse.shared);
   var row = {
     t: "Add one row per table to the master workbook", min: 5,
     files: ["yaml_generation/master_files/" + c.workbook],
-    body: ["Open the workbook. The rows go on **Sheet1**, which has these thirteen headers. They are matched by name, not position: where a workbook orders them differently (Edge does), paste each cell under its header. Every master workbook has the same two sheets (Sheet1 and the type mapping) and no others: don't add columns or sheets. Headers, sheet names and table names ignore case.",
+    body: ["Open the workbook. The rows go on **Sheet1**, which has these twenty-three headers. They are matched by name, not position: where a workbook orders them differently (Edge does), paste each cell under its header. Every master workbook has the same two sheets (Sheet1 and the type mapping) and no others: don't add columns or sheets. Headers, sheet names and table names ignore case.",
            "Copy the row below and paste it under the last row. For more tables, paste it again and change only **Target Table Name**.",
-           "**source_database** is the real database name (`" + c.db + "`), not the engine. An engine name stops the run [yaml_generation/filter_files.py:372].",
-           "**target_application** names the target engine, normally `Snowflake` (see the Source and target tab). For a Snowflake target, **target_database** keeps `{env}`; a row without it is refused [yaml_generation/filter_files.py:399].",
-           "**incremental_column** is the column an incremental run windows on (`updated_at`, `dupdated` ...). Leave it blank and that table's incremental data and count FAIL [yaml_generation/generate_yaml.py:245]; historical runs don't read it.",
-           "The two **filter** cells are optional: empty compares the whole table. A big table should have one so it isn't loaded into memory in full: the table and alias, any joins, then a `where` line. Or write `compare full`."],
-    sheet: { head: ["Target Table Name", "Historical Filter to apply", "Incremental filters to apply", "source_application", "source_database",
-                    "source_schema", "target_application", "target_database", "target_schema", "count_validation_last_run_date",
-                    "data_validation_last_run_date", "layer", "incremental_column"],
-             rows: [[c.table, "", "", c.app, c.db, c.schema, "Snowflake", c.tdb, c.tschema, "", "", c.layer, c.incol || "updated_at"]] },
-    check: "Every location cell is filled. A blank one stops the run and names the file and row [yaml_generation/filter_files.py:369]."
+           "**source_database** is the real database name (`" + c.db + "`), not the engine. An engine name stops the run [yaml_generation/filter_files.py:461].",
+           "**target_application** names the target engine, normally `Snowflake` (see the Source and target tab). For a Snowflake target, **target_database** keeps `{env}`; a row without it is refused [yaml_generation/filter_files.py:468].",
+           "**source_incremental_column** / **target_incremental_column** are the columns an incremental run windows on (`updated_at`, `dupdated` ...). Either blank and that table's incremental data and count FAIL [yaml_generation/generate_yaml.py:244]; historical runs don't read them.",
+           "**target_exclude_columns** holds the seven `_fivetran_*` columns on a Snowflake target (already in the row below)" + (snowSource ? "; a Snowflake source has them in **source_exclude_columns** too" : "") + ". Add any other column to leave out on that side. The key cells are optional: fill **source_key_columns** only for a table with no primary key.",
+           "**active** `yes` puts the table in `--tables all`; anything else leaves it out (a named table still runs).",
+           "The four **filter** cells (source and target, historical and incremental) are optional: empty compares the whole table. A big table should have one so it isn't loaded into memory in full: the table and alias, any joins, then a `where` line. Or write `compare full`."],
+    sheet: { head: ["Target Table Name", "Source Table Name", "Historical Source Filter", "Historical Target Filter", "Incremental Source Filter",
+                    "Incremental Target Filter", "source_application", "source_database", "source_schema", "target_application", "target_database",
+                    "target_schema", "count_validation_last_run_date", "data_validation_last_run_date", "layer", "source_incremental_column",
+                    "target_incremental_column", "source_key_columns", "target_key_columns", "source_exclude_columns", "target_exclude_columns",
+                    "case_insensitive_columns", "active"],
+             rows: [[c.table, c.table, "", "", "", "", c.app, c.db, c.schema, "Snowflake", c.tdb, c.tschema, "", "", c.layer,
+                     c.incol || "updated_at", c.incol || "updated_at", "", "", snowSource ? FIV : ms ? "uts" : "", FIV, "", "yes"]] },
+    check: "Every location cell is filled and `active` is yes. A blank location cell stops the run and names the file and row [yaml_generation/filter_files.py:459]."
   };
   if (c.kind === "app") row.body.unshift("Each layer has **one** workbook, so the " + c.app + " rows go in `" + c.workbook + "`, under " + c.existing +
-    "'s. The generator groups rows by location and generates each group on its own [yaml_generation/generate_yaml.py:375].");
+    "'s. The generator groups rows by location and generates each group on its own [yaml_generation/generate_yaml.py:420].");
 
   var typesSql = ms ? "-- Run on the source: the types your tables use\nSELECT DISTINCT DATA_TYPE\nFROM [" + c.db + "].INFORMATION_SCHEMA.COLUMNS\n" +
                       "WHERE TABLE_SCHEMA = '" + c.schema + "' AND TABLE_NAME IN ('" + c.table + "')\nORDER BY 1;"
@@ -1414,19 +1414,6 @@ function plan(c) {
     check: "Each type from query 1 has a row in **" + mapSheet + "**."
   };
 
-  var rules = {
-    t: "Table rules, only where a table needs one", optional: true, min: 3,
-    files: ["yaml_generation/settings/dev_rules.xlsx"],
-    body: ["Most tables need no rule. Add a row to the **table_rules** sheet only when a table needs one of these, and leave the other cells empty:",
-           "**key_columns**: the key, comma separated, for a table with no primary key. Without a key its data check fails, though its count is still written [yaml_generation/generate_yaml.py:236]. The example row names `id`: change it or clear it.",
-           "**exclude_columns**: columns to leave out for this one table. Columns to leave out for the whole engine go in `settings/exclusions.yaml`.",
-           "**source_where / target_where**: a filter that wins over the master workbook's filter for that side.",
-           "**incremental_column**: a window column for this one table that wins over the master workbook's incremental_column cell."],
-    sheet: { name: "table_rules", head: ["source_type", "source_schema", "table_name", "key_columns", "exclude_columns", "source_where", "target_where", "incremental_column"],
-             rows: [[c.engine, c.schema, c.table, "id", "", "", "", ""]] },
-    check: "Each table that needs a rule has a row with source_type `" + c.engine + "`, its source_schema and its table_name."
-  };
-
   var snowflake = {
     t: "Check that Snowflake can see the table", min: 2,
     files: ["creds/dev.yaml"],
@@ -1436,26 +1423,26 @@ function plan(c) {
     check: "It returns a number, not **does not exist or not authorized**. If it fails, ask for read access on that database for `FR_PLATFORM_READER`."
   };
 
-  var controlLine = c.table + " | ... | 2026-11-01 00:00:00.000 +0000 | 2026-11-01 00:00:00.000 +0000 | " + c.layer + " | " + (c.incol || "updated_at");
+  var controlLine = c.table + " | ... | 2026-11-01 00:00:00.000 +0000 | 2026-11-01 00:00:00.000 +0000 | " + c.layer + " | " + (c.incol || "updated_at") + " | " + (c.incol || "updated_at");
   var control = {
     t: "Incremental: fill the last-run dates in the workbook", min: 2,
     files: ["yaml_generation/master_files/" + (c.workbook || "<layer>_master.xlsx")],
     body: ["The master workbook is also the control table: it remembers when each table was last checked. The incremental run compares only what Fivetran loaded after that. (`control_table.csv` is no longer read.)",
-           "In the table's row on **Sheet1**, fill `count_validation_last_run_date` and `data_validation_last_run_date`, set `layer` to `" + c.layer + "` exactly, and check `incremental_column`.",
-           "The validators read the rest from the same row: `check_freshness()` and `get_dates()` take the databases, schemas and `incremental_column` from it [utils/utility.py:625] [utils/utility.py:662], so no code edit is needed.",
+           "In the table's row on **Sheet1**, fill `count_validation_last_run_date` and `data_validation_last_run_date`, set `layer` to `" + c.layer + "` exactly, and check `source_incremental_column` and `target_incremental_column`.",
+           "The validators read the rest from the same row: `check_freshness()` and `get_dates()` take the databases, schemas and the incremental columns from it [utils/utility.py:625] [utils/utility.py:665], so no code edit is needed.",
            "The two dates are where the first window starts. Use a recent date, or the date of the last historical run.",
-           "Without the dates, the incremental run stops with **No … found … seed a value first**. The validators find this workbook by themselves, from the layer name (`<layer>_master.xlsx`) [utils/utility.py:26]: no validator edit."],
-    blocks: [{ label: "The row (Target Table Name | … | count_validation_last_run_date | data_validation_last_run_date | layer | incremental_column)", text: controlLine }],
-    check: "Each table's row has both dates, `layer` = `" + c.layer + "` and an `incremental_column`."
+           "Without the dates, the incremental run stops with **No … found … seed a value first**. The validators find this workbook by themselves, from the layer name (`<layer>_master.xlsx`) [utils/utility.py:42]: no validator edit."],
+    blocks: [{ label: "The row (Target Table Name | … | count_validation_last_run_date | data_validation_last_run_date | layer | source_incremental_column | target_incremental_column)", text: controlLine }],
+    check: "Each table's row has both dates, `layer` = `" + c.layer + "` and both incremental columns."
   };
 
-  var devOnly = "The incremental queries build the Snowflake name from `--environment` as typed [utils/utility.py:625] [utils/utility.py:662]: `dev` and `stg` give the right database, " +
+  var devOnly = "The incremental queries build the Snowflake name from `--environment` as typed [utils/utility.py:625] [utils/utility.py:665]: `dev` and `stg` give the right database, " +
                 "but `prod` gives `prod_..._BRONZE` where the database is `PRD_..._BRONZE`. Run incremental on dev or stg only until that's fixed.";
   var base = "python main.py --layer_type " + c.layer + " --tables " + c.table + " --run_type historical --environment dev";
   var run = {
     t: "Run one small table, one check at a time", min: 5,
     files: ["main.py"],
-    body: ["Run the three commands in order. Each writes the YAML for its check first, then validates [utils/utility.py:570].",
+    body: ["Run the three commands in order. Each writes the YAML for its check first, then validates [utils/utility.py:588].",
            "Read the **YAML** lines in the log. **NEW / UPDATED / UNCHANGED / PRESENT**: the YAML is ready. **FAILED**: the reason is on the same line and nothing was changed. Fix it (usually a workbook cell or a mapping row) and run again.",
            "A line `ERROR ... Fix this and run again: ...` means an input problem (workbook row, mapping sheet, flag, creds): the message names the file, sheet and row to fix. A traceback means a code error: report it.",
            "Exit code **0**: everything matched. **2**: a check found differences. **1**: a FAILED table or a system error.",
@@ -1463,13 +1450,13 @@ function plan(c) {
            "Start small. Never run a huge table without a filter: `notes` has 100M rows."],
     blocks: [{ label: "1. Schema check (needs the type mapping)", text: base + " --schema_validation yes --count_validation no --data_validation no" },
              { label: "2. Row counts", text: base + " --schema_validation no --count_validation yes --data_validation no" },
-             { label: "3. Data compare (needs a primary key, or key_columns in the table rules)", text: base + " --schema_validation no --count_validation no --data_validation yes" }],
+             { label: "3. Data compare (needs a primary key, or source_key_columns in the row)", text: base + " --schema_validation no --count_validation no --data_validation yes" }],
     check: "Each run lists the table as NEW or UNCHANGED, and exits 0 or 2."
   };
 
   // ---- more tables for an application that is already set up ----
   if (c.kind === "more") {
-    S.push(factsStep, row, mapping, rules);
+    S.push(factsStep, row, mapping);
     if (c.incr) { control.warn = [devOnly]; S.push(control); }
     S.push(run);
     return S;
@@ -1480,14 +1467,14 @@ function plan(c) {
     S.push(factsStep);
     S.push({
       t: "Check that the connection we have can reach it", min: 2,
-      files: ["creds/dev.yaml", "db/factory.py:14"],
-      body: pg ? ["`creds/<env>.yaml` has **one** `postgres` block, and it connects to the database `fms`. `get_database()` opens one connection per engine [db/factory.py:14].",
+      files: ["creds/dev.yaml", "db/factory.py:15"],
+      body: pg ? ["`creds/<env>.yaml` has **one** `postgres` block, and it connects to the database `fms`. `get_database()` opens one connection per engine [db/factory.py:15].",
                   "PostgreSQL reads only the database it's connected to, so " + c.app + " has to live in `fms` (its own schema there is fine)."]
-               : ["`creds/<env>.yaml` has **one** `mssql` block: one server, database `DevT5000`. `get_database()` opens one connection per engine [db/factory.py:14].",
+               : ["`creds/<env>.yaml` has **one** `mssql` block: one server, database `DevT5000`. `get_database()` opens one connection per engine [db/factory.py:15].",
                   "SQL Server can read another database on the **same server** by its three-part name, `[OtherDb].[dbo].[Table]`, which is how the YAML writes it, as long as the login can read that database."],
       ask: [{ label: pg ? "Yes, it's in fms" : "Yes, same server, and the login can read it" },
             { label: pg ? "No, it has its own database" : "No, it's on another server", stop: [
-                "**One connection per engine.** " + c.app + " can't be reached through the connection the framework opens today [db/factory.py:14].",
+                "**One connection per engine.** " + c.app + " can't be reached through the connection the framework opens today [db/factory.py:15].",
                 "What's needed first: a way for a workbook row to name its connection, for example a `source_connection` column that names a block in `creds/<env>.yaml`. That's a design change: agree on it before adding rows."] }]
     });
     S.push({
@@ -1496,9 +1483,9 @@ function plan(c) {
       body: ["YAML is written per layer and table: `config/<run_type>/" + c.layer + "/data_validation/<table>.yaml`.",
              "If " + c.existing + " already has a table of the same name (say `users`), the two applications would write the same file. Look in the folder above for each of your table names."],
       ask: [{ label: "None of the names is taken" },
-            { label: "A name is already taken", stop: ["**Two applications, one file name.** Decide between a folder per application and a prefix on the table name before going on. Both change where `config_dir_for()` writes [yaml_generation/generate_yaml.py:300]."] }]
+            { label: "A name is already taken", stop: ["**Two applications, one file name.** Decide between a folder per application and a prefix on the table name before going on. Both change where `config_dir_for()` writes [yaml_generation/generate_yaml.py:343]."] }]
     });
-    S.push(row, mapping, snowflake, rules);
+    S.push(row, mapping, snowflake);
     if (c.incr) { control.warn = [devOnly]; S.push(control); }
     S.push(run);
     return S;
@@ -1515,14 +1502,14 @@ function plan(c) {
     check: "The file is in `yaml_generation/master_files/` with **Sheet1** and a **" + mapSheet + "** sheet."
   }, row, mapping, {
     t: "Register the layer and its workbook (developer)", min: 3,
-    files: ["yaml_generation/filter_files.py:97", "yaml_generation/filter_files.py:115"],
+    files: ["yaml_generation/filter_files.py:114", "yaml_generation/filter_files.py:142"],
     body: ["`LAYERS` maps each `--layer_type` to its engine key. The workbook is the layer name plus `_master.xlsx`, and `BRONZE_LAYERS` (the command-line choices) is read from `LAYERS`. `SCHEMA_SHEETS` says which sheet holds the type mapping. No other file in the folder is read.",
            "**Add** one entry to each dict, after the last one. Keep every entry that's already there (bronze_postgres_edge, bronze_mssql_sitelink, bronze_mysql_crm, the Newbook layers and any newer one)."],
     code: '# LAYERS: add\n    "' + c.layer + '": "' + c.engine + '",\n# SCHEMA_SHEETS: add\n    "' + c.engine + '": "' + mapSheet + '",',
     check: "`python yaml_generation/filter_files.py` prints **filter_files self-check passed**."
   }, c.reuse ? {
     t: "Give the layer its rules: a copy of the `" + c.reuse.rules + "` block (developer)", min: 5,
-    files: ["yaml_generation/db_rules.py:40", "yaml_generation/db_rules.py:282"],
+    files: ["yaml_generation/db_rules.py:40", "yaml_generation/db_rules.py:284"],
     body: ["The database is " + c.reuse.label + ", so the SQL is the same as an existing layer's. Copy the whole `\"" + c.reuse.rules + "\": {...}` block in `RULES`, paste it below the last block, and change only its key to `\"" + c.engine + "\"` and its `label` to `\"" + c.label + "\"`.",
            "Add `\"" + c.engine + "\"` to `SOURCE_TYPES`, after the last entry, or `--layer_type " + c.layer + "` is refused with **has no YAML generation**.",
            "Keep every other key as the copied block has it." + (c.reuse.shared
@@ -1532,7 +1519,7 @@ function plan(c) {
     check: "`python -m pytest yaml_generation/tests/test_db_rules.py -q` passes."
   } : {
     t: "Teach the generator the " + c.label + " dialect (developer)", min: 15,
-    files: ["yaml_generation/db_rules.py:40", "yaml_generation/db_rules.py:282"],
+    files: ["yaml_generation/db_rules.py:40", "yaml_generation/db_rules.py:284"],
     body: ["Add the block below to `RULES`, then change every value to " + c.label + "'s way: how a name is quoted, the text type, true/false, trim, the timestamp and date formats, the type families and the `schema_query`. The comments at the top of `db_rules.py` explain each key. The `mysql_crm` block is the most recent one written from scratch: start from it.",
            "Types that can't become text (like SQL Server's rowversion) go in `refused_types`: the table then fails with a reason instead of comparing nonsense.",
            "Add `\"" + c.engine + "\"` to `SOURCE_TYPES`, after the last entry, or `--layer_type " + c.layer + "` is refused with **has no YAML generation**.",
@@ -1544,13 +1531,6 @@ function plan(c) {
           '    "text_types": {...}, "large_text_types": set(), "integer_types": {...},\n    "json_types": {...}, "refused_types": set(),\n' +
           '    "schema_query": "... information_schema.columns ... \'{schema}\' ... \'{table_name}\' ...",\n},',
     check: "`python -m pytest yaml_generation/tests/test_db_rules.py -q` passes, with a test for the new block next to the others."
-  }, {
-    t: "Settings: the exclusions (developer)", min: 2,
-    files: ["yaml_generation/settings/exclusions.yaml"],
-    body: ["`exclusions.yaml` has one section per layer key: columns left out on that side **and** on the Snowflake copy. Start it empty.",
-           "The incremental window column is **not** set here: it is each row's `incremental_column` cell in the master workbook."],
-    code: '# exclusions.yaml: add\n' + c.engine + ":\n  exclude_columns: []",
-    check: "`exclusions.yaml` names `" + c.engine + "`."
   });
   connectorSteps(c).forEach(function (s) { S.push(s); });
   S.push({
@@ -1559,9 +1539,9 @@ function plan(c) {
     body: ["**No edit here.** `BRONZE_LAYERS` at the top of `utils/utility.py` [utils/utility.py:20] is read from `filter_files.LAYERS`, so the layer added there is already a `--layer_type` choice, with its output paths, schema validation, yes defaults and YAML generation.",
            "The workbook **must** be called `" + c.layer + "_master.xlsx`: the framework finds it from the layer name."],
     code: '# nothing to add: BRONZE_LAYERS = tuple(filter_files.LAYERS)',
-    warn: ["The key `" + c.engine + "` must be the same **everywhere**: `LAYERS`, `RULES`, `SOURCE_TYPES`, `SCHEMA_SHEETS`, `exclusions.yaml`, `get_database()` and the creds block."],
+    warn: ["The key `" + c.engine + "` must be the same **everywhere**: `LAYERS`, `RULES`, `SOURCE_TYPES`, `SCHEMA_SHEETS`, `get_database()` and the creds block."],
     check: "`python main.py --layer_type " + c.layer + " --help` runs without **invalid choice**."
-  }, snowflake, rules);
+  }, snowflake);
   if (c.incr) {
     control.warn = [devOnly, "`check_freshness()` reads `source_database.source_schema.table` on the source [utils/utility.py:625]. An engine with no schema level (MySQL: blank source_schema) gets a broken name there: run historical only on such a layer until that query handles it."];
     S.push(control);

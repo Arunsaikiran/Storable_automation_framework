@@ -7,7 +7,10 @@ its engine in db_rules.RULES.
 
 What is read: the first sheet that has the table column and the six location columns. Headers are matched trimmed, in
 lower case, with a trailing dot ignored. One row per table:
-  Target Table Name              the table name (the source name; Snowflake holds it in upper case)
+  Target Table Name              the target table name, as the target holds it (Snowflake: matched in upper case). The
+                                 validators find the row's control dates by this name.
+  Source Table Name              the source table name (optional, column and cell). Blank: the Target Table Name. It is the
+                                 YAML file name and the name --tables takes. CHANGE: YAML generation (24/11/2026).
   source_application             e.g. Edge, SiteLink. Shown in the log.
   source_database                the source database name, e.g. fms (Edge), DevT5000 (SiteLink). The engine is the layer's.
   source_schema                  e.g. public, dbo. Optional (the column and the cell): MySQL has no schema level (its database is
@@ -18,22 +21,32 @@ lower case, with a trailing dot ignored. One row per table:
   target_database                the Snowflake database as written in the YAML, e.g. {env}_EDGE_BRONZE. {env} is filled in per
                                  run, and a row without it is refused (it would compare every environment against one database).
   target_schema                  e.g. STOREDGE_FMS_PUBLIC
-  Historical Filter to apply     the row filter for --run_type historical (optional)
-  Incremental filters to apply   the row filter for --run_type incremental (optional)
-  incremental_column             the column --run_type incremental windows on, e.g. updated_at, dupdated. Blank: the table's
-                                 incremental data and count FAIL (a table rules incremental_column still wins over it)
+  Historical Source Filter       the row filter on the SOURCE for --run_type historical (optional)
+  Historical Target Filter       the row filter on the TARGET for --run_type historical (optional)
+  Incremental Source Filter      the row filter on the SOURCE for --run_type incremental (optional)
+  Incremental Target Filter      the row filter on the TARGET for --run_type incremental (optional)
+  source_incremental_column      the source column --run_type incremental windows on, e.g. updated_at, dupdated
+  target_incremental_column      the target column it windows on (the validators' freshness check and window read it too).
+                                 Either one blank: the table's incremental data and count FAIL.
+  source_key_columns             the key, comma separated, when the table has no primary key or it should not be used (optional)
+  target_key_columns             the same key on the target (optional); when both are filled they must name the same columns
+  source_exclude_columns         source columns left out of the comparison, comma separated (optional), e.g. uts on SQL Server
+  target_exclude_columns         target columns left out, e.g. the _fivetran_* columns on a Snowflake target (optional)
+  case_insensitive_columns       columns compared in lower case on both sides, e.g. uuid, comma separated (optional)
+  active                         yes: the table is in --tables all. Anything else leaves it out of 'all' (a named table still runs)
+CHANGE: YAML generation (25/11/2026). Filters, incremental, key and exclude columns are per side; active picks --tables all.
+A workbook with an old header (Historical Filter to apply, incremental_column, key_columns) is refused.
 Both sides are written database.schema.table: "fms"."public"."units" and {env}_EDGE_BRONZE."STOREDGE_FMS_PUBLIC"."UNITS".
-A source_database that names an engine (PostgreSQL, SQL Server) is refused: it is the database now. --tables all is every row. A named
+A source_database that names an engine (PostgreSQL, SQL Server) is refused: it is the database now. --tables all is every active row. A named
 table with no row FAILS: without a row there is no schema to read it from. Table names are matched without regard to case
 (--tables addresses is the row Addresses), and the workbook's spelling is used from then on.
 
 The type mapping sheet (SCHEMA_SHEETS: 'MSSQL schema mapping', 'Postgres schema mapping') is read by schema_mapping() for
 the schema validation YAML only. One row per source type: source_data_type, target_data_type, precision_check, notes.
 
-Why filters: a filter keeps part of a large table, so the framework does not load the whole table into RAM. The filter is
-applied to the source and to Snowflake, for the count and the data, the same way as a filter in the rules workbook
-(settings.py). When the rules workbook sets a filter for the same side, that one is used. --filter_files no reads the
-locations and ignores the filters.
+Why filters: a filter keeps part of a large table, so the framework does not load the whole table into RAM. The source cell
+filters the source and the target cell filters the target, for the count and the data. Fill both: a filter on one side only
+makes the two sides hold different rows (the log warns). --filter_files no reads the locations and ignores the filters.
 
 The filter cell
   Each cell holds the table, its alias, the joins and the conditions, one clause per line:
@@ -58,8 +71,9 @@ The filter cell
 
   becomes  SiteID IN (SELECT SiteID FROM [dbo].[Sites] WHERE OwnerID IN (SELECT OwnerID FROM [dbo].[Owners] WHERE sCorpCode in (...)))
 
-  The Snowflake side is built from the same cell, so both sides keep the same rows. A sub-select keeps each row once, as
-  a filter should, even where an inner join on a key that is not unique would repeat it.
+  The target cell is written the same way, with the same table names: they are written for the target (Snowflake: upper
+  case, the target database and schema) when the YAML is built. A sub-select keeps each row once, as a filter should, even
+  where an inner join on a key that is not unique would repeat it.
 
 Shapes read
   - select count(*) from <table> [alias], then inner joins, then an optional where clause joined with AND.
@@ -90,7 +104,8 @@ if str(FRAMEWORK_ROOT) not in sys.path:  # lets the self-check run as a plain sc
     sys.path.insert(0, str(FRAMEWORK_ROOT))
 
 from yaml_generation.db_rules import RULES, quote  # noqa: E402
-from yaml_generation.yaml_builder import ENV_PLACEHOLDER, FIVETRAN_FILTER, check_filter, source_name, target_name  # noqa: E402
+from yaml_generation.yaml_builder import (ENV_PLACEHOLDER, FIVETRAN_FILTER, check_filter, normalize_name,  # noqa: E402
+                                          source_name, target_name)
 
 FOLDER = Path(__file__).resolve().parent / "master_files"
 # CHANGE: YAML generation (17/11/2026). Each --layer_type and its engine (the db_rules.RULES key: creds block, exclusions section,
@@ -107,18 +122,25 @@ LAYER_OF = {engine: layer for layer, engine in LAYERS.items()}
 WORKBOOKS = {engine: f"{layer}_master.xlsx" for layer, engine in LAYERS.items()}
 # The headers, as matched: trimmed, lower case, a trailing dot dropped. The same layout for every application.
 TABLE_HEADER = "target table name"
+# CHANGE: YAML generation (24/11/2026). The source name, when it differs from the target name. Optional; blank means the same.
+SOURCE_TABLE_HEADER = "source table name"
 LOCATION_HEADERS = ["source_application", "source_database", "source_schema",
                     "target_application", "target_database", "target_schema"]
-# CHANGE: YAML generation. source_schema may be left out (column or cell): engines with no schema level (rules two_part_names,
-# MySQL) use the source_database in its place. REQUIRED_HEADERS are the columns a sheet must have and a row must fill.
 REQUIRED_HEADERS = [name for name in LOCATION_HEADERS if name != "source_schema"]
-FILTER_HEADERS = {"historical": "historical filter to apply", "incremental": "incremental filters to apply"}
-# CHANGE: YAML generation. The column an incremental run windows on, one per row (column M in most workbooks, O in
-INCREMENTAL_HEADER = "incremental_column"
-# The type mapping sheet of each workbook, read for the schema validation YAML (schema_mapping()). Matched without regard to case.
+# (source cell, target cell) per run type. CHANGE: YAML generation (25/11/2026). One filter per side, not one for both.
+FILTER_HEADERS = {"historical": ("historical source filter", "historical target filter"),
+                  "incremental": ("incremental source filter", "incremental target filter")}
+INCREMENTAL_HEADERS = ("source_incremental_column", "target_incremental_column")
+KEY_HEADERS = ("source_key_columns", "target_key_columns")
+EXCLUDE_HEADERS = ("source_exclude_columns", "target_exclude_columns")
+CASE_HEADER, ACTIVE_HEADER = "case_insensitive_columns", "active"
+OLD_HEADERS = {"historical filter to apply": "Historical Source Filter and Historical Target Filter",
+               "incremental filters to apply": "Incremental Source Filter and Incremental Target Filter",
+               "incremental_column": "source_incremental_column and target_incremental_column",
+               "key_columns": "source_key_columns and target_key_columns",
+               "exclude_columns": "source_exclude_columns and target_exclude_columns"}
 SCHEMA_SHEETS = {"mssql": "MSSQL schema mapping", "postgres": "Postgres schema mapping",
                  "mysql_crm": "MySQL schema mapping", "mysql_ess": "MySQL schema mapping",
-                 # CHANGE: YAML generation. The four Newbook workbooks share the Newbook sheet name.
                  "newbook_common": "Newbook schema mapping", "newbook_corporation": "Newbook schema mapping",
                  "newbook_instances": "Newbook schema mapping", "newbook_login": "Newbook schema mapping"}
 MAPPING_HEADERS = ["source_data_type", "target_data_type"]          # required; precision_check and notes are optional
@@ -139,14 +161,34 @@ class Location:
 
 
 @dataclass
+class TableRule:
+    """The row's key, exclude and case_insensitive_columns cells, normalised. Empty means no rule."""
+
+    key_columns: list = None    # normalised names, or None: the source primary key is used
+    source_exclude: set = field(default_factory=set)
+    target_exclude: set = field(default_factory=set)
+    case_insensitive: set = field(default_factory=set)   # normalised names compared in lower case on both sides
+
+
+@dataclass
 class Row:
-    """One table's row: its location, and its filter cell for the run type ("" when none)."""
+    """One table's row: its location, its filter cells for the run type ("" when none), and its rules."""
 
     table: str
     location: Location
-    statement: str
+    source_statement: str
+    target_statement: str
     label: str             # "<file> row <n> (<table>)", for the log
-    incremental_column: str = ""   # CHANGE: YAML generation (19/11/2026). The row's incremental_column cell ("" when blank)
+    source_incremental_column: str = ""   # "" when blank
+    target_incremental_column: str = ""
+    target_table: str = ""   # CHANGE: YAML generation. The Target Table Name cell; table is the source name
+    rule: TableRule = field(default_factory=TableRule)
+    active: bool = True    # the active cell is yes: part of --tables all
+
+
+def names(text) -> list:
+    """'Company_ID, site id' -> ['company_id', 'site_id']. Names are normalised like the columns are."""
+    return [normalize_name(part) for part in str(text or "").split(",") if part.strip()]
 
 # A quoted literal. Text inside quotes is never read as SQL, and never changed.
 LITERAL = re.compile(r"'[^']*'")
@@ -381,17 +423,24 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
     if sheet is None:
         raise ValueError(f"{name} has no sheet with the columns {', '.join([TABLE_HEADER] + REQUIRED_HEADERS)}")
     position, rows = sheet
-    filter_at = position.get(FILTER_HEADERS[run_type])
-    if filter_at is None:
-        log.warning("Filter workbook %s has no '%s' column, so its tables get no %s filter", name, FILTER_HEADERS[run_type], run_type)
+    old = [f"'{header}' (now {new})" for header, new in OLD_HEADERS.items() if header in position]
+    if old:
+        raise ValueError(f"{name} has the old column(s) {', '.join(old)}: rename the column and add its target twin")
+    filter_at = [position.get(header) for header in FILTER_HEADERS[run_type]]
+    for header, at in zip(FILTER_HEADERS[run_type], filter_at):
+        if at is None:
+            log.warning("Filter workbook %s has no '%s' column, so that side gets no %s filter", name, header, run_type)
     found, first = {}, {}
     for number, values in rows:
         def cell(index):
             value = values[index] if index is not None and index < len(values) else None
             return str(value).strip() if value is not None and str(value).strip() else ""
 
-        table = cell(position[TABLE_HEADER])
-        if not table:
+        # CHANGE: YAML generation. Both names come from the row: Source Table Name (blank: the target name) and
+        # Target Table Name. The row is keyed by the source name.
+        target_table = cell(position[TABLE_HEADER])
+        table = cell(position.get(SOURCE_TABLE_HEADER)) or target_table
+        if not target_table:
             continue
         label = f"{name} row {number} ({table})"
         # CHANGE: YAML generation. The target engine is the row's target_application (any db_rules.RULES engine, by label or
@@ -423,11 +472,21 @@ def read(source_type, run_type, folder=None, log=None) -> dict:
             log.warning("%s: the table is listed twice, so this row is not used (the first is %s)", label, first[table.lower()])
             continue
         first[table.lower()] = label
-        statement = values[filter_at] if filter_at is not None and filter_at < len(values) else None
         location = Location(cell(position["source_application"]), source_type, source_database, source_schema,
                             target_database, target_schema, target_type)
-        found[table] = Row(table, location, str(statement) if statement else "", label,
-                           cell(position.get(INCREMENTAL_HEADER)))
+        # The filter cells keep their line breaks (cell() would only trim them).
+        statements = [str(values[at]) if at is not None and at < len(values) and values[at] is not None else ""
+                      for at in filter_at]
+        source_key, target_key = (names(cell(position.get(header))) for header in KEY_HEADERS)
+        if source_key and target_key and source_key != target_key:
+            raise ValueError(f"{label}: source_key_columns and target_key_columns name different columns; columns are "
+                             f"paired by name, so both must name the same key")
+        source_exclude, target_exclude = (set(names(cell(position.get(header)))) for header in EXCLUDE_HEADERS)
+        found[table] = Row(table, location, *statements, label,
+                           *(cell(position.get(header)) for header in INCREMENTAL_HEADERS), target_table,
+                           TableRule(source_key or target_key or None, source_exclude, target_exclude,
+                                     set(names(cell(position.get(CASE_HEADER))))),
+                           cell(position.get(ACTIVE_HEADER)).lower() == "yes")
     log.info("Filter workbook %s: %d table(s) for %s", name, len(found), label_of)
     return found
 
@@ -501,32 +560,37 @@ def spelled(tables, rows) -> list:
     return [names.get(str(table).lower(), table) for table in tables]
 
 
-def filters(rows: dict, log=None) -> dict:
-    """{table: (source_where, target_where)} from the filter cells of rows (from read()). A table not in it is loaded in full.
+def _side(text, row, side):
+    """The condition one filter cell gives its own side (0 source, 1 target), or None. Raises ValueError (Refused) with the reason."""
+    if not text.strip() or text.strip().lower() == "compare full":
+        return None
+    where = row.location
+    statement = _count_statement(text, row.table)
+    statement_table = BASE_TABLE.match(statement)
+    allowed = {row.table.lower(), (row.target_table or row.table).lower()}
+    if not statement_table or statement_table.group(1).lower() not in allowed:
+        raise Refused(f"the {('source', 'target')[side]} filter is about "
+                      f"'{statement_table.group(1) if statement_table else '?'}', not '{row.table}'")
+    condition = convert(statement, where.source_type, where.source_schema, where.target_database, where.target_schema,
+                        where.source_database, where.target_type)[side]
+    return check_filter(condition, row.label, placeholders=bool(side))
 
-    Each side is written for its row's own location, so the Snowflake side keeps the {env} placeholder. A refused cell is
-    logged with its file and row, and that table is loaded in full.
-    """
+
+def filters(rows: dict, log=None) -> dict:
+    """{table: (source_where, target_where)} from each row's source and target filter cells; a table not in it is loaded in full.
+    A refused cell loads the table in full on both sides; a one-sided filter is a warning."""
     log = log or logging.getLogger(__name__)
     found = {}
     for table, row in rows.items():
-        if not row.statement.strip() or row.statement.strip().lower() == "compare full":
-            continue
-        where = row.location
         try:
-            statement = _count_statement(row.statement, table)
-            # The statement must be about the row's own table. A cell copied from another row would filter the wrong table.
-            statement_table = BASE_TABLE.match(statement)
-            if not statement_table or statement_table.group(1).lower() != table.lower():
-                raise Refused(f"the statement is about '{statement_table.group(1) if statement_table else '?'}', not '{table}'")
-            source_where, target_where = convert(statement, where.source_type, where.source_schema,
-                                                 where.target_database, where.target_schema, where.source_database,
-                                                 where.target_type)
-            check_filter(source_where, row.label)
-            check_filter(target_where, row.label, placeholders=True)
+            source_where = _side(row.source_statement, row, 0)
+            target_where = _side(row.target_statement, row, 1)
         except ValueError as exc:
             log.warning("Filter not applied, the table is loaded in full: %s: %s", row.label, exc)
             continue
+        if bool(source_where) != bool(target_where):
+            log.warning("%s: only the %s is filtered, so the two sides may hold different rows; fill the other filter cell "
+                        "unless that side holds only those rows", row.label, "source" if source_where else "target")
         if source_where or target_where:
             found[table] = (source_where, target_where)
     log.info("Filter files: %d table filter(s) read, from %d workbook row(s)", len(found), len(rows))

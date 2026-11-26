@@ -180,7 +180,7 @@ RULES = {
     },
     "athena": {
         "label": "Athena",
-        # Athena tables have no primary key. Name the key in the table rules file (key_columns).
+        # Athena tables have no primary key. Name the key in the master workbook row (key_columns).
         "has_primary_keys": False,
         "quote": ('"', '"'),
         "text_type": "VARCHAR",
@@ -277,6 +277,8 @@ RULES = {
 for _app in ("common", "corporation", "instances", "login"):
     RULES[f"newbook_{_app}"] = {**RULES["newbook"], "label": f"Newbook {_app.title()}"}
 
+# CHANGE: YAML generation (25/11/2026). Excluded columns (Fivetran, uts) are no longer here: each master row names them per side.
+
 # The engine keys a layer may use as its SOURCE (filter_files.LAYERS). A source can be Snowflake too: the newbook_* keys are
 # Snowflake sources (Fivetran-landed). A new Snowflake source gets its own key, a copy of the "newbook" block (fivetran_source,
 # catalogue_prefix), never "snowflake" itself: that block is the target's (no keys read, catalogue through the target database).
@@ -314,7 +316,7 @@ def kind_of(dtype, rules) -> str:
         return "integer"
     if t in rules.get("json_types", set()):
         return "json"
-    if t in rules["money_types"]:
+    if t in rules.get("money_types", set()):   # CHANGE: only SQL Server defines money_types
         return "money"
     return "other"
 

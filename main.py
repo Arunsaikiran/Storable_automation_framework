@@ -33,9 +33,23 @@ def main():
     # CHANGE: YAML generation. A table name is matched to the layer's filter workbook without regard to case (--tables addresses
     # becomes the workbook's Addresses), so the generator, every validator and the reports use the workbook's spelling. A name
     # not in the workbook is kept as typed, and the generation step reports it.
-    if layer[0] in BRONZE_LAYERS and "all" not in tables:
+    # CHANGE: YAML generation (25/11/2026). --tables all is the workbook rows with active = yes.
+    if layer[0] in BRONZE_LAYERS:
         from yaml_generation.generate_yaml import workbook_spelling
         tables = workbook_spelling(layer[0], run_type, tables)
+        if not tables:
+            logger.error("--tables all: no row has active = yes in the master workbook, so nothing was run")
+            sys.exit(1)
+
+    # CHANGE: YAML generation (23/11/2026). Shared YAML on S3 (utils/s3_yaml_store.py): newer YAML is downloaded into config/
+    # before any path is read. Only when creds/<environment>.yaml has an 's3:' block; without it the run is as before. If S3
+    # can't be read the run stops (exit 1), so nothing is validated from an old local copy.
+    from utils.s3_yaml_store import pull as s3_pull, push as s3_push
+    try:
+        s3_pull(BASE_DIR, environment, logger)
+    except Exception:
+        logger.error("S3 YAML storage: download failed, so nothing was validated", exc_info=True)
+        sys.exit(1)
 
     if run_type == "historical":
         config_path = os.path.join(base_config_path,"historical")
@@ -220,6 +234,14 @@ def main():
                 if not_there:
                     logger.warning("Data YAML not there, so not validated: %s", ", ".join(not_there))
                 configpaths["data_validation"] = [path for path in configpaths["data_validation"] if os.path.exists(path)]
+
+    # CHANGE: YAML generation. The YAML written or edited here is uploaded to S3 before the validators run, so the
+    # team gets it even if a validator crashes. An upload error does not stop validation, but the run exits 1.
+    try:
+        s3_push(BASE_DIR, environment, logger)
+    except Exception:
+        logger.error("S3 YAML storage: upload failed, the YAML is only local", exc_info=True)
+        system_error = True
 
     DataContext = data_context()
     ctx = DataContext(
