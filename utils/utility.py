@@ -728,6 +728,30 @@ def get_dates(base_dir,validation,table_name,layer,target_conn,target_table_name
 
     return max_updated,min_updated,max_fivetran_synced
 
+def get_max_sync_date(target_conn,target_table_name,control_table_path,layer,environment):
+    """Latest _fivetran_synced of the target table (used to record the sync date after a historical run).
+    Returns None when the target has no active rows. No freshness or previous-date checks."""
+    control_df = pd.read_excel(control_table_path, dtype=str, sheet_name="Sheet1")
+    filt_df = control_df[
+        (control_df['Target Table Name'].astype(str).str.strip().str.lower() == target_table_name.strip().lower())
+        & (control_df['layer'] == layer)
+    ]
+    if filt_df.empty:
+        return None
+    target_schema = filt_df['target_schema'].iloc[0].replace("{env}", environment)
+    target_database = filt_df['target_database'].iloc[0].replace("{env}", environment)
+    query = f"""
+    SELECT max(_fivetran_synced) as MAX_FIVETRAN_SYNCED
+    FROM {target_database}.{target_schema}.{target_table_name}
+    WHERE _FIVETRAN_ACTIVE = TRUE
+    """
+    logger.info("Target query: %s", query)
+    df = target_conn.execute_query(query)
+    max_ts = pd.Timestamp(df['MAX_FIVETRAN_SYNCED'].iloc[0])
+    if pd.isna(max_ts):
+        return None
+    return _format_ts(max_ts)
+
 def _format_ts(ts):
     return (ts.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3] + ' ' + ts.strftime('%z')).strip()
 

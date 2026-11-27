@@ -1,6 +1,6 @@
 import yaml
 from db.factory import get_database
-from utils.utility import get_logger, create_summary, get_incremental_dates, update_control_table
+from utils.utility import get_logger, create_summary, get_incremental_dates, update_control_table, get_max_sync_date
 from utils.exceptions import NoNewDataError, NoNewSyncError
 # CHANGE: YAML generation. Flattens the json_columns of a generated YAML (jsonb, json, hstore) before the comparison.
 from utils.json_normalize import flatten_columns
@@ -98,6 +98,12 @@ def validate_data(ctx):
                     source_obj = get_database(source,BASE_DIR,environment)
                     target_obj = get_database(target,BASE_DIR,environment)  
                     if run_type == "historical":
+                        # Capture the target sync watermark BEFORE the comparison so rows synced meanwhile are not marked validated
+                        try:
+                            sync_date = get_max_sync_date(target_obj,target_table_name,control_table_path,layer[0],environment)
+                        except Exception:
+                            logger.warning("Could not fetch sync date for table=%s; control table will not be updated",table_name,exc_info=True)
+                            sync_date = None
                         #source
                         logger.info("Executing source query for table %s", table_name)
                         logger.debug("Source query: %s", source_query)
