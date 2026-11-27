@@ -262,7 +262,7 @@ def comparability_problems(pairs, source_rules) -> list:
     """Reasons the compared columns cannot be used. An empty list means they can.
 
     Refused: two names that normalise to the same form, a normalised name that cannot be an alias,
-    and a type that cannot be compared as text on this source (for example SQL Server geography).
+    and a type that cannot be compared as text on this source (SQL Server timestamp, i.e. rowversion).
     A column on one side only is not read as a value, so its type does not matter.
     """
     problems = []
@@ -310,6 +310,10 @@ def value_expression(column_sql: str, data_type: str, rules: dict) -> str:
         return rules["trim"].format(c=column_sql)
     if kind == "money":
         return rules['money'].format(c=column_sql)
+    if kind == "array":
+        return rules["array_json"].format(c=column_sql)
+    if kind == "binary":
+        return rules["binary"].format(c=column_sql)
     if kind == "large_text":
         # A large-text column cannot go into TRIM() directly on SQL Server. Trim the cast value instead,
         # so the value is trimmed the same way as a normal text column on the other side.
@@ -379,11 +383,11 @@ def side_item(column, alias: str, data_type, rules: dict, missing_token: str, lo
 
 
 def flattened_columns(pairs, source_rules: dict) -> dict:
-    """alias -> source type, for the columns compared as flattened JSON (jsonb, json, hstore), on both sides.
+    """alias -> source type, for the columns compared as flattened JSON (jsonb, json, hstore, arrays), on both sides.
 
     The validator flattens them with utils/json_normalize.py, so keys and spacing do not decide the comparison.
     """
-    return {alias_for(n): s_type for s, s_type, t, _, n in pairs if s and t and kind_of(s_type, source_rules) == "json"}
+    return {alias_for(n): s_type for s, s_type, t, _, n in pairs if s and t and kind_of(s_type, source_rules) in ("json", "array")}
 
 
 def build_data_entry(spec: TableSpec, pairs, key_columns, filters: Filters, case_insensitive=()) -> dict:
@@ -716,9 +720,9 @@ if __name__ == "__main__":
     # Comparability: duplicates after normalising, and SQL Server types that cannot be compared as text.
     dup = reconcile([("Id", "int"), ("ID", "int")], [("ID", "NUMBER")], set(), set(), ms)
     assert dup.problems == ["'Id' and 'ID' both become 'id'"], dup.problems
-    geo = reconcile([("Shape", "geography")], [("SHAPE", "TEXT")], set(), set(), ms)
-    assert geo.problems == ["'Shape' is type geography, which cannot be compared as text on SQL Server"], geo.problems
-    assert reconcile([("Shape", "geography")], [("SHAPE", "TEXT")], set(), set(), pg).problems == []
+    geo = reconcile([("uTS", "timestamp")], [("UTS", "BINARY")], set(), set(), ms)
+    assert geo.problems == ["'uTS' is type timestamp, which cannot be compared as text on SQL Server"], geo.problems
+    assert reconcile([("uTS", "timestamp")], [("UTS", "BINARY")], set(), set(), pg).problems == []
 
     # Value rules, per database.
     assert value_expression("flags", "bit", pg) == "flags"                       # bit string in PostgreSQL

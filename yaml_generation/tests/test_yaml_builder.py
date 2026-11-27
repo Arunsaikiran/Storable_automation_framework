@@ -120,10 +120,10 @@ def test_two_source_names_that_normalise_alike_are_a_problem():
     assert rec.problems == ["'Id' and 'ID' both become 'id'"]
 
 
-def test_sql_server_geography_cannot_be_compared_as_text():
-    rec = yb.reconcile([("Shape", "geography")], [("SHAPE", "TEXT")], set(), set(), MS)
-    assert rec.problems == ["'Shape' is type geography, which cannot be compared as text on SQL Server"]
-    assert yb.reconcile([("Shape", "geography")], [("SHAPE", "TEXT")], set(), set(), PG).problems == []
+def test_sql_server_rowversion_cannot_be_compared_as_text():
+    rec = yb.reconcile([("uTS", "timestamp")], [("UTS", "BINARY")], set(), set(), MS)
+    assert rec.problems == ["'uTS' is type timestamp, which cannot be compared as text on SQL Server"]
+    assert yb.reconcile([("uTS", "timestamp")], [("UTS", "BINARY")], set(), set(), PG).problems == []
 
 
 @pytest.mark.xfail(strict=True, reason="ISSUE-04: a second target column with the same normalised name is dropped from the report")
@@ -485,3 +485,22 @@ def test_env_placeholder_is_kept_on_the_source_side_too_and_filled_for_the_run()
                                         target_template="{env}_NEWBOOK_AU_BRONZE"))
     assert (args.source_database_live, args.target_database) == ("PRD_NEWBOOK_AU_BRONZE", "PRD_NEWBOOK_AU_BRONZE")
     assert args.source_database == "{env}_NEWBOOK_AU_BRONZE"
+
+
+def test_a_postgres_array_is_written_as_json_and_flattened_like_json():
+    # Snowflake prints an ARRAY as ["a"]; PostgreSQL text[] prints {"a"}, so the source side goes through TO_JSON.
+    assert yb.normalized_item("tags", "tags", "character varying[]", PG) == \
+        'COALESCE(CAST(TO_JSON("tags") AS TEXT), \'<<NULL>>\') AS "tags"'
+    pairs = _pairs(("tags", "character varying[]", "TAGS", "ARRAY"), ("id", "integer", "ID", "NUMBER"))
+    assert yb.flattened_columns(pairs, PG) == {"tags": "character varying[]"}
+    assert yb.plain_text_columns(pairs, PG) == []
+
+
+def test_a_postgres_bytea_is_written_as_upper_case_hex_like_snowflake_binary():
+    assert yb.normalized_item("body", "body", "bytea", PG) == \
+        """COALESCE(CAST(UPPER(ENCODE("body", 'hex')) AS TEXT), '<<NULL>>') AS "body\""""
+    assert yb.plain_text_columns(_pairs(("body", "bytea", "BODY", "BINARY")), PG) == []
+
+
+def test_an_array_type_on_an_engine_without_the_rule_stays_plain_text():
+    assert yb.kind_of("int[]", MS) == "other"

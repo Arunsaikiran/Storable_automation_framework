@@ -330,10 +330,10 @@ def test_a_table_listed_twice_keeps_the_first_row_with_a_warning(tmp_path, caplo
     assert "row 3 (units): the table is listed twice" in caplog.text
 
 
-def test_a_refused_first_row_is_the_tables_row_so_the_table_is_loaded_in_full(tmp_path):
+def test_a_refused_first_row_is_the_tables_row_so_the_table_fails(tmp_path):
     """The first row is where the table lives, so its filter is the one used; a later row for the same table is not."""
     _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(["units", 'units\nwhere "id" > 1'], ["units", "units\nwhere id > 2"])})
-    assert "units" not in _filters(tmp_path, "incremental")
+    assert isinstance(_filters(tmp_path, "incremental")["units"], ValueError)
 
 
 # --- filters(): the run type picks the column, each side is written for the row's location ---------------------------
@@ -376,21 +376,21 @@ def test_a_bare_condition_cell_filters_its_own_table_without_a_join(tmp_path):
         "account_balance_items": ("created_at >= '2026-08-01'", "created_at >= '2026-08-01'")}
 
 
-def test_a_refused_row_loads_its_table_in_full_and_is_logged(folder, caplog):
+def test_a_refused_row_fails_its_table_and_is_logged(folder, caplog):
     with caplog.at_level(logging.WARNING):
         filters = _filters(folder, "incremental")
-    assert "bad" not in filters
-    assert "loaded in full" in caplog.text and "row 5 (bad)" in caplog.text
+    assert isinstance(filters["bad"], ValueError)
+    assert "so the table FAILS" in caplog.text and "row 5 (bad)" in caplog.text
 
 
-def test_a_filter_refused_by_check_filter_is_not_applied(folder, caplog):
+def test_a_filter_refused_by_check_filter_fails_its_table(folder, caplog):
     with caplog.at_level(logging.WARNING):
         filters = _filters(folder, "incremental")
-    assert "events" not in filters
-    assert "loaded in full" in caplog.text
+    assert isinstance(filters["events"], ValueError)
+    assert "so the table FAILS" in caplog.text
 
 
-def test_a_cell_about_another_table_is_refused_and_the_table_loaded_in_full(tmp_path, caplog):
+def test_a_cell_about_another_table_is_refused_and_the_table_fails(tmp_path, caplog):
     # A cell copied from another row would filter the wrong table. The row's table must be the one the statement reads.
     _workbook(tmp_path / "bronze_postgres_edge_master.xlsx", {"s": _rows(
         ["discount_plan_ledger_instances", "discount_plan_ledger_instances_line_items j\n"
@@ -398,7 +398,7 @@ def test_a_cell_about_another_table_is_refused_and_the_table_loaded_in_full(tmp_
                                            "where j.created_at >= '2026-08-01'"])})
     with caplog.at_level(logging.WARNING):
         filters = _filters(tmp_path, "incremental")
-    assert "discount_plan_ledger_instances" not in filters
+    assert isinstance(filters["discount_plan_ledger_instances"], ValueError)
     assert "is about 'discount_plan_ledger_instances_line_items', not 'discount_plan_ledger_instances'" in caplog.text
 
 
@@ -433,11 +433,11 @@ def test_the_target_cell_may_name_the_target_table(tmp_path):
     assert _filters(tmp_path, "historical") == {"units": ("id > 1", "id > 1")}
 
 
-def test_a_refused_target_cell_loads_the_table_in_full_on_both_sides(tmp_path, caplog):
+def test_a_refused_target_cell_fails_the_table(tmp_path, caplog):
     _sided(tmp_path, "units\nwhere id > 1", "units\nwhere a = 1 or b = 2")
     with caplog.at_level(logging.WARNING):
-        assert _filters(tmp_path, "historical") == {}
-    assert "loaded in full" in caplog.text
+        assert isinstance(_filters(tmp_path, "historical")["units"], ValueError)
+    assert "so the table FAILS" in caplog.text
 
 
 MS_ARGS = ("mssql", "dbo", "DEV_SITELINK_BRONZE", "SITELINK")
@@ -475,8 +475,8 @@ def test_sql_server_reads_only_its_own_workbook_and_compare_full_is_no_filter(tm
         ["Accounts", "Accounts t\nwhere t.active = 1"], location=SITELINK)})
     with caplog.at_level(logging.WARNING):
         filters = _filters(tmp_path, "incremental", source_type="mssql")
-    assert filters == {"Accounts": ("active = 1", "active = 1")}
-    assert "AcctTypes" not in filters and "loaded in full" in caplog.text
+    assert filters["Accounts"] == ("active = 1", "active = 1") and "Promotions" not in filters
+    assert isinstance(filters["AcctTypes"], ValueError) and "so the table FAILS" in caplog.text
 
 
 def test_quoted_identifiers_are_refused_as_the_docstring_says():
@@ -565,8 +565,8 @@ def test_the_shipped_workbooks_have_a_type_mapping_sheet():
     """Seeded from the old hand-written datatype_map. config/ is not in git, so the check is on the workbooks only."""
     postgres, _ = ff.schema_mapping("postgres", log=LOG)
     mssql, _ = ff.schema_mapping("mssql", log=LOG)
-    assert (len(postgres), postgres["user-defined"], postgres["timestamp without time zone"]) == (16, "variant", "timestamp_ntz")
-    assert (len(mssql), mssql["nvarchar"], mssql["bit"]) == (9, "text", "boolean")
+    assert (len(postgres), postgres["user-defined"], postgres["timestamp without time zone"], postgres["bytea"]) == (19, "variant", "timestamp_ntz", "binary")
+    assert (len(mssql), mssql["nvarchar"], mssql["bit"], mssql["uniqueidentifier"], mssql["char"]) == (14, "text", "boolean", "text", "text")
 
 
 @pytest.mark.parametrize("app, schema", [("common", "NB_DEV_AU_SQL01_NEWBOOK_COMMON"),

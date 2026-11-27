@@ -125,7 +125,7 @@ def generate(args, source_db, target_db, config_dir, table_rules, log, stamp, fi
     is FAILED, and the YAML it already has is left as it is; main.py does not validate it. A table with no usable key
     (no primary key, or a key column not on both sides) has its data FAILED and its count written. Only a table whose
     columns cannot be compared has nothing written.
-    file_filters        {table: (source_where, target_where)} from the filter workbook, or None when no filter file is used.
+    file_filters        {table: (source_where, target_where) or the refusal ValueError} from the workbook, or None.
                         The source cell's condition and the target cell's.
     create_only         True for a run without --yaml_generation: a YAML that is already there is left alone (PRESENT),
                         and only a missing one is written.
@@ -174,7 +174,11 @@ def generate(args, source_db, target_db, config_dir, table_rules, log, stamp, fi
     for table in args.tables:
         # CHANGE: YAML generation . A rules row matches its table without regard to case (Newbook names are upper case).
         rule = rules_by_name.get(table.lower(), filter_files.TableRule())
-        file_source, file_target = (file_filters or {}).get(table, (None, None))
+        file_entry = (file_filters or {}).get(table, (None, None))
+        if isinstance(file_entry, ValueError):   # CHANGE: YAML generation. A refused filter FAILS, no full load
+            results.append((table, "table", "FAILED", f"filter refused: {file_entry}; fix the filter cell (nothing was changed)"))
+            continue
+        file_source, file_target = file_entry
         filters = Filters(source_where=file_source, target_where=file_target,
                           target_active=FIVETRAN_FILTER if target_type == "snowflake" else None,
                           # CHANGE: YAML generation . A Fivetran source (Newbook) keeps only its active rows too.

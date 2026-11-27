@@ -596,7 +596,7 @@ var TREE = { n: "main.main()", at: "main.py:14", w: "one run, start to end",
         d: "With --filter_files no, the locations are still read from the workbook, but every table is compared in full.", k: [
         { n: "filter_files.filters()", at: "yaml_generation/filter_files.py:579", w: "two filter cells to two WHEREs",
           d: "For each requested row: an empty cell or 'compare full' means no filter on that side. Otherwise the source cell becomes the source WHERE and the target cell the target WHERE, each written for that row's own location. A filter on one side only is a warning.",
-          r: "{table: (source_where, target_where)}", f: "A cell it cannot read is logged with file and row, and that table is loaded in full", k: [
+          r: "{table: (source_where, target_where)}", f: "A cell it cannot read is logged with file and row, and that table FAILS (an empty or compare full cell loads it in full)", k: [
           { n: "_count_statement()", at: "yaml_generation/filter_files.py:390", w: "add 'select count(*) from'", d: "A cell holds 'units j join ... where ...'. The prefix is added so it reads as one statement." },
           { n: "BASE_TABLE check", at: "yaml_generation/filter_files.py:200", w: "the cell is about this table", when: true, d: "A cell whose FROM names another table is refused (the target cell may use the target name)." },
           { n: "convert()", at: "yaml_generation/filter_files.py:342", w: "joins to sub-selects",

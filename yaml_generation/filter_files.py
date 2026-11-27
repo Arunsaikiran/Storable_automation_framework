@@ -81,12 +81,12 @@ Shapes read
   - A condition uses one table. A bare column belongs to the first table. Joins chain (a table joined to a joined table).
   - A cell with only conditions, no table line and no join (e.g. created_at >= '2026-08-01'), is about the row's table.
 
-What is refused, and the table is then loaded in full (the log names the row)
+What is refused, and the table then FAILS (the log names the row; CHANGE 26/11/2026, it was loaded in full)
   OR, BETWEEN, left/right/outer joins, subqueries, group by, quoted identifiers, unbalanced quotes or brackets,
   a condition that uses two tables, and anything check_filter() refuses.
 
 A cell that says "compare full" is no filter. A bind parameter such as :scorpcode has no value here, so that statement is
-refused and its table is loaded in full.
+refused and its table FAILS.
 
 Self-check: python yaml_generation/filter_files.py
 """
@@ -577,8 +577,8 @@ def _side(text, row, side):
 
 
 def filters(rows: dict, log=None) -> dict:
-    """{table: (source_where, target_where)} from each row's source and target filter cells; a table not in it is loaded in full.
-    A refused cell loads the table in full on both sides; a one-sided filter is a warning."""
+    """{table: (source_where, target_where)} from each row's filter cells; a table not in it (empty cells) is loaded in full.
+    CHANGE: YAML generation. A refused cell maps the table to its Refused error, so the table FAILS."""
     log = log or logging.getLogger(__name__)
     found = {}
     for table, row in rows.items():
@@ -586,7 +586,8 @@ def filters(rows: dict, log=None) -> dict:
             source_where = _side(row.source_statement, row, 0)
             target_where = _side(row.target_statement, row, 1)
         except ValueError as exc:
-            log.warning("Filter not applied, the table is loaded in full: %s: %s", row.label, exc)
+            log.error("Filter refused, so the table FAILS: %s: %s", row.label, exc)
+            found[table] = exc
             continue
         if bool(source_where) != bool(target_where):
             log.warning("%s: only the %s is filtered, so the two sides may hold different rows; fill the other filter cell "
