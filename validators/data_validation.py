@@ -1,6 +1,6 @@
 import yaml
 from db.factory import get_database
-from utils.utility import get_logger, create_summary, get_incremental_dates, update_control_table
+from utils.utility import get_logger, create_summary, get_incremental_dates, update_control_table, get_max_sync_date
 from utils.exceptions import NoNewDataError, NoNewSyncError
 # CHANGE: YAML generation. Flattens the json_columns of a generated YAML (jsonb, json, hstore) before the comparison.
 from utils.json_normalize import flatten_columns
@@ -65,16 +65,14 @@ def validate_data(ctx):
                 target_query = validation_config.get("targetquery")
                 # CHANGE: YAML generation. schema_env is now passed for qat and prod too, as readme.md lists it (QAT, PRD). Before,
                 # a query with {schema_env} failed with KeyError on those two. local stays DEV, as before.
-                if environment == "dev":
-                    target_query = target_query.format(env = "DEV",schema_env= "DEV")
-                elif environment == "stg":
-                    target_query = target_query.format(env = "STG",schema_env= "STAGING")
-                elif environment == "qat":
-                    target_query = target_query.format(env = "QAT",schema_env= "QAT")
-                elif environment == "prod":
-                    target_query = target_query.format(env = "PRD",schema_env= "PRD")
-                else:
-                    target_query = target_query.format(env = "DEV",schema_env= "DEV")
+                ENV_MAP = {
+                    "dev":  ("DEV", "DEV"),
+                    "stg":  ("STG", "STAGING"),
+                    "qat":  ("QAT", "QAT"),
+                    "prod": ("PRD", "PRD"),
+                }
+                env_value, schema_env_value = ENV_MAP.get(environment, ("DEV", "DEV"))
+                target_query = target_query.format(env=env_value, schema_env=schema_env_value)
                 # CHANGE: YAML generation (16/11/2026). {env} on the source side too (e.g. {env}_NEWBOOK_AU_BRONZE), same values as the target.
                 source_query = source_query.replace("{env}", {"stg": "STG", "qat": "QAT", "prod": "PRD"}.get(environment, "DEV"))
 
@@ -100,6 +98,12 @@ def validate_data(ctx):
                     source_obj = get_database(source,BASE_DIR,environment)
                     target_obj = get_database(target,BASE_DIR,environment)  
                     if run_type == "historical":
+                        # Capture the target sync watermark BEFORE the comparison so rows synced meanwhile are not marked validated
+                        try:
+                            sync_date = get_max_sync_date(target_obj,target_table_name,control_table_path,layer[0],environment)
+                        except Exception:
+                            logger.warning("Could not fetch sync date for table=%s; control table will not be updated",table_name,exc_info=True)
+                            sync_date = None
                         #source
                         logger.info("Executing source query for table %s", table_name)
                         logger.debug("Source query: %s", source_query)
