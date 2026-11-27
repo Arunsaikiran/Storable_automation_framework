@@ -53,12 +53,12 @@ def test_pg_02_filter_no_writes_the_whole_table(postgres_filter_files):
     assert "Filter files:" not in world.log()
 
 
-def test_pg_03_a_refused_filter_loads_its_table_in_full_with_a_warning(postgres_filter_files):
-    """Q: With --filter_files yes, does a filter that the reader refuses ('or') load its table in full, with a warning, and the run goes on?"""
+def test_pg_03_a_refused_filter_fails_its_table(postgres_filter_files):
+    """Q: With --filter_files yes, does a filter the reader refuses ('or') FAIL its table, with no YAML written?"""
     world = postgres_filter_files
-    assert pg_run(world, "notes", yaml="yes", filters="yes") == 0
-    assert "body = 'a'" not in read(world.yaml("historical", "bronze_postgres_edge", "notes"))
-    assert "loaded in full" in world.log() and "row 3 (notes)" in world.log()
+    assert pg_run(world, "notes", yaml="yes", filters="yes") != 0
+    assert not world.exists("historical", "bronze_postgres_edge", "notes")
+    assert "so the table FAILS" in world.log() and "row 3 (notes)" in world.log()
 
 
 def test_pg_04_incremental_run_has_the_window_and_the_incremental_filter(postgres_filter_files):
@@ -136,7 +136,7 @@ def test_pg_12_tables_all_takes_the_names_from_the_postgres_workbook(postgres_fi
     world = postgres_filter_files
     pg_run(world, "all", yaml="yes", count="no", data="no", filters="yes")
     assert world.exists("historical", "bronze_postgres_edge", "units")
-    assert world.exists("historical", "bronze_postgres_edge", "notes")
+    assert "filter refused" in world.log()   # notes is in the workbook, but its filter is refused
     assert not world.exists("historical", "bronze_postgres_edge", "extra")
 
 
@@ -219,13 +219,12 @@ def test_ms_01_filter_yes_applies_a_plain_sitelink_filter(sitelink_filter_files)
     assert "(UnitID > 100)" in read(world.yaml("historical", "bronze_mssql_sitelink", "Units"))
 
 
-def test_ms_02_a_bind_parameter_filter_loads_its_table_in_full(sitelink_filter_files):
-    """Q: With --filter_files yes, does Addresses (filter uses :scorpcode, no value) load in full with a warning, and still generate?"""
+def test_ms_02_a_bind_parameter_filter_fails_its_table(sitelink_filter_files):
+    """Q: With --filter_files yes, does Addresses (filter uses :scorpcode, no value) FAIL, with no YAML written?"""
     world = sitelink_filter_files
-    assert ms_run(world, "Addresses", yaml="yes", filters="yes") == 0
-    text = read(world.yaml("historical", "bronze_mssql_sitelink", "Addresses"))
-    assert "scorpcode" not in text
-    assert "a bind parameter" in world.log() and "loaded in full" in world.log()
+    assert ms_run(world, "Addresses", yaml="yes", filters="yes") != 0
+    assert not world.exists("historical", "bronze_mssql_sitelink", "Addresses")
+    assert "a bind parameter" in world.log() and "so the table FAILS" in world.log()
 
 
 def test_ms_03_filter_no_writes_the_whole_table(sitelink_filter_files):

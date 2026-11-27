@@ -19,12 +19,22 @@ class Postgres(Database):
                 user=self.user,
                 password=self.password,
                 host=self.host,
-                port=self.port
+                port=self.port,
+                # CHANGE: YAML generation. TCP keepalive, so a network device doesn't cut a long query.
+                keepalives=1,
+                keepalives_idle=60
             )
         return self._conn
 
     def execute_query(self, query):
+        # CHANGE: YAML generation. A dropped connection (OperationalError) is retried once on a new one.
+        try:
+            return self._run(query)
+        except psycopg2.OperationalError:
+            self.close()
+            return self._run(query)
 
+    def _run(self, query):
         conn = self.connect()
         cur = None
         try:
@@ -34,7 +44,8 @@ class Postgres(Database):
             columns = [desc[0] for desc in cur.description] # type: ignore
             return pd.DataFrame(data, columns=columns)
         except Exception:
-            conn.rollback()
+            if not conn.closed:   # a rollback on a dead connection would hide the real error
+                conn.rollback()
             raise
         finally:
             if cur is not None:

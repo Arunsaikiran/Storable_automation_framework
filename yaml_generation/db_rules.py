@@ -55,8 +55,10 @@ RULES = {
         "text_types": {"character varying", "character", "text"},
         "large_text_types": set(),
         "integer_types": {"integer", "bigint", "smallint"},
-        # Compared as flattened JSON text (utils/json_normalize.py): keys and spacing differ between the two databases.
         "json_types": {"jsonb", "json", "hstore"},
+        "array_json": "TO_JSON({c})",
+        "binary_types": {"bytea"},
+        "binary": "UPPER(ENCODE({c}, 'hex'))",   # Snowflake prints BINARY as upper-case hex
         "refused_types": set(),
         "schema_query": (
             "SELECT\n"
@@ -86,7 +88,7 @@ RULES = {
         "large_text_types": {"text", "ntext"},
         "integer_types": {"int", "bigint", "smallint", "tinyint"},
         # rowversion is reported as "timestamp": a binary counter with no match in Snowflake.
-        "refused_types": {"geography", "geometry", "image", "timestamp"},
+        "refused_types": {"timestamp"},
         "money_types": {"money"},
         "money": "CAST({c} AS DECIMAL(38,4))",
         "schema_query": (
@@ -296,7 +298,7 @@ def normalize_type(dtype) -> str:
 
 
 def kind_of(dtype, rules) -> str:
-    """One of: boolean, timestamp, date, text, large_text, integer, json, other.
+    """One of: boolean, timestamp, date, text, large_text, integer, json, array, money, binary, other.
 
     'json' columns are cast to text as they are, and the validator flattens them (json_columns in the YAML).
     'other' columns have no format rule. They are cast to text as they are, and the header warns about them.
@@ -316,8 +318,12 @@ def kind_of(dtype, rules) -> str:
         return "integer"
     if t in rules.get("json_types", set()):
         return "json"
+    if t.endswith("[]") and "array_json" in rules:   # an array, written as JSON and flattened like json
+        return "array"
     if t in rules.get("money_types", set()):   # CHANGE: only SQL Server defines money_types
         return "money"
+    if t in rules.get("binary_types", set()):   # only PostgreSQL defines binary_types
+        return "binary"
     return "other"
 
 
