@@ -625,7 +625,7 @@ def data_context():
         masterfilepath: dict = field(default_factory=dict)
     return DataContext
 
-def check_freshness(source_conn,target_conn,source_table_name,target_table_name,control_table_path,layer_type,environment,threshold:int=50):
+def check_freshness(source_conn,target_conn,source_table_name,target_table_name,control_table_path,layer_type,environment,threshold:int=2):
     freshness_check = 'Fail'
     control_df = pd.read_excel(control_table_path, dtype=str)
     # CHANGE: YAML generation (17/11/2026). Layer names renamed (bronze_postgres_edge, bronze_mssql_sitelink); the queries are unchanged.
